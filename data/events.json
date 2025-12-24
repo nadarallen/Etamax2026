@@ -1,0 +1,107 @@
+[
+  {
+    "id": "coding-clash",
+    "name": "Coding Clash",
+    "type": "solo",
+    "maxMembers": 1,
+    "price": 100,
+    "prizePool": "₹5000",
+    "description": "A high-intensity competitive coding battle where logic meets speed. Solve algorithmic challenges to claim the title of Code Warrior.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "10:00 AM - 01:00 PM",
+      "venue": "Lab 301"
+    }
+  },
+  {
+    "id": "robo-race",
+    "name": "Robo Race",
+    "type": "group",
+    "maxMembers": 4,
+    "price": 300,
+    "prizePool": "₹10000",
+    "description": "Design and pilot your robot through an obstacle-filled course. Speed and precision are key in this mechanical showdown.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "02:00 PM - 05:00 PM",
+      "venue": "Quadrangle"
+    }
+  },
+  {
+    "id": "design-duo",
+    "name": "Design Duo",
+    "type": "duo",
+    "maxMembers": 2,
+    "price": 150,
+    "prizePool": "₹3000",
+    "description": "Pair up to create stunning UI/UX designs based on a surprise theme. Creativity and teamwork will be tested.",
+    "schedule": {
+      "dayNumber": 2,
+      "category": "Technical",
+      "timing": "11:00 AM - 02:00 PM",
+      "venue": "Drawing Hall"
+    }
+  },
+  {
+    "id": "dance-off",
+    "name": "Galactic Groove",
+    "type": "group",
+    "maxMembers": 10,
+    "price": 500,
+    "prizePool": "₹15000",
+    "description": "Showcase your moves in this group dance competition. Styles from hip-hop to classical are welcome.",
+    "schedule": {
+      "dayNumber": 2,
+      "category": "Cultural",
+      "timing": "04:00 PM - 07:00 PM",
+      "venue": "Auditorium"
+    }
+  },
+  {
+    "id": "tech-talk",
+    "name": "Future AI Seminar",
+    "type": "solo",
+    "maxMembers": 1,
+    "price": 50,
+    "prizePool": "Certificates",
+    "description": "An enlightening seminar on the future of Artificial Intelligence by industry experts.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Seminar",
+      "timing": "10:00 AM - 12:00 PM",
+      "venue": "Seminar Hall"
+    }
+  },
+  {
+    "id": "cs-go-lan",
+    "name": "CS:GO LAN Battle",
+    "type": "group",
+    "maxMembers": 5,
+    "price": 400,
+    "prizePool": "₹8000",
+    "description": "5v5 tactical shooter tournament. Bring your squad and dominate the server.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Technical",
+      "timing": "12:00 PM - 06:00 PM",
+      "venue": "Gaming Zone"
+    }
+  },
+  {
+    "id": "singing-solo",
+    "name": "Cosmic Voice",
+    "type": "solo",
+    "maxMembers": 1,
+    "price": 100,
+    "prizePool": "₹2000",
+    "description": "Solo singing competition. Let your voice echo through the galaxy.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Cultural",
+      "timing": "01:00 PM - 03:00 PM",
+      "venue": "Auditorium"
+    }
+  }
+]
