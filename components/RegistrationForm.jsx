@@ -37,7 +37,7 @@ export default function RegistrationForm({ event, onSubmit }) {
             {event.type !== 'solo' && (
                 <div className="mb-6">
                     <label className="block text-sm text-gray-400 mb-1">Team Name</label>
-                    <input required type="text" name="teamName" className="input-field" onChange={handleChange} />
+                    <input required type="text" name="teamName" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
             )}
 
@@ -47,23 +47,23 @@ export default function RegistrationForm({ event, onSubmit }) {
                     <label className="block text-sm text-gray-400 mb-1">
                         {event.type === 'solo' ? 'Full Name' : 'Team Leader Name'}
                     </label>
-                    <input required type="text" name="name" className="input-field" onChange={handleChange} />
+                    <input required type="text" name="name" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
                 <div>
                     <label className="block text-sm text-gray-400 mb-1">Roll No</label>
-                    <input required type="text" name="rollNo" className="input-field" onChange={handleChange} />
+                    <input required type="text" name="rollNo" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
                 <div>
                     <label className="block text-sm text-gray-400 mb-1">Branch</label>
-                    <input required type="text" name="branch" className="input-field" onChange={handleChange} />
+                    <input required type="text" name="branch" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
                 <div>
                     <label className="block text-sm text-gray-400 mb-1">Email</label>
-                    <input required type="email" name="email" className="input-field" onChange={handleChange} />
+                    <input required type="email" name="email" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
                 <div>
                     <label className="block text-sm text-gray-400 mb-1">Phone</label>
-                    <input required type="tel" name="phone" className="input-field" onChange={handleChange} />
+                    <input required type="tel" name="phone" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={handleChange} />
                 </div>
             </div>
 
@@ -92,15 +92,15 @@ export default function RegistrationForm({ event, onSubmit }) {
                         <div key={i} className="p-4 bg-white/5 rounded-lg border border-white/10">
                             <h5 className="text-sm font-semibold text-galaxy-accent mb-3">Member {i + 2}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <input placeholder="Name" className="input-field" onChange={(e) => handleMemberChange(i, 'name', e.target.value)} required />
-                                <input placeholder="Roll No" className="input-field" onChange={(e) => handleMemberChange(i, 'rollNo', e.target.value)} required />
+                                <input placeholder="Name" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={(e) => handleMemberChange(i, 'name', e.target.value)} required />
+                                <input placeholder="Roll No" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-galaxy-purple transition-colors" onChange={(e) => handleMemberChange(i, 'rollNo', e.target.value)} required />
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            <button type="submit" className="w-full btn-primary py-3 text-lg mt-8">
+            <button type="submit" className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-galaxy-purple/20 transition-all duration-300 active:scale-95 text-lg mt-8 uppercase tracking-widest">
                 Pay Now
             </button>
         </form>

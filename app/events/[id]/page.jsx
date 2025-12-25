@@ -50,15 +50,16 @@ export default function EventDetail() {
                     </div>
                 </div>
 
-                <div className="prose prose-invert max-w-none mb-12">
-                    <h3 className="text-2xl font-bold text-white mb-4">Description</h3>
-                    <p className="text-gray-300 leading-relaxed text-lg">{event.description}</p>
+                <div className="mb-32 md:mb-12">
+                    <h3 className="text-xl font-bold text-white mb-4 border-l-4 border-galaxy-purple pl-4 uppercase tracking-wider">Description</h3>
+                    <p className="text-gray-300 leading-loose text-lg font-light tracking-wide">{event.description}</p>
                 </div>
 
-                <div className="fixed bottom-0 left-0 w-full p-4 bg-galaxy-dark/80 backdrop-blur-md border-t border-white/10 md:relative md:bg-transparent md:border-t-0 md:p-0">
+                <div className="fixed bottom-0 left-0 w-full p-4 bg-galaxy-dark/90 backdrop-blur-xl border-t border-white/10 z-50 md:sticky md:bottom-8 md:rounded-2xl md:bg-white/10 md:backdrop-blur-md md:border-0 md:p-6 md:mt-8">
                     <Link href={`/register/${event.id}`}>
-                        <button className="w-full btn-primary py-4 text-xl shadow-galaxy-purple/50 shadow-lg">
-                            Proceed Included
+                        <button className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl text-lg shadow-lg shadow-galaxy-purple/20 transition-all duration-300 active:scale-95 flex justify-center items-center gap-2 group">
+                            <span>Proceed to Register</span>
+                            <ArrowLeft className="rotate-180 group-hover:translate-x-1 transition-transform" size={20} />
                         </button>
                     </Link>
                 </div>

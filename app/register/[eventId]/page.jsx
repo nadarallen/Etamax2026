@@ -73,13 +73,13 @@ export default function RegisterPage() {
             </h1>
 
             {step === 'form' && (
-                <div className="relative">
+                <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 md:p-10 shadow-2xl">
                     <RegistrationForm event={event} onSubmit={handleFormSubmit} />
 
                     {/* Payment Modal Overlay */}
                     {showPaymentModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                            <div className="bg-galaxy-dark border border-white/10 rounded-2xl w-full max-w-md p-6">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                            <div className="bg-black border border-white/20 rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-300 relative z-50">
                                 <h3 className="text-xl font-bold text-white mb-4 text-center">Choose Payment Mode</h3>
                                 <p className="text-gray-400 text-center mb-6">Amount to Pay: ₹{event.price}</p>
 
@@ -93,7 +93,7 @@ export default function RegisterPage() {
 
                                     <button
                                         onClick={handleOfflinePayment}
-                                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-all"
+                                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-all border border-white/5"
                                     >
                                         Pay Offline (Generate Receipt)
                                     </button>

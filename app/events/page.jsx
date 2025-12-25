@@ -4,14 +4,12 @@ import eventsData from '@/data/events.json';
 import EventCard from '@/components/EventCard';
 import TabsDay from '@/components/TabsDay';
 import TabsCategory from '@/components/TabsCategory';
-import FilterModal from '@/components/FilterModal';
-import { Filter } from 'lucide-react';
+
 
 export default function EventsPage() {
     const [activeDay, setActiveDay] = useState(1);
     const [activeCategory, setActiveCategory] = useState('Technical');
     const [activeFilter, setActiveFilter] = useState(null); // null, 'solo', 'duo', 'group'
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [filteredEvents, setFilteredEvents] = useState([]);
 
     useEffect(() => {
@@ -28,25 +26,43 @@ export default function EventsPage() {
     }, [activeDay, activeCategory, activeFilter]);
 
     return (
-        <div className="min-h-screen pt-20 pb-10 px-4 md:px-8 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-10">
-                <h1 className="text-4xl font-display font-bold text-white tracking-widest">
-                    EVENTS
-                </h1>
-                <button
-                    onClick={() => setIsFilterOpen(true)}
-                    className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all"
-                >
-                    <Filter size={20} />
-                    <span>Filter</span>
-                </button>
+        <div className="min-h-screen pt-24 pb-20 px-4 md:px-8 max-w-6xl mx-auto space-y-12">
+            <div className="flex flex-col space-y-8">
+                <div className="flex justify-between items-end">
+                    <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter">
+                        EVENTS
+                    </h1>
+                </div>
+
+                {/* Event Type Filter Pills */}
+                <div className="flex flex-wrap gap-3">
+                    {[
+                        { label: 'All', value: null },
+                        { label: 'Solo', value: 'solo' },
+                        { label: 'Duo', value: 'duo' },
+                        { label: 'Group', value: 'group' }
+                    ].map((type) => (
+                        <button
+                            key={type.label}
+                            onClick={() => setActiveFilter(type.value)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-300 ${activeFilter === type.value
+                                ? 'bg-galaxy-purple border-galaxy-purple text-white shadow-[0_0_15px_rgba(139,92,246,0.5)]'
+                                : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
+                                }`}
+                        >
+                            {type.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="space-y-8">
+                    <TabsDay activeDay={activeDay} onChange={setActiveDay} />
+                    <TabsCategory activeCategory={activeCategory} onChange={setActiveCategory} />
+                </div>
             </div>
 
-            <TabsDay activeDay={activeDay} onChange={setActiveDay} />
-            <TabsCategory activeCategory={activeCategory} onChange={setActiveCategory} />
-
             {filteredEvents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     {filteredEvents.map(event => (
                         <EventCard key={event.id} event={event} />
                     ))}
@@ -57,12 +73,7 @@ export default function EventsPage() {
                 </div>
             )}
 
-            <FilterModal
-                isOpen={isFilterOpen}
-                onClose={() => setIsFilterOpen(false)}
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-            />
+
         </div>
     );
 }
