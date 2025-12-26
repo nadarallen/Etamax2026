@@ -108,6 +108,17 @@ export default async function AdminDashboard() {
                     </div>
 
                     <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                        <h3 className="font-bold text-white mb-4">Quick Actions</h3>
+                        <div className="space-y-2">
+                            <Link href="/admin/approvals" className="block w-full text-left p-3 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-sm transition flex items-center justify-between group">
+                                Verify Offline Payments <span className="opacity-0 group-hover:opacity-100 transition">→</span>
+                            </Link>
+                            <Link href="/admin/users" className="block w-full text-left p-3 rounded-lg bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 text-sm transition flex items-center justify-between group">
+                                Manage Users <span className="opacity-0 group-hover:opacity-100 transition">→</span>
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                         <h3 className="font-bold text-white mb-4">Reports & Exports</h3>
                         <div className="space-y-2">
                             <button className="w-full text-left p-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition flex items-center justify-between group">

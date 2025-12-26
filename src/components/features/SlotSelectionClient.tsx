@@ -23,10 +23,14 @@ export function SlotSelectionClient({ slots, eventId, eventType }: { slots: Slot
     // Separate Handler for Team creation (Non-Payment)
     const handleTeamCreation = async () => {
         if (!selectedSlotId) return;
+
+        const teamName = prompt("Enter a cool name for your team:");
+        if (!teamName) return; // Cancelled
+
         setIsPending(true);
 
         try {
-            const result = await createPartyAction(eventId, selectedSlotId);
+            const result = await createPartyAction(eventId, selectedSlotId, teamName);
             if (result.success) {
                 router.push(`/student/party/${result.partyId}`);
             } else {

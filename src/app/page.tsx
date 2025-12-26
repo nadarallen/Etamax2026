@@ -1,62 +1,59 @@
-import Link from "next/link";
+import Link from 'next/link';
+import { Rocket, Shield, Users } from 'lucide-react';
+import { getSession, Role } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-export default function Home() {
+export default async function Home() {
+  // Smart Routing: Redirect if logged in
+  const session = await getSession();
+  if (session) {
+    if (session.role === Role.SUPER_ADMIN) redirect('/admin');
+    if (session.role === Role.CLUB_ADMIN) redirect('/club');
+    if (session.role === Role.STUDENT) redirect('/student');
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-indigo-900 to-purple-900 text-white p-4">
-      <div className="z-10 max-w-5xl w-full items-center justify-between text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-white/20 bg-black/20 backdrop-blur-md pb-6 pt-8 lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200/10 lg:p-4 font-mono">
-          Etamax 2025
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-4 text-white">
+      <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 absolute inset-0 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 max-w-2xl text-center space-y-8">
+        <div className="inline-flex items-center justify-center p-4 bg-white/5 rounded-full ring-1 ring-white/10 mb-4 animate-pulse">
+          <Rocket className="w-8 h-8 text-blue-400 mr-2" />
+          <span className="text-xl font-bold tracking-widest text-blue-200">ETAMAX 2025</span>
+        </div>
+
+        <h1 className="text-6xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
+          THE FUTURE<br />IS HERE
+        </h1>
+
+        <p className="text-xl text-gray-400 max-w-lg mx-auto leading-relaxed">
+          Experience the ultimate college fest platform. Register for events, create teams, and compete for glory.
         </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-black via-black/50 lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <Link href="/login" className="px-6 py-2 bg-yellow-400 text-black font-bold rounded-full hover:bg-yellow-300 transition">
-            Login / Sign Up
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
+          <Link href="/login" className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition border border-gray-700 flex items-center justify-center gap-2">
+            <Shield className="w-5 h-5 text-gray-400" /> Administrative Login
+          </Link>
+          <Link href="/register" className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2">
+            <Users className="w-5 h-5" /> Student Registration
           </Link>
         </div>
-      </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-to-br before:from-transparent before:to-blue-700 before:opacity-10 before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-to-t after:from-sky-900 after:via-[#0141ff] after:opacity-40 after:blur-2xl after:content-[''] z-[-1]">
-        <h1 className="text-6xl font-extrabold tracking-tight sm:text-8xl text-center">
-          ETAMAX
-        </h1>
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-3 lg:text-left mt-20 gap-8">
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100/10 hover:backdrop-blur-sm">
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Events{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Solo & Team events. Hackathons, Music, and more.
-          </p>
-        </div>
-
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100/10 hover:backdrop-blur-sm">
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Parties{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Create your squad. Join via code. Pay individually.
-          </p>
-        </div>
-
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100/10 hover:backdrop-blur-sm">
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Live Slots{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Real-time slot blocking. Don't miss out.
-          </p>
+        <div className="pt-12 grid grid-cols-3 gap-8 text-center border-t border-gray-800">
+          <div>
+            <p className="text-3xl font-bold text-white">50+</p>
+            <p className="text-xs uppercase tracking-widest text-gray-500 mt-1">Events</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-white">2K+</p>
+            <p className="text-xs uppercase tracking-widest text-gray-500 mt-1">Students</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-white">₹1L</p>
+            <p className="text-xs uppercase tracking-widest text-gray-500 mt-1">Prizes</p>
+          </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

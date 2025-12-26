@@ -59,21 +59,7 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-300">
-                            Role
-                        </label>
-                        <select
-                            name="role"
-                            className="w-full rounded-lg border border-gray-600 bg-gray-700/50 p-3 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                            {ROLES.map((role) => (
-                                <option key={role.value} value={role.value}>
-                                    {role.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    {/* Role Selector Removed for Public Registration */}
 
                     <div>
                         <label className="mb-2 block text-sm font-medium text-gray-300">
