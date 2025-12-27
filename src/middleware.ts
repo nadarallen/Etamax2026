@@ -49,38 +49,31 @@ export async function middleware(req: NextRequest) {
         return NextResponse.next();
     }
 
-    // 2. Auth Check
-    const accessToken = req.cookies.get('session')?.value;
-    // Note: If access token missing, we could try refresh token logic here or let client handle it. 
-    // For simplicity strictly in middleware, we redirect to login if no access token.
-    // A robust implementation would call an API to refresh.
+    // 2. Auth Check - TEMPORARILY DISABLED FOR MERGE (Frontend has no Login)
+    // const accessToken = req.cookies.get('session')?.value;
+    // if (!accessToken) {
+    //     return NextResponse.redirect(new URL('/login', req.url));
+    // }
 
-    if (!accessToken) {
-        return NextResponse.redirect(new URL('/login', req.url));
-    }
+    // const payload = await verifyToken(accessToken);
+    // if (!payload) {
+    //     return NextResponse.redirect(new URL('/login', req.url));
+    // }
 
-    const payload = await verifyToken(accessToken);
-    if (!payload) {
-        // Startup: Cookie invalid
-        return NextResponse.redirect(new URL('/login', req.url));
-    }
+    // const userRole = payload.role as Role;
 
-    const userRole = payload.role as Role;
+    // // 3. Role Based Access Control
+    // if (path.startsWith('/admin') && userRole !== Role.SUPER_ADMIN) {
+    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
+    // }
 
-    // 3. Role Based Access Control
-    if (path.startsWith('/admin') && userRole !== Role.SUPER_ADMIN) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
-    }
+    // if (path.startsWith('/club') && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
+    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
+    // }
 
-    if (path.startsWith('/club') && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
-    }
-
-    if (path.startsWith('/student') && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
-        // Actually students are the base, usually everyone can access student routes? 
-        // Strict separation per prompt 2.
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
-    }
+    // if (path.startsWith('/student') && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
+    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
+    // }
 
     return NextResponse.next();
 }

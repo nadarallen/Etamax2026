@@ -1,0 +1,242 @@
+[
+  {
+    "id": "coding-clash",
+    "name": "Coding Clash",
+    "type": "solo",
+    "club": "Coding Club",
+    "maxMembers": 1,
+    "price": 100,
+    "prizePool": "₹5000",
+    "description": "A high-intensity competitive coding battle where logic meets speed.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "10:00 AM - 01:00 PM",
+      "venue": "Lab 301"
+    }
+  },
+  {
+    "id": "robo-race",
+    "name": "Robo Race",
+    "type": "group",
+    "club": "Robotics Club",
+    "maxMembers": 4,
+    "price": 300,
+    "prizePool": "₹10000",
+    "description": "Design and pilot your robot through an obstacle-filled course.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "02:00 PM - 05:00 PM",
+      "venue": "Quadrangle"
+    }
+  },
+  {
+    "id": "hack-the-galaxy",
+    "name": "Hack the Galaxy",
+    "type": "group",
+    "club": "Coding Club",
+    "maxMembers": 4,
+    "price": 500,
+    "prizePool": "₹25000",
+    "description": "48-hour hackathon to build futuristic solutions.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "09:00 AM - 09:00 PM",
+      "venue": "Innovation Lab"
+    }
+  },
+  {
+    "id": "cipher-trail",
+    "name": "Cipher Trail",
+    "type": "duo",
+    "club": "Agnel Cyber Cell",
+    "maxMembers": 2,
+    "price": 100,
+    "prizePool": "₹500",
+    "description": "Cryptography-based puzzle hunt.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Technical",
+      "timing": "10:00 AM - 12:00 PM",
+      "venue": "AX 307"
+    }
+  },
+  {
+    "id": "poster-design",
+    "name": "Cosmic Poster Design",
+    "type": "solo",
+    "club": "Creative Cell",
+    "maxMembers": 1,
+    "price": 50,
+    "prizePool": "₹1500",
+    "description": "Design a space-themed poster.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Cultural",
+      "timing": "01:00 PM - 03:00 PM",
+      "venue": "Design Studio"
+    }
+  },
+  {
+    "id": "escape-room",
+    "name": "Escape Room",
+    "type": "group",
+    "club": "Student Council",
+    "maxMembers": 4,
+    "price": 480,
+    "prizePool": "₹3000",
+    "description": "Solve puzzles to escape the room in time.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Cultural",
+      "timing": "09:00 AM - 05:00 PM",
+      "venue": "Main Building"
+    }
+  },
+  {
+    "id": "Clean water ",
+    "name": "Clean water",
+    "type": "solo",
+    "club": "Student Council",
+    "maxMembers": 1,
+    "price": 0,
+    "prizePool": "Certificates",
+    "description": "Awareness about clean water.",
+    "schedule": {
+      "dayNumber": 1,
+      "category": "Seminar",
+      "timing": "02:00 PM - 04:00 PM",
+      "venue": "Main Building"
+    }
+  },
+  {
+    "id": "Go Green seminar",
+    "name": "Go Green seminar",
+    "type": "solo",
+    "club": "Student Council",
+    "maxMembers": 1,
+    "price": 0,
+    "prizePool": "Certificates",
+    "description": "Awareness about environment.",
+    "schedule": {
+      "dayNumber":2,
+      "category": "Seminar",
+      "timing": "02:00 PM - 04:00 PM",
+      "venue": "Main Building"
+    }
+  },
+    {
+    "id": "Clean water seminar",
+    "name": "Clean water seminar",
+    "type": "solo",
+    "club": "Student Council",
+    "maxMembers": 1,
+    "price": 0,
+    "prizePool": "Certificates",
+    "description": "Awareness about clean water.",
+    "schedule": {
+      "dayNumber":3,
+      "category": "Seminar",
+      "timing": "02:00 PM - 04:00 PM",
+      "venue": "Main Building"
+    }
+  },
+  {
+    "id": "design-duo",
+    "name": "Design Duo",
+    "type": "duo",
+    "club": "Creative Cell",
+    "maxMembers": 2,
+    "price": 150,
+    "prizePool": "₹3000",
+    "description": "UI/UX design challenge for pairs.",
+    "schedule": {
+      "dayNumber": 2,
+      "category": "Technical",
+      "timing": "11:00 AM - 02:00 PM",
+      "venue": "Drawing Hall"
+    }
+  },
+  {
+    "id": "paper-presentation",
+    "name": "Research Paper Presentation",
+    "type": "duo",
+    "club": "IEEE Student Chapter",
+    "maxMembers": 2,
+    "price": 200,
+    "prizePool": "₹4000",
+    "description": "Present research ideas to experts.",
+    "schedule": {
+      "dayNumber": 2,
+      "category": "Technical",
+      "timing": "10:00 AM - 01:00 PM",
+      "venue": "Conference Hall"
+    }
+  },
+  {
+    "id": "galactic-groove",
+    "name": "Galactic Groove",
+    "type": "group",
+    "club": "Dance Crew",
+    "maxMembers": 10,
+    "price": 500,
+    "prizePool": "₹15000",
+    "description": "Group dance competition.",
+    "schedule": {
+      "dayNumber": 2,
+      "category": "Cultural",
+      "timing": "04:00 PM - 07:00 PM",
+      "venue": "Auditorium"
+    }
+  },
+  {
+    "id": "future-ai",
+    "name": "Future of AI Seminar",
+    "type": "solo",
+    "club": "AI/ML Club",
+    "maxMembers": 1,
+    "price": 50,
+    "prizePool": "Certificates",
+    "description": "Talk on the future of Artificial Intelligence.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Seminar",
+      "timing": "10:00 AM - 12:00 PM",
+      "venue": "Seminar Hall"
+    }
+  },
+  {
+    "id": "mock-interview",
+    "name": "Mock Interview Drive",
+    "type": "solo",
+    "club": "Placement Cell",
+    "maxMembers": 1,
+    "price": 100,
+    "prizePool": "Certificates",
+    "description": "Practice interviews with experts.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Seminar",
+      "timing": "11:30 AM - 03:00 PM",
+      "venue": "Placement Office"
+    }
+  },
+  {
+    "id": "battle-of-bands",
+    "name": "Battle of Bands",
+    "type": "group",
+    "club": "Music Club",
+    "maxMembers": 8,
+    "price": 600,
+    "prizePool": "₹20000",
+    "description": "Live band competition.",
+    "schedule": {
+      "dayNumber": 3,
+      "category": "Cultural",
+      "timing": "04:00 PM - 07:00 PM",
+      "venue": "Open Stage"
+    }
+  }
+]
