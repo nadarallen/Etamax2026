@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import connectToDatabase from '@/lib/db';
+import Event from '@/models/Event';
+import Registration from '@/models/Registration';
+import { getSession, Role } from '@/lib/auth';
+
+export async function GET(req: NextRequest) {
+    const session = await getSession();
+    if (!session || session.role !== Role.SUPER_ADMIN) {
+        return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    try {
+        await connectToDatabase();
+
+        const totalEvents = await Event.countDocuments({});
+        const totalRegistrations = await Registration.countDocuments({ status: 'CONFIRMED' });
+
+        // Calculate Total Revenue
+        // In a real app, this should be an aggregation on Payment model or Registration joined with Event
+        // For now, simpler aggregation on Registration -> Event Price
+        const revenueAgg = await Registration.aggregate([
+            { $match: { status: 'CONFIRMED' } },
+            {
+                $lookup: {
+                    from: 'events',
+                    localField: 'eventId',
+                    foreignField: '_id',
+                    as: 'event'
+                }
+            },
+            { $unwind: '$event' },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: '$event.price' }
+                }
+            }
+        ]);
+
+        const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+
+        return NextResponse.json({
+            stats: {
+                totalEvents,
+                totalRegistrations,
+                totalRevenue
+            }
+        });
+    } catch (error) {
+        console.error('Admin Stats Error:', error);
+        return new NextResponse('Internal Error', { status: 500 });
+    }
+}

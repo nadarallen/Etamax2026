@@ -32,6 +32,7 @@ const RegistrationSchema: Schema = new Schema(
             default: RegStatus.CONFIRMED,
         },
         qrCodeHash: { type: String },
+        expiresAt: { type: Date },
     },
     { timestamps: true }
 );

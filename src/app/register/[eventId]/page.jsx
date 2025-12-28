@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import eventsData from '@/data/events.json';
 import RegistrationForm from '@/components/RegistrationForm';
 import RazorpayButton from '@/components/RazorpayButton';
 import { generateReceipt } from '@/utils/pdfGenerator';
@@ -10,14 +9,37 @@ import Link from 'next/link';
 export default function RegisterPage() {
     const params = useParams();
     const router = useRouter();
-    const event = eventsData.find(e => e.id === params.eventId);
+
+    // Fetch Event from API instead of JSON
+    const [event, setEvent] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     const [step, setStep] = useState('form'); // form | payment | success
     const [formData, setFormData] = useState(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [receiptData, setReceiptData] = useState(null);
 
-    if (!event) return <div className="text-white p-10">Event not found</div>;
+    useEffect(() => {
+        const fetchEvent = async () => {
+            try {
+                const res = await fetch(`/api/events/${params.eventId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setEvent(data);
+                } else {
+                    setEvent(null);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchEvent();
+    }, [params.eventId]);
+
+    if (loading) return <div className="text-white p-10 text-center pt-24">Loading Event Details...</div>;
+    if (!event) return <div className="text-white p-10 text-center pt-24">Event not found. It might have been deleted or invalid ID.</div>;
 
     const handleFormSubmit = (data) => {
         setFormData(data);
@@ -25,43 +47,64 @@ export default function RegisterPage() {
     };
 
     const handleOfflinePayment = async () => {
-        // Generate Receipt immediately
-        const finalData = {
-            ...formData,
-            eventName: event.name,
-            eventType: event.type,
-            amount: event.price,
-            transactionId: 'CASH-' + Date.now(),
-            status: 'Pending Verification at Counter'
+        // Call offline reservation API
+        const payload = {
+            eventId: event._id,
+            slotId: formData.slotId, // From form
+            // teamId: we might not receive teamId from form here unless we handle it differently.
+            // But registration form captures user details.
+            // We are not creating 'Team' document here yet. 
+            // We can pass user info in metadata? 
+            // Or simply create registration. 
         };
 
-        await completeRegistration(finalData);
+        try {
+            const res = await fetch('/api/payments/offline/reserve', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) throw new Error('Reservation Failed');
+
+            const result = await res.json();
+
+            // Generate Receipt
+            const finalData = {
+                ...formData,
+                eventName: event.title,
+                eventType: event.eventType,
+                amount: event.price,
+                transactionId: result.transactionId,
+                status: 'Amount Pending (Pay at Desk)',
+                expiresAt: result.expiresAt
+            };
+
+            generateReceipt(finalData);
+            setReceiptData(finalData);
+            setShowPaymentModal(false);
+            setStep('success');
+        } catch (error) {
+            alert('Offline Reservation Failed. Try again.');
+        }
     };
 
     const handleOnlineSuccess = async (paymentData) => {
-        // paymentData comes from RazorpayButton handler
-        const finalData = {
-            ...formData,
-            eventName: event.name,
-            eventType: event.type,
-            amount: event.price,
-            transactionId: paymentData.transactionId,
-            status: 'Paid Online'
-        };
-        await completeRegistration(finalData);
-    };
-
-    const completeRegistration = async (data) => {
-        // Save to backend
-        await fetch('/api/register', {
-            method: 'POST',
-            body: JSON.stringify(data),
+        // Payment verified by RazorpayButton -> Verify API -> onSuccess
+        // paymentData contains registrationId etc.
+        setReceiptData({
+            ...paymentData,
+            status: 'Paid Online',
+            transactionId: paymentData.transactionId
         });
 
         // Generate PDF
-        generateReceipt(data);
+        generateReceipt({
+            ...paymentData,
+            status: 'Paid Online',
+            eventName: event.title,
+            eventType: event.eventType
+        });
 
-        setReceiptData(data);
         setShowPaymentModal(false);
         setStep('success');
     };
@@ -69,7 +112,7 @@ export default function RegisterPage() {
     return (
         <div className="min-h-screen pt-20 px-4 max-w-3xl mx-auto">
             <h1 className="text-3xl font-display font-bold text-white mb-8 text-center">
-                Register for <span className="text-galaxy-accent">{event.name}</span>
+                Register for <span className="text-galaxy-accent">{event.title}</span>
             </h1>
 
             {step === 'form' && (
@@ -87,7 +130,7 @@ export default function RegisterPage() {
                                     <RazorpayButton
                                         amount={event.price}
                                         userDetails={formData}
-                                        eventDetails={{ name: event.name, type: event.type }}
+                                        eventDetails={{ id: event._id, name: event.title, type: event.eventType, slotId: formData.slotId }}
                                         onSuccess={handleOnlineSuccess}
                                     />
 
@@ -116,10 +159,17 @@ export default function RegisterPage() {
                     <div className="inline-block p-4 rounded-full bg-green-500/20 text-green-400 mb-4 text-4xl">✓</div>
                     <h2 className="text-3xl font-bold text-white mb-2">Registration Successful!</h2>
                     <p className="text-gray-300 mb-6">
-                        Your receipt for <strong>{receiptData.transactionId}</strong> has been downloaded.
+                        Your receipt for <strong>{receiptData?.transactionId}</strong> has been downloaded.
                     </p>
+                    {receiptData?.status === 'Amount Pending (Pay at Desk)' && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl mb-6">
+                            <p className="text-yellow-400 text-sm">
+                                Please show this receipt at the registration desk within 2 hours to confirm your slot.
+                            </p>
+                        </div>
+                    )}
                     <div className="flex justify-center space-x-4">
-                        <button onClick={() => generateReceipt(receiptData)} className="btn-primary bg-galaxy-purple">
+                        <button onClick={() => generateReceipt(receiptData)} className="btn-primary bg-galaxy-purple px-6 py-2 rounded-lg text-white">
                             Download Receipt Again
                         </button>
                         <Link href="/events">

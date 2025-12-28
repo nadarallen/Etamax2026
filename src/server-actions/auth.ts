@@ -85,7 +85,7 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
     }
 
     const { email, password } = parsed.data;
-    let redirectPath = '/student';
+    let redirectPath = '/events';
 
     // --- HARDCODED TEST BYPASS ---
     if (email === 'super@etamax.com' && password === 'password123') {
@@ -94,6 +94,13 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
         const refreshToken = await signRefreshToken(payload);
         await setSessionCookie(accessToken, refreshToken);
         redirect('/admin');
+    }
+    if (email === 'club@etamax.com' && password === 'password123') {
+        const payload = { userId: 'hardcoded-club-admin', role: Role.CLUB_ADMIN };
+        const accessToken = await signToken(payload);
+        const refreshToken = await signRefreshToken(payload);
+        await setSessionCookie(accessToken, refreshToken);
+        redirect('/club');
     }
     // -----------------------------
 

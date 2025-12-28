@@ -49,31 +49,31 @@ export async function middleware(req: NextRequest) {
         return NextResponse.next();
     }
 
-    // 2. Auth Check - TEMPORARILY DISABLED FOR MERGE (Frontend has no Login)
-    // const accessToken = req.cookies.get('session')?.value;
-    // if (!accessToken) {
-    //     return NextResponse.redirect(new URL('/login', req.url));
-    // }
+    // 2. Auth Check
+    const accessToken = req.cookies.get('session')?.value;
+    if (!accessToken) {
+        return NextResponse.redirect(new URL('/login', req.url));
+    }
 
-    // const payload = await verifyToken(accessToken);
-    // if (!payload) {
-    //     return NextResponse.redirect(new URL('/login', req.url));
-    // }
+    const payload = await verifyToken(accessToken);
+    if (!payload) {
+        return NextResponse.redirect(new URL('/login', req.url));
+    }
 
-    // const userRole = payload.role as Role;
+    const userRole = payload.role as Role;
 
-    // // 3. Role Based Access Control
-    // if (path.startsWith('/admin') && userRole !== Role.SUPER_ADMIN) {
-    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
-    // }
+    // 3. Role Based Access Control
+    if (path.startsWith('/admin') && userRole !== Role.SUPER_ADMIN) {
+        return NextResponse.redirect(new URL('/', req.url)); // Redirect to home instead of unauthorized which might not exist
+    }
 
-    // if (path.startsWith('/club') && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
-    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
-    // }
+    if (path.startsWith('/club') && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
+        return NextResponse.redirect(new URL('/', req.url));
+    }
 
-    // if (path.startsWith('/student') && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
-    //     return NextResponse.redirect(new URL('/unauthorized', req.url));
-    // }
+    if (path.startsWith('/student') && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
+        return NextResponse.redirect(new URL('/', req.url));
+    }
 
     return NextResponse.next();
 }
