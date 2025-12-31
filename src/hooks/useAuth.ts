@@ -1,39 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export function useAuth(requireAuth = false) {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const router = useRouter();
+export function useAuth(requireAuth: boolean = false) {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-    useEffect(() => {
-        async function fetchUser() {
-            try {
-                const res = await fetch('/api/auth/me');
-                if (res.ok) {
-                    const data = await res.json();
-                    setUser(data.user);
-                } else {
-                    setUser(null);
-                }
-            } catch (error) {
-                console.error('Failed to fetch user', error);
-                setUser(null);
-            } finally {
-                setLoading(false);
-            }
+  useEffect(() => {
+    // Fetch current user session from the JWT-based auth endpoint
+    const getSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData.user ?? null);
+        } else {
+          setUser(null);
         }
+      } catch (error) {
+        console.error('Error fetching session:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        fetchUser();
-    }, []);
+    getSession();
+  }, []);
 
-    useEffect(() => {
-        if (requireAuth && !loading && !user) {
-            router.push('/login');
-        }
-    }, [user, loading, requireAuth, router]);
+  // Redirect if auth is required and no user is found
+  useEffect(() => {
+    if (requireAuth && !loading && !user) {
+      router.replace('/login');
+    }
+  }, [requireAuth, loading, user, router]);
 
-    return { user, loading };
+  return { user, loading };
 }

@@ -1,8 +1,8 @@
 'use client';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { registerAction } from '@/server-actions/auth';
-import GalaxyBackground from '@/components/GalaxyBackground';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const initialState = {
     error: '',
@@ -10,10 +10,10 @@ const initialState = {
 
 export default function RegisterPage() {
     const [state, formAction, isPending] = useActionState(registerAction, initialState);
+    const [showPassword, setShowPassword] = useState(false);
 
     return (
         <div className="relative min-h-screen bg-galaxy-dark text-white overflow-hidden flex items-center justify-center p-4">
-            <GalaxyBackground />
 
             <div className="relative z-10 w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl hover:border-galaxy-purple/30 transition-all duration-300">
                 <div className="text-center mb-8">
@@ -53,15 +53,35 @@ export default function RegisterPage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm text-gray-400 mb-1 ml-1">Password</label>
+                        <label className="block text-sm text-gray-400 mb-1 ml-1">Roll Number</label>
                         <input
-                            type="password"
-                            name="password"
+                            type="text"
+                            name="rollNumber"
                             required
                             className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
-                            placeholder="••••••••"
-                            minLength={6}
+                            placeholder="e.g. 123456"
                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-400 mb-1 ml-1">Password</label>
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                required
+                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors pr-10"
+                                placeholder="••••••••"
+                                minLength={6}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button

@@ -1,9 +1,9 @@
 'use client';
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { loginAction } from '@/server-actions/auth';
-import GalaxyBackground from '@/components/GalaxyBackground';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 
 const initialState = {
     error: '',
@@ -11,6 +11,7 @@ const initialState = {
 
 export default function LoginPage() {
     const [state, formAction, isPending] = useActionState(loginAction, initialState);
+    const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -22,7 +23,6 @@ export default function LoginPage() {
 
     return (
         <div className="relative min-h-screen bg-galaxy-dark text-white overflow-hidden flex items-center justify-center p-4">
-            <GalaxyBackground />
 
             {/* Auth Card */}
             <div className="relative z-10 w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl hover:border-galaxy-purple/30 transition-all duration-300">
@@ -57,13 +57,22 @@ export default function LoginPage() {
 
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 ml-1">Password</label>
-                            <input
-                                type="password"
-                                name="password"
-                                required
-                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
-                                placeholder="••••••••"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    name="password"
+                                    required
+                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors pr-10"
+                                    placeholder="••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 

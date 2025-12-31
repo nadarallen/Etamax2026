@@ -12,8 +12,8 @@ if (!MONGODB_URI) {
  * during API Route usage.
  */
 interface MongooseCache {
-  conn: mongoose.Connection | null;
-  promise: Promise<mongoose.Connection> | null;
+  conn: any | null;
+  promise: Promise<any> | null;
 }
 
 declare global {
@@ -34,7 +34,7 @@ async function connectToDatabase() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
-      maxPoolSize: 10, // Prompt 29: Connection Pooling
+      maxPoolSize: 10,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {

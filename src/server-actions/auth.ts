@@ -1,18 +1,18 @@
 'use server';
 
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
+import { setSessionCookie, clearSession, Role, signToken } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
-import User, { UserRole } from '@/models/User';
-import { signToken, signRefreshToken, setSessionCookie, clearSession, Role } from '@/lib/auth';
+import User from '@/models/User';
+import bcrypt from 'bcryptjs';
 
-// Validation Schemas (Prompt 28: Security)
+// Validation Schemas
 const RegisterSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
-    role: z.nativeEnum(Role).default(Role.STUDENT),
+    rollNumber: z.string().optional(), // Optional in Zod, enforced logically
 });
 
 const LoginSchema = z.object({
@@ -33,17 +33,26 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: (parsed.error as any).errors[0].message };
     }
 
-    // Force Role to STUDENT for public registration
-    const { name, email, password } = parsed.data;
-    const role = Role.STUDENT;
+    const { name, email, password, rollNumber } = parsed.data;
 
     try {
         await connectToDatabase();
 
-        // Check existing
+        // Check if user exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return { error: 'Email already registered' };
+            return { error: 'User already exists with this email.' };
+        }
+
+        // Determine Role
+        let role = Role.STUDENT;
+        if (email === 'superadmin@etamax.com') role = Role.SUPER_ADMIN;
+        if (email === 'clubadmin@etamax.com') role = Role.CLUB_ADMIN;
+
+        // Enforce Roll Number for Students
+        // Admins (SUPER_ADMIN, CLUB_ADMIN) don't need it.
+        if (role === Role.STUDENT && (!rollNumber || rollNumber.trim() === '')) {
+            return { error: 'Roll Number is required for students.' };
         }
 
         // Hash Password
@@ -54,26 +63,27 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             name,
             email,
             passwordHash,
-            role, // In a real app, we wouldn't let users pick Admin/Club role freely, but for this demo it's fine
+            role,
+            rollNumber: role === Role.STUDENT ? rollNumber : undefined,
         });
 
-        // Session Logic
-        const payload = { userId: newUser._id.toString(), role: newUser.role };
-        const accessToken = await signToken(payload);
-        const refreshToken = await signRefreshToken(payload);
+        // Create Session
+        const sessionPayload = {
+            userId: newUser._id.toString(),
+            email: newUser.email,
+            role: newUser.role,
+            name: newUser.name,
+        };
 
-        await setSessionCookie(accessToken, refreshToken);
-
-        // Save refresh token for revocation support
-        newUser.refreshToken = refreshToken;
-        await newUser.save();
+        const token = await signToken(sessionPayload);
+        await setSessionCookie(token);
 
     } catch (error) {
         console.error('Registration Error:', error);
         return { error: 'Internal Server Error' };
     }
 
-    redirect('/login?success=true'); // Or direct to dashboard
+    redirect('/login?success=true');
 }
 
 export async function loginAction(prevState: AuthState, formData: FormData): Promise<AuthState> {
@@ -87,49 +97,35 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
     const { email, password } = parsed.data;
     let redirectPath = '/events';
 
-    // --- HARDCODED TEST BYPASS ---
-    if (email === 'super@etamax.com' && password === 'password123') {
-        const payload = { userId: 'hardcoded-super-admin', role: Role.SUPER_ADMIN };
-        const accessToken = await signToken(payload);
-        const refreshToken = await signRefreshToken(payload);
-        await setSessionCookie(accessToken, refreshToken);
-        redirect('/admin');
-    }
-    if (email === 'club@etamax.com' && password === 'password123') {
-        const payload = { userId: 'hardcoded-club-admin', role: Role.CLUB_ADMIN };
-        const accessToken = await signToken(payload);
-        const refreshToken = await signRefreshToken(payload);
-        await setSessionCookie(accessToken, refreshToken);
-        redirect('/club');
-    }
-    // -----------------------------
-
     try {
         await connectToDatabase();
 
-        const user = await User.findOne({ email }).select('+passwordHash +role');
+        const user = await User.findOne({ email }).select('+passwordHash');
+
         if (!user || !user.passwordHash) {
             return { error: 'Invalid credentials' };
         }
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
+
         if (!isValid) {
             return { error: 'Invalid credentials' };
         }
 
-        // Session Logic
-        const payload = { userId: user._id.toString(), role: user.role };
-        const accessToken = await signToken(payload);
-        const refreshToken = await signRefreshToken(payload);
+        // Create Session
+        const sessionPayload = {
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            name: user.name,
+        };
 
-        await setSessionCookie(accessToken, refreshToken);
-
-        user.refreshToken = refreshToken;
-        await user.save();
+        const token = await signToken(sessionPayload);
+        await setSessionCookie(token);
 
         // Determine Redirect
-        if (user.role === UserRole.CLUB_ADMIN) redirectPath = '/club';
-        if (user.role === UserRole.SUPER_ADMIN) redirectPath = '/admin';
+        if (user.role === Role.CLUB_ADMIN) redirectPath = '/club';
+        if (user.role === Role.SUPER_ADMIN) redirectPath = '/admin';
 
     } catch (error) {
         if ((error as any).digest?.startsWith('NEXT_REDIRECT')) throw error;
@@ -141,8 +137,6 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
 }
 
 export async function logoutAction() {
-    await connectToDatabase();
-    // Ideally invalidate DB token here too
     await clearSession();
     redirect('/login');
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken, Role } from './lib/auth';
+import { Role } from './lib/auth'; // Removed verifyToken
+import { jwtVerify } from 'jose'; // Use jose to verify JWT
 import { Ratelimit } from '@upstash/ratelimit'; // Prompt 28
 import { Redis } from '@upstash/redis';
 
@@ -55,24 +56,35 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    const payload = await verifyToken(accessToken);
-    if (!payload) {
+    let userRole = Role.STUDENT;
+
+    try {
+        // Verify JWT properly
+        const { payload } = await jwtVerify(accessToken, new TextEncoder().encode(process.env.JWT_SECRET || 'super-secret-key-change-me'));
+        const metadata = (payload as any) || {}; // our payload is flat now
+        userRole = metadata.role || Role.STUDENT;
+    } catch (e) {
+        // Invalid token
         return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    const userRole = payload.role as Role;
-
     // 3. Role Based Access Control
-    if (path.startsWith('/admin') && userRole !== Role.SUPER_ADMIN) {
-        return NextResponse.redirect(new URL('/', req.url)); // Redirect to home instead of unauthorized which might not exist
+    if ((path.startsWith('/admin') || path.startsWith('/api/admin')) && userRole !== Role.SUPER_ADMIN) {
+        return path.startsWith('/api/admin')
+            ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            : NextResponse.redirect(new URL('/', req.url)); // Redirect to home instead of unauthorized which might not exist
     }
 
-    if (path.startsWith('/club') && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
-        return NextResponse.redirect(new URL('/', req.url));
+    if ((path.startsWith('/club') || path.startsWith('/api/club')) && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {
+        return path.startsWith('/api/club')
+            ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            : NextResponse.redirect(new URL('/', req.url));
     }
 
-    if (path.startsWith('/student') && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
-        return NextResponse.redirect(new URL('/', req.url));
+    if ((path.startsWith('/student') || path.startsWith('/api/student')) && userRole !== Role.STUDENT && userRole !== Role.SUPER_ADMIN) {
+        return path.startsWith('/api/student')
+            ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            : NextResponse.redirect(new URL('/', req.url));
     }
 
     return NextResponse.next();

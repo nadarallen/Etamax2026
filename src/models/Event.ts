@@ -1,61 +1,45 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export enum EventType {
-    SOLO = 'SOLO',
-    TEAM = 'TEAM',
-}
-
-export interface ISlot {
-    _id: mongoose.Types.ObjectId;
-    startTime: Date;
-    endTime: Date;
-    capacity: number;
-    bookedCount: number;
-}
-
 export interface IEvent extends Document {
-    clubId: mongoose.Types.ObjectId;
-    title: string;
-    description: string;
-    eventType: EventType;
-    minTeamSize: number;
-    maxTeamSize: number;
+    id: string; // Custom ID like 'coding-clash'
+    name: string;
+    type: 'solo' | 'duo' | 'group';
+    club: string;
+    maxMembers: number;
     price: number;
-    isPublished: boolean;
-    slots: ISlot[];
+    prizePool: string;
+    description: string;
+    schedule: {
+        dayNumber: number;
+        category: string;
+        timing: string;
+        venue: string;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
 
-const SlotSchema = new Schema({
-    startTime: { type: Date, required: true },
-    endTime: { type: Date, required: true },
-    capacity: { type: Number, required: true, min: 1 },
-    bookedCount: { type: Number, default: 0, min: 0 },
-});
-
 const EventSchema: Schema = new Schema(
     {
-        clubId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // Club Admin
-        title: { type: String, required: true },
-        description: { type: String },
-        eventType: {
-            type: String,
-            enum: Object.values(EventType),
-            required: true,
-        },
-        minTeamSize: { type: Number, default: 1 },
-        maxTeamSize: { type: Number, default: 1 },
+        id: { type: String, required: true, unique: true, index: true },
+        name: { type: String, required: true },
+        type: { type: String, enum: ['solo', 'duo', 'group'], required: true },
+        club: { type: String, required: true },
+        maxMembers: { type: Number, required: true },
         price: { type: Number, required: true },
-        isPublished: { type: Boolean, default: false, index: true },
-        slots: { type: [SlotSchema], default: [] },
+        prizePool: { type: String, required: true },
+        description: { type: String, required: true },
+        schedule: {
+            dayNumber: { type: Number, required: true },
+            category: { type: String, required: true },
+            timing: { type: String, required: true },
+            venue: { type: String, required: true },
+        },
     },
     { timestamps: true }
 );
 
-// Indexing for Performance (Prompt 29)
-EventSchema.index({ clubId: 1, isPublished: 1 });
-
+// Prevent overwrite on Hot Reload
 const Event: Model<IEvent> =
     mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 

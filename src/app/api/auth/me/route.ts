@@ -1,31 +1,30 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import connectToDatabase from '@/lib/db';
-import User from '@/models/User';
+// import connectToDatabase from '@/lib/db';
+// import User from '@/models/User';
 
 export async function GET() {
-    const session = await getSession();
+    const session: any = await getSession();
 
-    if (!session) {
+    if (!session || !session.user) {
         return NextResponse.json({ user: null }, { status: 401 });
     }
 
     try {
-        await connectToDatabase();
+        // await connectToDatabase();
         // Fetch fresh user data (in case role changed, etc)
-        const user = await User.findById(session.userId).select('name email role college');
+        // const user = await User.findById(session.userId).select('name email role college');
 
-        if (!user) {
-            return NextResponse.json({ user: null }, { status: 401 });
-        }
+        const user = session.user;
+        const metadata = user.user_metadata || {};
 
         return NextResponse.json({
             user: {
-                id: user._id,
-                name: user.name,
+                id: user.id,
+                name: metadata.name,
                 email: user.email,
-                role: user.role,
-                college: user.college
+                role: metadata.role, // or session.role
+                college: metadata.college || null
             }
         });
     } catch (error) {

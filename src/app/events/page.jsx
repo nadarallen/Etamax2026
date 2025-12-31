@@ -1,19 +1,31 @@
 'use client';
 import { useState, useEffect } from 'react';
-import eventsData from '@/data/events.json';
+import { logoutAction } from '@/server-actions/auth';
+import { LogOut } from 'lucide-react';
+import { getEventsAction } from '@/server-actions/events';
 import EventCard from '@/components/EventCard';
 import TabsDay from '@/components/TabsDay';
 import TabsCategory from '@/components/TabsCategory';
 
-
 export default function EventsPage() {
     const [activeDay, setActiveDay] = useState(1);
     const [activeCategory, setActiveCategory] = useState('Technical');
-    const [activeFilter, setActiveFilter] = useState(null); // null, 'solo', 'duo', 'group'
+    const [activeFilter, setActiveFilter] = useState(null);
+    const [events, setEvents] = useState([]);
     const [filteredEvents, setFilteredEvents] = useState([]);
 
+    // Fetch Events on Mount
     useEffect(() => {
-        let filtered = eventsData.filter(event =>
+        async function loadEvents() {
+            const data = await getEventsAction();
+            setEvents(data);
+        }
+        loadEvents();
+    }, []);
+
+    // Filter Logic
+    useEffect(() => {
+        let filtered = events.filter(event =>
             event.schedule.dayNumber === activeDay &&
             event.schedule.category === activeCategory
         );
@@ -23,7 +35,7 @@ export default function EventsPage() {
         }
 
         setFilteredEvents(filtered);
-    }, [activeDay, activeCategory, activeFilter]);
+    }, [activeDay, activeCategory, activeFilter, events]);
 
     return (
         <div className="min-h-screen pt-24 pb-20 px-4 md:px-8 max-w-6xl mx-auto space-y-12">
@@ -32,6 +44,13 @@ export default function EventsPage() {
                     <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter">
                         EVENTS
                     </h1>
+                    <button
+                        onClick={async () => await logoutAction()}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 border border-red-500/20"
+                    >
+                        <LogOut size={18} />
+                        <span className="font-medium">Logout</span>
+                    </button>
                 </div>
 
                 {/* Event Type Filter Pills */}

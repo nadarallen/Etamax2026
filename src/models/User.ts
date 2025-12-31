@@ -12,6 +12,7 @@ export interface IUser extends Document {
     phone?: string;
     role: UserRole;
     college?: string;
+    rollNumber?: string;
     clerkId?: string; // If using Clerk, else local Auth provider ID
     passwordHash?: string; // For custom auth
     refreshToken?: string; // Prompt 4: Token Refresh
@@ -30,6 +31,7 @@ const UserSchema: Schema = new Schema(
             default: UserRole.STUDENT,
         },
         college: { type: String },
+        rollNumber: { type: String, index: true }, // Optional for Admins, Required for Students (Enforced in App Logic)
         clerkId: { type: String, index: true },
         passwordHash: { type: String, select: false }, // Security: Never query by default
         refreshToken: { type: String, select: false },
