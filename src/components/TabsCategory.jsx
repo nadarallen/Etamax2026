@@ -1,5 +1,5 @@
 export default function TabsCategory({ activeCategory, onChange }) {
-    const categories = ["Technical", "Cultural", "Seminar"];
+    const categories = ["Technical", "Cultural", "Seminar", "Sports"];
     return (
         <div className="w-full">
             <div className="flex gap-4 p-1">

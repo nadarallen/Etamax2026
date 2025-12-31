@@ -13,6 +13,8 @@ const RegisterSchema = z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     rollNumber: z.string().optional(), // Optional in Zod, enforced logically
+    branch: z.string().optional(),
+    semester: z.string().optional(),
 });
 
 const LoginSchema = z.object({
@@ -33,10 +35,13 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: (parsed.error as any).errors[0].message };
     }
 
-    const { name, email, password, rollNumber } = parsed.data;
+    const { name, email, password, rollNumber, branch, semester } = parsed.data;
 
     try {
         await connectToDatabase();
+
+        // Debug Log
+        console.log("Register Action Payload:", { name, email, role: 'PENDING', rollNumber, branch, semester });
 
         // Check if user exists
         const existingUser = await User.findOne({ email });
@@ -49,10 +54,17 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         if (email === 'superadmin@etamax.com') role = Role.SUPER_ADMIN;
         if (email === 'clubadmin@etamax.com') role = Role.CLUB_ADMIN;
 
-        // Enforce Roll Number for Students
-        // Admins (SUPER_ADMIN, CLUB_ADMIN) don't need it.
-        if (role === Role.STUDENT && (!rollNumber || rollNumber.trim() === '')) {
-            return { error: 'Roll Number is required for students.' };
+        // Enforce Roll Number and Branch for Students
+        if (role === Role.STUDENT) {
+            if (!rollNumber || rollNumber.trim() === '') {
+                return { error: 'Roll Number is required for students.' };
+            }
+            if (!branch || branch.trim() === '') {
+                return { error: 'Branch is required for students.' };
+            }
+            if (!semester || semester.trim() === '') {
+                return { error: 'Semester is required for students.' };
+            }
         }
 
         // Hash Password
@@ -65,6 +77,8 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             passwordHash,
             role,
             rollNumber: role === Role.STUDENT ? rollNumber : undefined,
+            branch: role === Role.STUDENT ? branch : undefined,
+            semester: role === Role.STUDENT ? semester : undefined,
         });
 
         // Create Session
@@ -83,7 +97,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: 'Internal Server Error' };
     }
 
-    redirect('/login?success=true');
+    redirect('/events');
 }
 
 export async function loginAction(prevState: AuthState, formData: FormData): Promise<AuthState> {

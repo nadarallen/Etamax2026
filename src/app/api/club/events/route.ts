@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        const query = session.role === Role.SUPER_ADMIN ? {} : { clubId: session.userId };
+        // TODO: Implement proper Club <-> Admin mapping. Currently showing all events or empty.
+        const query = session.role === Role.SUPER_ADMIN ? {} : {}; // { club: 'Tech Club' };
         const events = await Event.find(query).sort({ createdAt: -1 });
 
         // Calculate simple stats for the club

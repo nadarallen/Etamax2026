@@ -19,13 +19,23 @@ export interface IRegistration extends Document {
     updatedAt: Date;
 }
 
+// ... imports
+
 const RegistrationSchema: Schema = new Schema(
     {
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
         teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
         slotId: { type: Schema.Types.ObjectId, required: true },
-        paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', required: true },
+        paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
+
+        // Snapshot of user details at time of registration
+        fullName: { type: String, required: true },
+        rollNumber: { type: String, required: true },
+        email: { type: String, required: true },
+        branch: { type: String, required: true },
+        semester: { type: String, required: true },
+
         status: {
             type: String,
             enum: Object.values(RegStatus),
@@ -39,6 +49,10 @@ const RegistrationSchema: Schema = new Schema(
 
 // Compound Index: One User per Event (Prevent Double Booking)
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
+
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.Registration;
+}
 
 const Registration: Model<IRegistration> =
     mongoose.models.Registration ||

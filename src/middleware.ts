@@ -69,10 +69,24 @@ export async function middleware(req: NextRequest) {
     }
 
     // 3. Role Based Access Control
-    if ((path.startsWith('/admin') || path.startsWith('/api/admin')) && userRole !== Role.SUPER_ADMIN) {
-        return path.startsWith('/api/admin')
-            ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-            : NextResponse.redirect(new URL('/', req.url)); // Redirect to home instead of unauthorized which might not exist
+
+    // Admin Routes
+    if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
+        // Exception: Club Admins can access Create Event, Edit Event and Slots Config
+        const isSharedAdminRoute = path.startsWith('/admin/create-event') || path.startsWith('/admin/edit-event') || path.startsWith('/admin/events');
+
+        if (isSharedAdminRoute) {
+            if (userRole !== Role.SUPER_ADMIN && userRole !== Role.CLUB_ADMIN) {
+                return NextResponse.redirect(new URL('/', req.url));
+            }
+        } else {
+            // Strict Admin Routes (Dashboard, Users, etc.)
+            if (userRole !== Role.SUPER_ADMIN) {
+                return path.startsWith('/api/admin')
+                    ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+                    : NextResponse.redirect(new URL('/', req.url));
+            }
+        }
     }
 
     if ((path.startsWith('/club') || path.startsWith('/api/club')) && userRole !== Role.CLUB_ADMIN && userRole !== Role.SUPER_ADMIN) {

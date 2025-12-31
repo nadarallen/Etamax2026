@@ -14,6 +14,7 @@ export default function ReceiptTemplate({ data }) {
                     <p><strong>Name:</strong> {data.name}</p>
                     <p><strong>Roll No:</strong> {data.rollNo}</p>
                     <p><strong>Branch:</strong> {data.branch}</p>
+                    <p><strong>Semester:</strong> {data.semester}</p>
                 </div>
                 <div className="text-right">
                     <h3 className="text-lg font-bold mb-2">Receipt Info</h3>

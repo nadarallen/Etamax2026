@@ -64,6 +64,35 @@ export default function RegisterPage() {
                     </div>
 
                     <div>
+                        <label className="block text-sm text-gray-400 mb-1 ml-1">Branch</label>
+                        <select
+                            name="branch"
+                            required
+                            defaultValue=""
+                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors [&>option]:bg-black"
+                        >
+                            <option value="" disabled>Select Branch</option>
+                            <option value="COMPS">COMPS (Computer Engineering)</option>
+                            <option value="CSE/IT">CSE/IT (Computer Science & Engg/IT)</option>
+                            <option value="MECH">MECH (Mechanical Engineering)</option>
+                            <option value="ELECT">ELECT (Electrical Engineering)</option>
+                            <option value="EXTC">EXTC (Electronics & Telecomm)</option>
+                            <option value="BSH">BSH (Basic Sciences & Humanities)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-400 mb-1 ml-1">Semester</label>
+                        <input
+                            type="text"
+                            name="semester"
+                            required
+                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
+                            placeholder="e.g. 5"
+                        />
+                    </div>
+
+                    <div>
                         <label className="block text-sm text-gray-400 mb-1 ml-1">Password</label>
                         <div className="relative">
                             <input

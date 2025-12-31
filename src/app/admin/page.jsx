@@ -102,18 +102,22 @@ function AdminContent() {
                         </div>
 
                         <div className="space-y-2 mb-6">
-                            <div className="flex justify-between text-sm text-gray-400">
-                                <span>Status:</span>
+                            <div className="flex justify-between items-center text-sm text-gray-400">
                                 <span className={event.isPublished ? "text-green-400" : "text-yellow-400"}>
                                     {event.isPublished ? 'Published' : 'Draft'}
+                                </span>
+                                <span className="bg-white/10 px-2 py-1 rounded text-xs text-white">
+                                    {event.stats?.totalRegistered || 0} / {event.stats?.totalCapacity || 0} Reg
                                 </span>
                             </div>
                         </div>
 
                         <div className="flex gap-2">
-                            <button className="flex-1 bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-white/5">
-                                <Edit size={14} /> Edit
-                            </button>
+                            <Link href={`/admin/edit-event/${event._id}`} className="flex-1">
+                                <button className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-medium transition-colors border border-white/5">
+                                    <Edit size={14} /> Edit
+                                </button>
+                            </Link>
                             <Link href={`/admin/events/${event._id}/slots`} className="flex-1">
                                 <button className="w-full flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 py-2 rounded-lg text-sm font-medium transition-colors border border-green-500/20">
                                     <Unlock size={14} /> Slots

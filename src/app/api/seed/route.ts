@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db';
 import User, { UserRole } from '@/models/User';
-import Event, { EventType } from '@/models/Event';
+import Event from '@/models/Event';
 import bcrypt from 'bcryptjs';
 
 export async function GET() {
@@ -33,43 +33,34 @@ export async function GET() {
         email: 'alice@student.com',
         passwordHash,
         role: UserRole.STUDENT,
+        rollNumber: '12345',
+        branch: 'COMPS',
+        semester: '5'
     });
 
     // 3. Create Events
     const events = [
         {
-            title: 'Hackathon 2025',
+            id: 'hackathon-2025',
+            name: 'Hackathon 2025',
             description: '24-hour coding marathon. Build the future.',
-            eventType: EventType.TEAM,
-            minTeamSize: 2,
-            maxTeamSize: 4,
-            price: 500, // Per person
-            clubId: clubAdmin._id,
+            type: 'group',
+            category: 'Tech',
+            maxMembers: 4,
+            price: 500, // Per team
+            club: 'Tech Club',
             isPublished: true,
-            slots: [
-                {
-                    startTime: new Date(new Date().setHours(10, 0, 0, 0)),
-                    endTime: new Date(new Date().setHours(18, 0, 0, 0)),
-                    capacity: 50,
-                }
-            ]
         },
         {
-            title: 'Solo Singing',
+            id: 'solo-singing',
+            name: 'Solo Singing',
             description: 'Showcase your vocal talent.',
-            eventType: EventType.SOLO,
-            minTeamSize: 1,
-            maxTeamSize: 1,
+            type: 'solo',
+            category: 'Cultural',
+            maxMembers: 1,
             price: 200,
-            clubId: clubAdmin._id,
+            club: 'Music Club',
             isPublished: true,
-            slots: [
-                {
-                    startTime: new Date(new Date().setDate(new Date().getDate() + 1)), // Tomorrow
-                    endTime: new Date(new Date().setDate(new Date().getDate() + 1)),
-                    capacity: 20,
-                }
-            ]
         }
     ];
 

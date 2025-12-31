@@ -3,7 +3,7 @@ import connectToDatabase from '@/lib/db';
 import Event from '@/models/Event';
 import mongoose from 'mongoose';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {

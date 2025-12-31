@@ -88,15 +88,22 @@ export default function ClubDashboard() {
                         </div>
 
                         <div className="space-y-2 mb-6">
-                            <div className="flex justify-between text-sm text-gray-400">
-                                <span>Status:</span>
+                            <div className="flex justify-between items-center text-sm text-gray-400">
                                 <span className={event.isPublished ? "text-green-400" : "text-yellow-400"}>
                                     {event.isPublished ? 'Published' : 'Draft'}
+                                </span>
+                                <span className="bg-white/10 px-2 py-1 rounded text-xs text-white">
+                                    {event.stats?.totalRegistered || 0} / {event.stats?.totalCapacity || 0} Reg
                                 </span>
                             </div>
                         </div>
 
                         <div className="flex gap-2">
+                            <Link href={`/admin/edit-event/${event._id}`} className="flex-1">
+                                <button className="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg text-sm font-medium transition-colors border border-white/5">
+                                    <Edit size={14} /> Edit
+                                </button>
+                            </Link>
                             {/* Reuse Admin Slot Page, assumes /admin/events route is accessible or we make a different route */}
                             {/* Ideally /club/events/[id]/slots, but let's reuse /admin route if RBAC allows or generic route */}
                             {/* Creating a dynamic route in club folder is safer */}
@@ -105,18 +112,6 @@ export default function ClubDashboard() {
                                     <Unlock size={14} /> Slots
                                 </button>
                             </Link>
-                            <button
-                                onClick={async () => {
-                                    if (confirm('Are you sure you want to delete this event?')) {
-                                        await deleteEventAction(event._id);
-                                        fetchData();
-                                    }
-                                }}
-                                className="flex-0 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors flex items-center justify-center border border-red-500/20"
-                                title="Delete Event"
-                            >
-                                <Trash2 size={16} />
-                            </button>
                         </div>
                     </div>
                 ))}

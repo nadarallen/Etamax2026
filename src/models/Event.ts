@@ -9,12 +9,8 @@ export interface IEvent extends Document {
     price: number;
     prizePool: string;
     description: string;
-    schedule: {
-        dayNumber: number;
-        category: string;
-        timing: string;
-        venue: string;
-    };
+    category: string;
+    // schedule removed
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,22 +20,22 @@ const EventSchema: Schema = new Schema(
         id: { type: String, required: true, unique: true, index: true },
         name: { type: String, required: true },
         type: { type: String, enum: ['solo', 'duo', 'group'], required: true },
+        category: { type: String, required: true }, // Moved from schedule
         club: { type: String, required: true },
         maxMembers: { type: Number, required: true },
         price: { type: Number, required: true },
-        prizePool: { type: String, required: true },
+        prizePool: { type: String, required: false },
         description: { type: String, required: true },
-        schedule: {
-            dayNumber: { type: Number, required: true },
-            category: { type: String, required: true },
-            timing: { type: String, required: true },
-            venue: { type: String, required: true },
-        },
+        isPublished: { type: Boolean, default: true },
+        // schedule removed, using Slot model instead
     },
     { timestamps: true }
 );
 
 // Prevent overwrite on Hot Reload
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.Event;
+}
 const Event: Model<IEvent> =
     mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema);
 
