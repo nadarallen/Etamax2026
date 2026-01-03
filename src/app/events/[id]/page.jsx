@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, use } from 'react';
 import { getEventByIdAction, getSlotsAction } from '@/server-actions/events';
 import { registerForEventAction } from '@/server-actions/registration';
 import { getUserProfileAction } from '@/server-actions/user';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -17,13 +17,17 @@ const initialRegState = {
 export default function EventDetail({ params }) {
     const resolvedParams = use(params);
     const eventId = resolvedParams.id;
+    const searchParams = useSearchParams();
+    const urlDay = parseInt(searchParams.get('day'));
 
     const [event, setEvent] = useState(null);
     const [slots, setSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
+    const [selectedDay, setSelectedDay] = useState(urlDay || 1);
     const [userProfile, setUserProfile] = useState(null);
+    const [teamAction, setTeamAction] = useState('CREATE');
 
     // Form State
     const [regState, formAction, isPending] = useActionState(registerForEventAction, initialRegState);
@@ -41,8 +45,17 @@ export default function EventDetail({ params }) {
                 // Fetch slots using the actual _id from the fetched event
                 const s = await getSlotsAction(ev._id);
                 setSlots(s);
-                // Auto-select slot if only one
-                if (s.length === 1) setSelectedSlot(s[0]);
+                // Get unique days and sort
+                const days = [...new Set(s.map(slot => slot.dayNumber))].sort((a, b) => a - b);
+                if (days.length > 0) {
+                    // Check if URL param matches a valid day
+                    if (urlDay && days.includes(urlDay)) {
+                        setSelectedDay(urlDay);
+                    } else {
+                        // Default to first day if no param or invalid
+                        setSelectedDay(days[0]);
+                    }
+                }
             }
             if (profile) {
                 setUserProfile(profile);
@@ -50,14 +63,17 @@ export default function EventDetail({ params }) {
             setLoading(false);
         }
         loadData();
-    }, [eventId]);
+    }, [eventId, urlDay]);
 
     const router = useRouter();
 
     // Close modal on success and Redirect to Receipt
     useEffect(() => {
         if (regState?.success && regState?.registrationId) {
-            router.push(`/receipt/${regState.registrationId}`);
+            // Only auto-redirect if NOT offline
+            if (regState.paymentMethod !== 'OFFLINE') {
+                router.push(`/receipt/${regState.registrationId}`);
+            }
         }
     }, [regState, router]);
 
@@ -96,7 +112,7 @@ export default function EventDetail({ params }) {
                         <Calendar className="mb-3 text-galaxy-accent" size={24} />
                         <span className="text-sm font-bold text-gray-400 uppercase tracking-widest text-[10px] mb-1">DATE</span>
                         <span className="text-base font-medium">
-                            {slots.length > 0 ? `Day ${slots.map(s => s.dayNumber).join(', ')}` : 'TBA'}
+                            {slots.length > 0 ? `Day ${[...new Set(slots.map(s => s.dayNumber))].sort((a, b) => a - b).join(', ')}` : 'TBA'}
                         </span>
                     </div>
                     <div className="flex flex-col items-center p-5 bg-black/20 rounded-2xl border border-white/5">
@@ -115,7 +131,7 @@ export default function EventDetail({ params }) {
                         <div className="flex flex-col items-center p-5 bg-black/20 rounded-2xl border border-white/5">
                             <Trophy className="mb-3 text-galaxy-accent" size={24} />
                             <span className="text-sm font-bold text-gray-400 uppercase tracking-widest text-[10px] mb-1">PRIZE POOL</span>
-                            <span className="text-base font-medium">{event.prizePool}</span>
+                            <span className="text-base font-medium">{/^\d+$/.test(event.prizePool) ? `₹${event.prizePool}` : event.prizePool}</span>
                         </div>
                     )}
                 </div>
@@ -164,45 +180,156 @@ export default function EventDetail({ params }) {
                                     <CheckCircle size={32} />
                                 </div>
                                 <h3 className="text-xl font-bold text-white mb-2">Registration Successful!</h3>
-                                <p className="text-gray-400 mb-6">{regState.message}</p>
-                                <button
-                                    onClick={() => setShowEnrollModal(false)}
-                                    className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                                >
-                                    Close
-                                </button>
+
+                                {regState.paymentMethod === 'OFFLINE' ? (
+                                    <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl text-left">
+                                        <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                                            <AlertCircle size={16} /> Payment Pending
+                                        </p>
+                                        <p className="text-gray-300 text-sm">
+                                            Please proceed to the <strong>Offline Registration Desk</strong> to complete your payment correctly.
+                                            Show the receipt below at the desk.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-400 mb-6">{regState.message}</p>
+                                )}
+
+                                <div className="flex gap-3 justify-center">
+                                    <Link href={`/receipt/${regState.registrationId}`}>
+                                        <button className="bg-galaxy-purple hover:bg-galaxy-purple/90 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-galaxy-purple/20">
+                                            View Receipt
+                                        </button>
+                                    </Link>
+                                    <button
+                                        onClick={() => setShowEnrollModal(false)}
+                                        className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <form action={formAction} className="space-y-4">
                                 <input type="hidden" name="eventId" value={event._id} />
 
+                                {/* Team Selection Logic */}
+                                {['duo', 'group'].includes(event.type) && (
+                                    <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10">
+                                        <label className="block text-sm text-gray-400 mb-2 font-bold uppercase tracking-wider">Team Registration</label>
+
+                                        <div className="flex bg-black/40 p-1 rounded-lg mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setTeamAction('CREATE')}
+                                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${teamAction === 'CREATE' ? 'bg-galaxy-purple text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                            >
+                                                Create Team
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTeamAction('JOIN')}
+                                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${teamAction === 'JOIN' ? 'bg-galaxy-purple text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                            >
+                                                Join Team
+                                            </button>
+                                        </div>
+
+                                        <input type="hidden" name="teamAction" value={teamAction} />
+
+                                        {teamAction === 'CREATE' ? (
+                                            <div>
+                                                <label className="block text-xs text-gray-400 mb-1">Team Name</label>
+                                                <input
+                                                    name="teamName"
+                                                    type="text"
+                                                    placeholder="Enter Team Name"
+                                                    required={teamAction === 'CREATE'}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple outline-none"
+                                                />
+                                                <p className="text-[10px] text-gray-500 mt-1">You will get a team code after registration to share.</p>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="block text-xs text-gray-400 mb-1">Team Code</label>
+                                                <input
+                                                    name="teamCode"
+                                                    type="text"
+                                                    placeholder="Enter 6-digit Code"
+                                                    required={teamAction === 'JOIN'}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple outline-none uppercase tracking-widest"
+                                                    maxLength={6}
+                                                />
+                                                <p className="text-[10px] text-gray-500 mt-1">Ask your team leader for the code.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Slot Selection */}
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-2">Select Slot</label>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {slots.map(slot => (
-                                            <label key={slot._id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${selectedSlot?._id === slot._id ? 'bg-galaxy-purple/20 border-galaxy-purple' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
-                                                <div className="flex items-center gap-3">
+
+                                    {/* Day Tabs */}
+                                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                                        {[...new Set(slots.map(s => s.dayNumber))].sort((a, b) => a - b).map(day => (
+                                            <button
+                                                key={day}
+                                                type="button"
+                                                onClick={() => setSelectedDay(day)}
+                                                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${selectedDay === day
+                                                    ? 'bg-galaxy-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.4)]'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                Day {day}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Slot Grid */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {slots.filter(s => s.dayNumber === selectedDay).map(slot => {
+                                            const percentFull = (slot.registeredCount / slot.maxCapacity) * 100;
+                                            const isFull = percentFull >= 100;
+                                            const isFastFilling = !isFull && percentFull >= 80;
+                                            const isSelected = selectedSlot?._id === slot._id;
+
+                                            // Determine Border/Text Color based on status
+                                            let statusColorClass = 'border-green-500/30 text-green-400'; // Default Green
+                                            if (isFull) statusColorClass = 'border-red-500/30 text-red-400 cursor-not-allowed opacity-60';
+                                            else if (isFastFilling) statusColorClass = 'border-yellow-500/30 text-yellow-400';
+
+                                            if (isSelected) statusColorClass = 'border-galaxy-purple bg-galaxy-purple/10';
+
+                                            return (
+                                                <label
+                                                    key={slot._id}
+                                                    className={`
+                                                        relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all h-full
+                                                        ${statusColorClass}
+                                                        ${!isFull ? 'cursor-pointer hover:border-opacity-60 active:scale-95' : ''}
+                                                        ${isSelected ? 'shadow-[0_0_15px_rgba(124,58,237,0.2)]' : 'bg-white/5'}
+                                                    `}
+                                                >
                                                     <input
                                                         type="radio"
                                                         name="slotId"
                                                         value={slot._id}
-                                                        checked={selectedSlot?._id === slot._id}
-                                                        onChange={() => setSelectedSlot(slot)}
-                                                        className="accent-galaxy-purple"
+                                                        checked={isSelected}
+                                                        disabled={isFull}
+                                                        onChange={() => !isFull && setSelectedSlot(slot)}
+                                                        className="sr-only"
                                                     />
-                                                    <div>
-                                                        <div className="font-bold text-white">Day {slot.dayNumber}</div>
-                                                        <div className="text-xs text-gray-400">{slot.startTime} - {slot.endTime}</div>
+                                                    <div className="font-bold text-sm mb-1">{slot.startTime} - {slot.endTime}</div>
+                                                    <div className="text-[10px] uppercase font-bold tracking-wider mb-0 opacity-80">
+                                                        {isFull ? 'SOLD OUT' : (isFastFilling ? 'FILLING FAST' : 'AVAILABLE')}
                                                     </div>
-                                                </div>
-                                                <div className="text-xs bg-white/10 px-2 py-1 rounded text-gray-300">
-                                                    {slot.venue}
-                                                </div>
-                                            </label>
-                                        ))}
+                                                </label>
+                                            );
+                                        })}
                                     </div>
-                                    {!selectedSlot && <p className="text-xs text-red-400 mt-1">Please select a slot</p>}
+                                    {!selectedSlot && <p className="text-xs text-red-400 mt-2">Please select a time slot</p>}
                                 </div>
 
                                 <div>
@@ -267,33 +394,42 @@ export default function EventDetail({ params }) {
                                     />
                                 </div>
 
-                                {/* Payment Method */}
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-2">Payment Option</label>
-                                    {isFree ? (
-                                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm font-medium flex items-center gap-2">
-                                            <CheckCircle size={16} /> Free Entry
-                                            <input type="hidden" name="paymentMethod" value="FREE" />
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <label className="cursor-pointer">
-                                                <input type="radio" name="paymentMethod" value="ONLINE" className="peer sr-only" />
-                                                <div className="p-3 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/10 text-center transition-all">
-                                                    <div className="font-bold text-white text-sm">Pay Online</div>
-                                                    <div className="text-[10px] text-gray-400">UPI / Card</div>
-                                                </div>
-                                            </label>
-                                            <label className="cursor-pointer">
-                                                <input type="radio" name="paymentMethod" value="OFFLINE" defaultChecked className="peer sr-only" />
-                                                <div className="p-3 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/10 text-center transition-all">
-                                                    <div className="font-bold text-white text-sm">Pay Offline</div>
-                                                    <div className="text-[10px] text-gray-400">Cash at Desk</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Payment Method - Hidden for Joiners */}
+                                {teamAction === 'JOIN' ? (
+                                    <div className="p-3 bg-galaxy-purple/10 border border-galaxy-purple/20 rounded-xl text-galaxy-purple text-sm font-medium flex items-center gap-2">
+                                        <CheckCircle size={16} /> Payment covered by Team Leader
+                                        <input type="hidden" name="paymentMethod" value="FREE" />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="block text-sm text-gray-400 mb-2">Payment Option</label>
+                                        {isFree ? (
+                                            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm font-medium flex items-center gap-2">
+                                                <CheckCircle size={16} /> Free Entry
+                                                <input type="hidden" name="paymentMethod" value="FREE" />
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <label className="cursor-pointer group relative">
+                                                    <input type="radio" name="paymentMethod" value="ONLINE" className="peer sr-only" />
+                                                    <div className="absolute inset-0 bg-galaxy-purple/20 blur-xl opacity-0 peer-checked:opacity-100 transition-opacity duration-500"></div>
+                                                    <div className="relative p-4 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/20 peer-checked:shadow-[0_0_20px_rgba(124,58,237,0.4)] active:scale-95 transition-all duration-200 text-center group-hover:border-white/30 h-full flex flex-col justify-center">
+                                                        <div className="font-bold text-white text-base mb-1">Pay Online</div>
+                                                        <div className="text-xs text-gray-300">UPI / Card</div>
+                                                    </div>
+                                                </label>
+                                                <label className="cursor-pointer group relative">
+                                                    <input type="radio" name="paymentMethod" value="OFFLINE" defaultChecked className="peer sr-only" />
+                                                    <div className="absolute inset-0 bg-galaxy-purple/20 blur-xl opacity-0 peer-checked:opacity-100 transition-opacity duration-500"></div>
+                                                    <div className="relative p-4 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/20 peer-checked:shadow-[0_0_20px_rgba(124,58,237,0.4)] active:scale-95 transition-all duration-200 text-center group-hover:border-white/30 h-full flex flex-col justify-center">
+                                                        <div className="font-bold text-white text-base mb-1">Pay Offline</div>
+                                                        <div className="text-xs text-gray-300">Cash at Desk</div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {regState?.error && (
                                     <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -304,9 +440,14 @@ export default function EventDetail({ params }) {
                                 <button
                                     type="submit"
                                     disabled={isPending || !selectedSlot}
-                                    className="w-full bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 rounded-xl shadow-lg transition-all disabled:opacity-50 mt-4"
+                                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-galaxy-purple to-pink-600 p-[1px] shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all duration-300 hover:shadow-[0_0_40px_rgba(124,58,237,0.6)] disabled:opacity-50 disabled:shadow-none mt-6"
                                 >
-                                    {isPending ? 'Processing...' : (isFree ? 'Confirm Registration' : 'Proceed to Payment')}
+                                    <div className="relative flex items-center justify-center gap-3 rounded-xl bg-black/20 px-6 py-4 transition-all duration-300 group-hover:bg-transparent">
+                                        <span className="text-lg font-bold text-white">
+                                            {isPending ? 'Processing...' : (isFree ? 'Confirm Registration' : 'Proceed to Payment')}
+                                        </span>
+                                        {!isPending && <ArrowLeft className="rotate-180 transition-transform duration-300 group-hover:translate-x-1" size={20} />}
+                                    </div>
                                 </button>
                             </form>
                         )}

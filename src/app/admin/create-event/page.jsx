@@ -37,7 +37,7 @@ function CreateEventForm({ state, formAction, isPending }) {
     const [isPaid, setIsPaid] = useState(true);
 
     // Controlled inputs to prevent React errors
-    const [price, setPrice] = useState(0);
+    const [price, setPrice] = useState('');
     const [prizePool, setPrizePool] = useState('');
 
     useEffect(() => {
@@ -60,10 +60,7 @@ function CreateEventForm({ state, formAction, isPending }) {
                 {/* Basic Info */}
                 <div className="space-y-4">
                     <h3 className="text-xl font-semibold text-galaxy-purple">Basic Info</h3>
-                    <div>
-                        <label className="block text-sm text-gray-400 mb-1 ml-1">Event ID (Unique Slug)</label>
-                        <input name="id" type="text" placeholder="e.g. coding-clash-2026" required className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors" />
-                    </div>
+
                     <div>
                         <label className="block text-sm text-gray-400 mb-1 ml-1">Event Name</label>
                         <input name="name" type="text" placeholder="e.g. Coding Clash" required className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors" />
@@ -89,7 +86,7 @@ function CreateEventForm({ state, formAction, isPending }) {
                                 <option value="Technical">Technical</option>
                                 <option value="Cultural">Cultural</option>
                                 <option value="Seminar">Seminar</option>
-                                <option value="Sports">Sports</option>
+
                             </select>
                         </div>
                     </div>
@@ -120,7 +117,7 @@ function CreateEventForm({ state, formAction, isPending }) {
                                 type="number"
                                 min="0"
                                 value={price}
-                                onChange={(e) => setPrice(Number(e.target.value))}
+                                onChange={(e) => setPrice(e.target.value)}
                                 readOnly={!isPaid}
                                 className={`w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors ${!isPaid ? 'opacity-50 cursor-not-allowed' : ''}`}
                             />

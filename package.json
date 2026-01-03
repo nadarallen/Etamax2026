@@ -19,6 +19,7 @@
     "jspdf": "^3.0.4",
     "lucide-react": "^0.562.0",
     "mongoose": "^8.20.4",
+    "nanoid": "^5.1.6",
     "next": "16.1.1",
     "nodemailer": "^7.0.12",
     "ogl": "^1.0.11",

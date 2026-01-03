@@ -6,12 +6,12 @@ import { getSession, Role } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache } from 'next/cache';
 
 // --- Validation Schemas ---
 
 const EventSchema = z.object({
-    id: z.string().min(2, 'ID is required (e.g., event-name-slug)'),
+    id: z.string().optional(),
     name: z.string().min(2, 'Name is required'),
     type: z.enum(['solo', 'duo', 'group']),
     club: z.string().min(2, 'Club name is required'),
@@ -40,27 +40,47 @@ export type EventState = {
 
 export async function createEventAction(prevState: EventState, formData: FormData): Promise<EventState> {
     try {
+        console.log("Create Event Action Started");
         const session = await getSession();
+        console.log("Session:", session ? "Found" : "Missing", session?.user?.email, session?.role);
 
         if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+            console.error("Unauthorized Access attempt");
             return { error: 'Unauthorized: Only Admins can create events.' };
         }
 
         const data = Object.fromEntries(formData);
+        console.log("Form Data Received:", JSON.stringify(data, null, 2));
+
         const parsed = EventSchema.safeParse(data);
 
         if (!parsed.success) {
+            console.error("Validation Failed:", parsed.error);
             return { error: (parsed.error as any).errors[0].message };
         }
 
         const {
-            id, name, type, club, category, maxMembers, price, prizePool, description
+            name, type, club, category, maxMembers, price, prizePool, description
         } = parsed.data;
 
+        // Auto-generate ID if not provided
+        let { id } = parsed.data;
+        if (!id) {
+            const { nanoid } = await import('nanoid');
+            const slug = name.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+                .replace(/^-+|-+$/g, ''); // Trim hyphens
+
+            // Append random string to ensure uniqueness
+            id = `${slug}-${nanoid(4)}`;
+        }
+
         await connectToDatabase();
+        console.log("DB Connected");
 
         const existing = await Event.findOne({ id });
         if (existing) {
+            console.warn("Event ID conflict:", id);
             return { error: 'An event with this ID already exists.' };
         }
 
@@ -77,6 +97,8 @@ export async function createEventAction(prevState: EventState, formData: FormDat
             isPublished: true
         });
 
+        console.log("Event Created:", newEvent._id);
+
         // We do revalidate, and the client will handle the redirect
         revalidatePath('/events');
         return { success: true, eventId: newEvent._id.toString() };
@@ -87,55 +109,119 @@ export async function createEventAction(prevState: EventState, formData: FormDat
     }
 }
 
-export async function getEventsAction() {
-    try {
+// ... (other imports)
+
+// Optimized internal data fetcher
+const getEventsCached = unstable_cache(
+    async () => {
         await connectToDatabase();
-        // Sort by creation date descending
-        const events = await Event.find().sort({ createdAt: -1 }).lean();
+        const Registration = (await import('@/models/Registration')).default;
 
-        // Populate "live stats" (capacity/registered)
-        const eventsWithStats = await Promise.all(events.map(async (ev: any) => {
-            const slots = await Slot.find({ eventId: ev._id }).lean(); // Removed .toString(), using default casting
-            // console.log(`DEBUG: Event ${ev.name} (${ev._id}) - Found ${slots.length} slots. IDs: ${slots.map(s => s._id)}`);
+        // 1. Fetch All Events
+        const events = await Event.find({ isPublished: true }).sort({ createdAt: -1 }).lean();
 
-            // Try explicit string match if objectid fails (Double check)
-            let finalSlots = slots;
-            if (slots.length === 0) {
-                const slotsString = await Slot.find({ eventId: ev._id.toString() }).lean();
-                if (slotsString.length > 0) {
-                    // console.log(`DEBUG: Found slots using toString() for ${ev.name}`);
-                    finalSlots = slotsString;
-                }
-            }
+        // 2. Fetch All Slots
+        const allSlots = await Slot.find({}).lean();
 
-            const totalCapacity = finalSlots.reduce((acc, s) => acc + s.maxCapacity, 0);
-            const totalRegistered = finalSlots.reduce((acc, s) => acc + (s.registeredCount || 0), 0);
-            const activeDays = [...new Set(finalSlots.map(s => s.dayNumber))]; // Unique days
+        // 3a. Aggregate All Registrations by Slot (Member Count)
+        const regCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' } } },
+            { $group: { _id: "$slotId", count: { $sum: 1 } } }
+        ]);
+
+        // 3b. Aggregate Unique Teams by Event (Team Count)
+        const teamCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
+            { $group: { _id: "$eventId", teams: { $addToSet: "$teamId" } } },
+            { $project: { _id: 1, count: { $size: "$teams" } } }
+        ]);
+
+        // Create lookup map for efficiency
+        const regCountMap = new Map(regCounts.map((r: any) => [r._id.toString(), r.count]));
+        const teamCountMap = new Map(teamCounts.map((r: any) => [r._id.toString(), r.count]));
+
+        // Process in memory
+        const eventsWithStats = events.map((ev: any) => {
+            const evSlots = allSlots.filter((s: any) => s.eventId.toString() === ev._id.toString());
+
+            const slotsWithCounts = evSlots.map((slot: any) => ({
+                ...slot,
+                registeredCount: regCountMap.get(slot._id.toString()) || 0
+            }));
+
+            const totalCapacity = slotsWithCounts.reduce((acc: number, s: any) => acc + s.maxCapacity, 0);
+            const totalRegistered = slotsWithCounts.reduce((acc: number, s: any) => acc + s.registeredCount, 0);
+            const totalTeams = teamCountMap.get(ev._id.toString()) || 0;
+            const activeDays = [...new Set(slotsWithCounts.map((s: any) => s.dayNumber))];
 
             return {
                 ...ev,
                 stats: {
                     totalCapacity,
                     totalRegistered,
-                    slotsCount: finalSlots.length
+                    totalTeams, // Added
+                    slotsCount: slotsWithCounts.length
                 },
                 activeDays,
-                slots: finalSlots // Return full slots for client-side filtering
+                slots: slotsWithCounts
             };
-        }));
-        return JSON.parse(JSON.stringify(eventsWithStats));
+        });
+
+        return eventsWithStats;
+    },
+    ['events-list-public'], // Cache Key
+    { revalidate: 60, tags: ['events'] } // Revalidate every 60s or on demand
+);
+
+export async function getEventsAction() {
+    try {
+        const events = await getEventsCached();
+        return JSON.parse(JSON.stringify(events));
     } catch (error) {
         console.error('Fetch Events Error:', error);
         return [];
     }
 }
 
+export async function getEventRegistrationsAction(eventId: string) {
+    try {
+        const session = await getSession();
+        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+            return { error: 'Unauthorized' };
+        }
+
+        await connectToDatabase();
+        const Registration = (await import('@/models/Registration')).default;
+        // Ensure Slot and Team are registered for populate to work
+        (await import('@/models/Slot')).default;
+        (await import('@/models/Team')).default;
+
+        const registrations = await Registration.find({ eventId })
+            .populate('slotId')
+            .populate('teamId')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (registrations.length > 0) {
+            console.log('DEBUG_SLOT_POPULATION:', JSON.stringify(registrations[0].slotId, null, 2));
+        }
+
+        return {
+            registrations: JSON.parse(JSON.stringify(registrations)),
+            success: true
+        };
+    } catch (error) {
+        console.error('Fetch Registrations Error:', error);
+        return { error: 'Failed to fetch registrations' };
+    }
+}
+
 export async function deleteEventAction(eventId: string): Promise<EventState> {
     try {
         const session = await getSession();
-        // Strict: Only SUPER_ADMIN can delete events
-        if (!session || session.role !== Role.SUPER_ADMIN) {
-            return { error: 'Unauthorized: Only Super Admins can delete events.' };
+        // Allow Super Admin and Club Admin
+        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+            return { error: 'Unauthorized: Only Admins can delete events.' };
         }
 
         await connectToDatabase();
@@ -226,9 +312,29 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
 export async function getSlotsAction(eventId: string) {
     try {
         await connectToDatabase();
+        const Registration = (await import('@/models/Registration')).default;
+
         const slots = await Slot.find({ eventId }).sort({ dayNumber: 1, startTime: 1 }).lean();
-        return JSON.parse(JSON.stringify(slots));
+
+        // Get live registration counts
+        const regCounts = await Registration.aggregate([
+            { $match: { eventId: new (await import('mongoose')).Types.ObjectId(eventId), status: { $ne: 'CANCELLED' } } },
+            { $group: { _id: "$slotId", count: { $sum: 1 } } }
+        ]);
+
+        const slotsWithCounts = slots.map((slot: any) => {
+            const countObj = regCounts.find((r: any) => r._id.toString() === slot._id.toString());
+            // Use 0 if not found, or default db value if you prefer, but live is better
+            // Ideally we also update the DB registeredCount here but read-only is fine for UI
+            return {
+                ...slot,
+                registeredCount: countObj ? countObj.count : 0
+            };
+        });
+
+        return JSON.parse(JSON.stringify(slotsWithCounts));
     } catch (error) {
+        console.error("Get Slots Error:", error);
         return [];
     }
 }

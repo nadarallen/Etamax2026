@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import eventsData from '@/data/events.json';
-import { Settings, Lock, Unlock, Edit, LogOut, Trash2 } from 'lucide-react';
+import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { deleteEventAction } from '@/server-actions/events';
 
@@ -58,12 +58,17 @@ function AdminContent() {
                         <p className="text-xs text-gray-400 uppercase tracking-widest">Total Revenue</p>
                         <p className="text-xl font-bold text-green-400">₹{stats.totalRevenue}</p>
                     </div>
-                    <Link href="/events">
-                        <button className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors h-full">
+                    <div>
+                        <button
+                            onClick={async () => {
+                                await import('@/server-actions/auth').then(mod => mod.logoutAction());
+                            }}
+                            className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors h-full"
+                        >
                             <LogOut size={16} />
-                            Exit
+                            Logout
                         </button>
-                    </Link>
+                    </div>
                 </div>
             </div>
 
@@ -81,6 +86,11 @@ function AdminContent() {
 
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">All Events</h2>
+                <Link href="/admin/students">
+                    <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                        <Users size={16} /> Students Report
+                    </button>
+                </Link>
                 <Link href="/admin/create-event">
                     <button
                         className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all"
@@ -107,7 +117,10 @@ function AdminContent() {
                                     {event.isPublished ? 'Published' : 'Draft'}
                                 </span>
                                 <span className="bg-white/10 px-2 py-1 rounded text-xs text-white">
-                                    {event.stats?.totalRegistered || 0} / {event.stats?.totalCapacity || 0} Reg
+                                    {event.type === 'solo'
+                                        ? `${event.stats?.totalRegistered || 0} / ${event.stats?.totalCapacity || 0} Reg`
+                                        : `${event.stats?.totalTeams || 0} / ${event.stats?.totalCapacity || 0} Teams`
+                                    }
                                 </span>
                             </div>
                         </div>
@@ -121,6 +134,11 @@ function AdminContent() {
                             <Link href={`/admin/events/${event._id}/slots`} className="flex-1">
                                 <button className="w-full flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 py-2 rounded-lg text-sm font-medium transition-colors border border-green-500/20">
                                     <Unlock size={14} /> Slots
+                                </button>
+                            </Link>
+                            <Link href={`/admin/events/${event._id}/registrations`} className="flex-1">
+                                <button className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-500/20">
+                                    <Users size={14} /> Users
                                 </button>
                             </Link>
                             <button

@@ -11,8 +11,9 @@ export async function GET(req: NextRequest) {
 
     try {
         await connectToDatabase();
-        // Fetch all events, including unpublished ones
-        const events = await Event.find({}).sort({ createdAt: -1 });
+        // Use the shared action to get events with stats
+        const { getEventsAction } = await import('@/server-actions/events');
+        const events = await getEventsAction();
 
         return NextResponse.json({ events });
     } catch (error) {

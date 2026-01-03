@@ -35,10 +35,14 @@ export async function getUserRegistrationsAction() {
         // Import Registration dynamically or ensure it's imported at top
         const Registration = (await import('@/models/Registration')).default;
 
+        // Ensure models are registered
+        (await import('@/models/Event')).default;
+        const SlotModel = (await import('@/models/Slot')).default;
+
         console.log("Fetching registrations for User ID:", session.user.id);
         const registrations = await Registration.find({ userId: session.user.id })
             .populate('eventId')
-            .populate('slotId')
+            .populate({ path: 'slotId', model: SlotModel }) // Use model reference directly
             .sort({ createdAt: -1 })
             .lean();
 
@@ -59,8 +63,15 @@ export async function getUserRegistrationsAction() {
             } : null,
             slot: reg.slotId ? {
                 _id: reg.slotId._id.toString(),
-                startTime: reg.slotId.startTime ? new Date(reg.slotId.startTime).toISOString() : null,
+                startTime: reg.slotId.startTime, // It's stored as String "10:00 AM" usually, or ISO? Schema says String.
+                // Wait, Schema says startTime: String. 
+                // In seed it might be ISO?
+                // The seed-events.js might shed light. 
+                // But generally, let's just pass it as is if it's a string, or safe convert.
+                // If it is "10:00 AM", new Date("10:00 AM") is Invalid Date.
+                // Let's just return it as string.
                 venue: reg.slotId.venue || 'TBD',
+                dayNumber: reg.slotId.dayNumber,
             } : null,
         }));
 

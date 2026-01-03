@@ -19,14 +19,14 @@ const EventSchema: Schema = new Schema(
     {
         id: { type: String, required: true, unique: true, index: true },
         name: { type: String, required: true },
-        type: { type: String, enum: ['solo', 'duo', 'group'], required: true },
-        category: { type: String, required: true }, // Moved from schedule
+        type: { type: String, enum: ['solo', 'duo', 'group'], required: true, index: true },
+        category: { type: String, required: true, index: true }, // Moved from schedule
         club: { type: String, required: true },
         maxMembers: { type: Number, required: true },
         price: { type: Number, required: true },
         prizePool: { type: String, required: false },
         description: { type: String, required: true },
-        isPublished: { type: Boolean, default: true },
+        isPublished: { type: Boolean, default: true, index: true },
         // schedule removed, using Slot model instead
     },
     { timestamps: true }

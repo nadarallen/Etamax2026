@@ -1,9 +1,11 @@
 'use client';
 
-import { useActionState, useEffect, useState, use } from 'react';
+import { useRef, useEffect, useState, use, useTransition } from 'react';
 import { addSlotAction, getSlotsAction, deleteSlotAction, updateSlotAction } from '@/server-actions/events';
 import { useRouter } from 'next/navigation';
 import { Trash2, Clock, MapPin, Edit2, Plus, Save, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 
 const initialState = {
     error: '',
@@ -16,6 +18,11 @@ export default function ManageSlotsPage({ params }) {
 
     const [slots, setSlots] = useState([]);
     const [editingSlot, setEditingSlot] = useState(null);
+    const { user, loading } = useAuth();
+    // Fix: user object from useAuth/api has role at top level, not in user_metadata
+    const isAdmin = user?.role === 'SUPER_ADMIN';
+    const backLink = isAdmin ? '/admin' : '/club';
+
     const [formData, setFormData] = useState({
         dayNumber: "1",
         maxCapacity: "30",
@@ -25,25 +32,28 @@ export default function ManageSlotsPage({ params }) {
     });
 
     // We wrapper the action to handle both add and update based on editingSlot
-    const handleFormSubmit = async (prevState, payload) => {
-        const formDataObj = new FormData();
-        Object.entries(formData).forEach(([key, value]) => formDataObj.append(key, value));
+    const [isPending, startTransition] = useTransition();
+    const [actionState, setActionState] = useState(initialState);
 
-        let res;
-        if (editingSlot) {
-            res = await updateSlotAction(eventId, editingSlot._id, formDataObj);
-            if (res.success) handleCancelEdit();
-        } else {
-            res = await addSlotAction(eventId, formDataObj);
-            if (res.success) {
-                // Reset form on add success
-                setFormData(prev => ({ ...prev, startTime: "", endTime: "", venue: "" }));
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        startTransition(async () => {
+            const formDataObj = new FormData();
+            Object.entries(formData).forEach(([key, value]) => formDataObj.append(key, value));
+
+            let res;
+            if (editingSlot) {
+                res = await updateSlotAction(eventId, editingSlot._id, formDataObj);
+                if (res.success) handleCancelEdit();
+            } else {
+                res = await addSlotAction(eventId, formDataObj);
+                if (res.success) {
+                    setFormData(prev => ({ ...prev, startTime: "", endTime: "", venue: "" }));
+                }
             }
-        }
-        return res;
+            setActionState(res);
+        });
     };
-
-    const [state, formAction, isPending] = useActionState(handleFormSubmit, initialState);
 
     // Fetch Slots
     const fetchSlots = async () => {
@@ -53,7 +63,7 @@ export default function ManageSlotsPage({ params }) {
 
     useEffect(() => {
         fetchSlots();
-    }, [eventId, state?.success]);
+    }, [eventId, actionState?.success]);
 
     const handleDelete = async (slotId) => {
         if (confirm('Delete this slot?')) {
@@ -84,10 +94,46 @@ export default function ManageSlotsPage({ params }) {
         });
     };
 
+    // Helper to convert 24h "13:00" -> "01:00 PM"
+    const to12Hour = (time24) => {
+        if (!time24) return "";
+        const [h, m] = time24.split(':');
+        const hour = parseInt(h, 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${String(hour12).padStart(2, '0')}:${m} ${ampm}`;
+    };
+
+    // Helper to convert 12h "01:00 PM" -> "13:00" for input value
+    const to24Hour = (time12) => {
+        if (!time12) return "";
+        const [time, modifier] = time12.split(' ');
+        let [hours, minutes] = time.split(':');
+        if (hours === '12') {
+            hours = '00';
+        }
+        if (modifier === 'PM') {
+            hours = parseInt(hours, 10) + 12;
+        }
+        return `${String(hours).padStart(2, '0')}:${minutes}`;
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'startTime' || name === 'endTime') {
+            // value from type="time" is always 24h format e.g., "13:00"
+            // We convert it to 12h format for storage
+            setFormData(prev => ({ ...prev, [name]: to12Hour(value) }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
+
+
+
+    if (loading) {
+        return <div className="min-h-screen bg-galaxy-dark flex items-center justify-center text-white">Loading...</div>;
+    }
 
     return (
         <div className="relative min-h-screen bg-galaxy-dark text-white pt-24 px-4 pb-20">
@@ -96,7 +142,7 @@ export default function ManageSlotsPage({ params }) {
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-galaxy-purple">
                         Manage Event Slots
                     </h1>
-                    <a href="/admin" className="text-gray-400 hover:text-white transition-colors">Done</a>
+                    <Link href={backLink} className="text-gray-400 hover:text-white transition-colors">Done</Link>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -113,8 +159,8 @@ export default function ManageSlotsPage({ params }) {
                             )}
                         </div>
 
-                        <form action={formAction} className="space-y-4">
-                            {state?.error && <p className="text-red-400 text-sm">{state.error}</p>}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {actionState?.error && <p className="text-red-400 text-sm">{actionState.error}</p>}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -147,22 +193,20 @@ export default function ManageSlotsPage({ params }) {
                                     <label className="block text-xs text-gray-400 mb-1">Start Time</label>
                                     <input
                                         name="startTime"
-                                        type="text"
-                                        placeholder="10:00 AM"
-                                        value={formData.startTime}
+                                        type="time"
+                                        value={to24Hour(formData.startTime)}
                                         onChange={handleChange}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white [color-scheme:dark]"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-xs text-gray-400 mb-1">End Time</label>
                                     <input
                                         name="endTime"
-                                        type="text"
-                                        placeholder="1:00 PM"
-                                        value={formData.endTime}
+                                        type="time"
+                                        value={to24Hour(formData.endTime)}
                                         onChange={handleChange}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white [color-scheme:dark]"
                                     />
                                 </div>
                             </div>
@@ -204,8 +248,6 @@ export default function ManageSlotsPage({ params }) {
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-300">
-                                        <span className="flex items-center gap-1"><MapPin size={12} /> {slot.venue}</span>
-                                        <span className="text-gray-500">|</span>
                                         <span>Cap: {slot.maxCapacity}</span>
                                     </div>
                                 </div>

@@ -1,7 +1,7 @@
-export default function ReceiptTemplate({ data }) {
+export default function ReceiptTemplate({ data, watermark }) {
     // This is a UI preview of the receipt (optional)
     return (
-        <div className="bg-white p-8 text-black max-w-2xl mx-auto shadow-xl border border-gray-200">
+        <div className="bg-white p-8 text-black max-w-2xl mx-auto shadow-xl border border-gray-200 relative overflow-hidden">
             <div className="text-center border-b-2 border-black pb-4 mb-6">
                 <h1 className="text-2xl font-bold">AGNEL CHARITIES</h1>
                 <h2 className="text-xl font-bold text-gray-800">FR. C. RODRIGUES INSTITUTE OF TECHNOLOGY</h2>
@@ -18,8 +18,13 @@ export default function ReceiptTemplate({ data }) {
                 </div>
                 <div className="text-right">
                     <h3 className="text-lg font-bold mb-2">Receipt Info</h3>
-                    <p><strong>Date:</strong> {new Date().toLocaleDateString()}</p>
-                    <p><strong>Ref Code:</strong> {data.transactionId}</p>
+                    <p><strong>Reg ID:</strong> {data.etamaxId}</p>
+                    <p><strong>Reg Date:</strong> {data.registrationDate ? new Date(data.registrationDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</p>
+                    <div className="mt-4 border-t border-gray-300 pt-2">
+                        <p><strong>Venue:</strong> {data.venue}</p>
+                        <p><strong>Date:</strong> {data.date}</p>
+                        <p><strong>Time:</strong> {data.time}</p>
+                    </div>
                 </div>
             </div>
 
@@ -36,16 +41,23 @@ export default function ReceiptTemplate({ data }) {
                         <tr>
                             <td className="border border-black p-2">{data.eventName}</td>
                             <td className="border border-black p-2 capitalize">{data.eventType}</td>
-                            <td className="border border-black p-2 text-right">₹{data.amount}</td>
+                            <td className="border border-black p-2 text-right">{data.amount}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div className="flex justify-between items-end mt-12 pt-8">
-                <div className="text-green-700 font-bold border-2 border-green-700 p-2 rounded rotate-[-10deg]">
-                    PAID & VERIFIED
-                </div>
+                {watermark ? (
+                    <div className="text-red-600 font-bold border-2 border-red-600 p-2 rounded rotate-[-10deg] opacity-80 text-xl uppercase">
+                        {watermark}
+                    </div>
+                ) : (
+                    <div className="text-green-700 font-bold border-2 border-green-700 p-2 rounded rotate-[-10deg]">
+                        PAID & VERIFIED
+                    </div>
+                )}
+
                 <div className="text-center">
                     <div className="h-10 border-b border-black w-40 mb-2"></div>
                     <p>Authorized Signature</p>

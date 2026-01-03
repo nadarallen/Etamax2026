@@ -121,7 +121,7 @@ export default function RegistrationForm({ event, onSubmit }) {
             )}
 
             <button type="submit" className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-galaxy-purple/20 transition-all duration-300 active:scale-95 text-lg mt-8 uppercase tracking-widest">
-                Pay Now
+                {event.eventType === 'SOLO' ? 'Pay Now' : 'Create Team & Proceed'}
             </button>
         </form>
     );

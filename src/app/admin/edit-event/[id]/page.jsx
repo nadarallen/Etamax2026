@@ -93,7 +93,7 @@ export default function EditEventPage({ params }) {
                                         <option value="Technical">Technical</option>
                                         <option value="Cultural">Cultural</option>
                                         <option value="Seminar">Seminar</option>
-                                        <option value="Sports">Sports</option>
+
                                     </select>
                                 </div>
                             </div>

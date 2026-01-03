@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { getUserProfileAction, getUserRegistrationsAction } from '@/server-actions/user';
 import Link from 'next/link';
 import { Calendar, MapPin, ExternalLink, User } from 'lucide-react';
+import CriteriaProgress from '@/components/CriteriaProgress';
+import TeamManager from '@/components/TeamManager';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -74,6 +76,12 @@ export default function ProfilePage() {
                 </div>
             </div>
 
+            {/* Criteria Progress Widget */}
+            <CriteriaProgress registrations={registrations} />
+
+            {/* Team Manager (For Leaders) */}
+            <TeamManager />
+
             <h2 className="text-2xl font-bold text-white mb-6">My Registrations</h2>
 
             {registrations.length === 0 ? (
@@ -84,17 +92,17 @@ export default function ProfilePage() {
                     </Link>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {registrations.map((reg) => (
-                        <div key={reg._id} className="bg-black/40 border border-white/10 rounded-xl p-5 hover:border-galaxy-purple/50 transition-colors relative group">
-                            <div className="flex flex-col gap-4">
+                        <div key={reg._id} className="bg-black/40 border border-white/10 rounded-xl p-5 hover:border-galaxy-purple/50 transition-colors relative group flex flex-col h-full bg-gradient-to-br from-white/5 to-transparent">
+                            <div className="flex flex-col gap-4 flex-1">
 
                                 {/* Header: Name + Badge */}
-                                <div className="flex justify-between items-start">
-                                    <h3 className="text-xl font-bold text-white group-hover:text-galaxy-purple transition-colors pr-8">
+                                <div className="flex justify-between items-start gap-2">
+                                    <h3 className="text-xl font-bold text-white group-hover:text-galaxy-purple transition-colors leading-tight">
                                         {reg.event?.name || 'Unknown Event'}
                                     </h3>
-                                    <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${reg.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${reg.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
                                         }`}>
                                         {reg.status}
                                     </span>
@@ -108,14 +116,12 @@ export default function ProfilePage() {
                                             <span>{reg.slot.venue}</span>
                                         </div>
                                     )}
-                                    {reg.slot?.startTime && (
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-500" />
-                                            <span>
-                                                {new Date(reg.slot.startTime).toLocaleDateString()} • {new Date(reg.slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-gray-500" />
+                                        <span>
+                                            {reg.slot ? `Day ${reg.slot.dayNumber} • ${reg.slot.startTime}` : 'Slot details unavailable'}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Action Button - Full Width on Mobile */}

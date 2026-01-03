@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Plus, Settings, LogOut, Edit, Unlock, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Plus, Settings, LogOut, Edit, Unlock, Trash2, Users } from 'lucide-react';
 import { deleteEventAction } from '@/server-actions/events';
 
 export default function ClubDashboard() {
@@ -42,15 +42,17 @@ export default function ClubDashboard() {
                     </h1>
                     <p className="text-gray-400 mt-2">Manage Your Club Events</p>
                 </div>
-                <form action="/api/auth/signout" method="post">
-                    {/* In a real app we use a Server Action to logout, or client router push after cookie delete */}
-                    <Link href="/login">
-                        <button className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors h-full">
-                            <LogOut size={16} />
-                            Logout
-                        </button>
-                    </Link>
-                </form>
+                <div>
+                    <button
+                        onClick={async () => {
+                            await import('@/server-actions/auth').then(mod => mod.logoutAction());
+                        }}
+                        className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors h-full"
+                    >
+                        <LogOut size={16} />
+                        Logout
+                    </button>
+                </div>
             </div>
 
             {/* Stats */}
@@ -67,13 +69,20 @@ export default function ClubDashboard() {
 
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">My Events</h2>
-                <Link href="/admin/create-event">
-                    <button
-                        className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
-                    >
-                        <Plus size={16} /> Create Event
-                    </button>
-                </Link>
+                <div className="flex gap-4">
+                    <Link href="/club/students">
+                        <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                            <Users size={16} /> Students Report
+                        </button>
+                    </Link>
+                    <Link href="/admin/create-event">
+                        <button
+                            className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
+                        >
+                            <Plus size={16} /> Create Event
+                        </button>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -110,6 +119,11 @@ export default function ClubDashboard() {
                             <Link href={`/club/events/${event._id}/slots`} className="flex-1">
                                 <button className="w-full flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 py-2 rounded-lg text-sm font-medium transition-colors border border-green-500/20">
                                     <Unlock size={14} /> Slots
+                                </button>
+                            </Link>
+                            <Link href={`/club/events/${event._id}/registrations`} className="flex-1">
+                                <button className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-500/20">
+                                    <Users size={14} /> Users
                                 </button>
                             </Link>
                         </div>

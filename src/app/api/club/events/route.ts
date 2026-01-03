@@ -12,20 +12,16 @@ export async function GET(req: NextRequest) {
 
     try {
         await connectToDatabase();
+        const { getEventsAction } = await import('@/server-actions/events');
 
-        // TODO: Implement proper Club <-> Admin mapping. Currently showing all events or empty.
-        const query = session.role === Role.SUPER_ADMIN ? {} : {}; // { club: 'Tech Club' };
-        const events = await Event.find(query).sort({ createdAt: -1 });
+        // TODO: Implement proper Club filtering if needed. getEventsAction returns all.
+        const events = await getEventsAction();
 
         // Calculate simple stats for the club
         const totalEvents = events.length;
 
-        // Count registrations for these events
-        const eventIds = events.map(e => e._id);
-        const totalRegistrations = await Registration.countDocuments({
-            eventId: { $in: eventIds },
-            status: 'CONFIRMED'
-        });
+        // stats.totalRegistered is already in each event
+        const totalRegistrations = events.reduce((acc: number, ev: any) => acc + (ev.stats?.totalRegistered || 0), 0);
 
         return NextResponse.json({
             events,

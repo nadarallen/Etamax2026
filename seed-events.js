@@ -29,12 +29,8 @@ const EventSchema = new mongoose.Schema({
     price: Number,
     prizePool: String,
     description: String,
-    schedule: {
-        dayNumber: Number,
-        category: String,
-        timing: String,
-        venue: String,
-    },
+    category: String, // Root Level
+    isPublished: { type: Boolean, default: true }
 });
 const Event = mongoose.models.Event || mongoose.model('Event', EventSchema);
 
@@ -47,9 +43,16 @@ async function seedEvents() {
         await Event.deleteMany({});
         console.log('🗑️  Cleared existing events.');
 
+        // Transform Data to match Schema
+        const transformedEvents = eventsData.map(ev => ({
+            ...ev,
+            category: ev.schedule?.category || 'Technical', // Flatten
+            schedule: undefined // Remove legacy nested object
+        }));
+
         // Insert new
-        await Event.insertMany(eventsData);
-        console.log(`✅ Seeded ${eventsData.length} events successfully!`);
+        await Event.insertMany(transformedEvents);
+        console.log(`✅ Seeded ${transformedEvents.length} events successfully!`);
 
     } catch (error) {
         console.error('❌ Seed Failed:', error);

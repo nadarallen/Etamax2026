@@ -43,6 +43,14 @@ export const generateReceipt = (data) => {
     // Payment Details
     doc.setFont("helvetica", "bold");
     doc.text(`Event: ${data.eventName} (${data.eventType})`, 20, y); y += lineHeight;
+
+    // Slot Details
+    if (data.slot) {
+        doc.text(`Slot Day: Day ${data.slot.dayNumber}`, 20, y); y += lineHeight;
+        doc.text(`Time: ${data.slot.startTime} - ${data.slot.endTime}`, 20, y); y += lineHeight;
+        doc.text(`Venue: ${data.slot.venue || 'TBA'}`, 20, y); y += lineHeight;
+    }
+
     doc.text(`Amount Paid: Rs. ${data.amount}`, 20, y); y += lineHeight * 2;
 
     // Footer / Stamp

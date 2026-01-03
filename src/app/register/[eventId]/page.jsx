@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import RegistrationForm from '@/components/RegistrationForm';
 import RazorpayButton from '@/components/RazorpayButton';
+import { getSlotsAction } from '@/server-actions/events';
 import { generateReceipt } from '@/utils/pdfGenerator';
 import Link from 'next/link';
 
@@ -12,6 +13,7 @@ export default function RegisterPage() {
 
     // Fetch Event from API instead of JSON
     const [event, setEvent] = useState(null);
+    const [slots, setSlots] = useState([]); // Add slots state
     const [loading, setLoading] = useState(true);
 
     const [step, setStep] = useState('form'); // form | payment | success
@@ -26,6 +28,10 @@ export default function RegisterPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setEvent(data);
+                    // Fetch Slots
+                    const s = await getSlotsAction(data._id);
+                    setSlots(s);
+                    setEvent({ ...data, slots: s });
                 } else {
                     setEvent(null);
                 }
@@ -43,64 +49,76 @@ export default function RegisterPage() {
 
     const handleFormSubmit = (data) => {
         setFormData(data);
-        setShowPaymentModal(true);
+        if (event.eventType === 'SOLO') {
+            setShowPaymentModal(true);
+        } else {
+            // For Teams, we create the team first (Offline/Pending mode)
+            // Use setTimeout to ensure state update or passed data
+            handleOfflinePayment(data);
+        }
     };
 
-    const handleOfflinePayment = async () => {
-        // Call offline reservation API
-        const payload = {
-            eventId: event._id,
-            slotId: formData.slotId, // From form
-            // teamId: we might not receive teamId from form here unless we handle it differently.
-            // But registration form captures user details.
-            // We are not creating 'Team' document here yet. 
-            // We can pass user info in metadata? 
-            // Or simply create registration. 
-        };
+    const handleOfflinePayment = async (dataOverride = null) => {
+        const dataToUse = dataOverride || formData;
+        if (!dataToUse) return;
 
         try {
-            const res = await fetch('/api/payments/offline/reserve', {
-                method: 'POST',
-                body: JSON.stringify(payload),
+            // Import dynamically 
+            const { registerForEventAction } = await import('@/server-actions/registration');
+
+            const formDataObj = new FormData();
+            Object.entries(dataToUse).forEach(([k, v]) => {
+                if (!Array.isArray(v)) {
+                    formDataObj.append(k, v);
+                }
             });
+            formDataObj.append('eventId', event._id);
+            formDataObj.append('paymentMethod', event.eventType === 'SOLO' ? 'ONLINE' : 'OFFLINE');
+            formDataObj.append('teamAction', event.eventType !== 'SOLO' ? 'CREATE' : 'NONE');
 
-            if (!res.ok) throw new Error('Reservation Failed');
+            const result = await registerForEventAction(null, formDataObj);
 
-            const result = await res.json();
+            if (result.error) throw new Error(result.error);
 
-            // Generate Receipt
             const finalData = {
-                ...formData,
+                ...dataToUse,
                 eventName: event.title,
                 eventType: event.eventType,
                 amount: event.price,
-                transactionId: result.transactionId,
-                status: 'Amount Pending (Pay at Desk)',
-                expiresAt: result.expiresAt
+                transactionId: result.registrationId,
+                status: 'Team Created (Pending)',
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                slot: event.slots?.find(s => s._id === dataToUse.slotId)
             };
 
             generateReceipt(finalData);
             setReceiptData(finalData);
             setShowPaymentModal(false);
             setStep('success');
+
         } catch (error) {
-            alert('Offline Reservation Failed. Try again.');
+            console.error(error);
+            alert(error.message || 'Registration Failed');
         }
     };
 
     const handleOnlineSuccess = async (paymentData) => {
         // Payment verified by RazorpayButton -> Verify API -> onSuccess
         // paymentData contains registrationId etc.
-        setReceiptData({
+        const slot = event.slots?.find(s => s._id === formData.slotId);
+
+        const finalReceiptData = {
             ...paymentData,
             status: 'Paid Online',
-            transactionId: paymentData.transactionId
-        });
+            transactionId: paymentData.transactionId,
+            slot
+        };
+
+        setReceiptData(finalReceiptData);
 
         // Generate PDF
         generateReceipt({
-            ...paymentData,
-            status: 'Paid Online',
+            ...finalReceiptData,
             eventName: event.title,
             eventType: event.eventType
         });

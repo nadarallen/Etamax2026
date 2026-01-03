@@ -14,6 +14,7 @@ export interface IRegistration extends Document {
     slotId: mongoose.Types.ObjectId;
     paymentId: mongoose.Types.ObjectId;
     status: RegStatus;
+    etamaxId?: string;
     qrCodeHash: string;
     createdAt: Date;
     updatedAt: Date;
@@ -26,7 +27,7 @@ const RegistrationSchema: Schema = new Schema(
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
         teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
-        slotId: { type: Schema.Types.ObjectId, required: true },
+        slotId: { type: Schema.Types.ObjectId, ref: 'Slot', required: true },
         paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
 
         // Snapshot of user details at time of registration
@@ -41,6 +42,7 @@ const RegistrationSchema: Schema = new Schema(
             enum: Object.values(RegStatus),
             default: RegStatus.CONFIRMED,
         },
+        etamaxId: { type: String, unique: true, sparse: true },
         qrCodeHash: { type: String },
         expiresAt: { type: Date },
     },
@@ -49,6 +51,9 @@ const RegistrationSchema: Schema = new Schema(
 
 // Compound Index: One User per Event (Prevent Double Booking)
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
+RegistrationSchema.index({ eventId: 1 });
+RegistrationSchema.index({ slotId: 1 });
+RegistrationSchema.index({ status: 1 });
 
 if (process.env.NODE_ENV === 'development') {
     delete mongoose.models.Registration;
