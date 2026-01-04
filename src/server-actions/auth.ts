@@ -130,7 +130,7 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
         const sessionPayload = {
             userId: user._id.toString(),
             email: user.email,
-            role: user.role,
+            role: user.role as unknown as Role, // Force cast if model type differs, but ideally align types
             name: user.name,
         };
 
@@ -138,8 +138,8 @@ export async function loginAction(prevState: AuthState, formData: FormData): Pro
         await setSessionCookie(token);
 
         // Determine Redirect
-        if (user.role === Role.CLUB_ADMIN) redirectPath = '/club';
-        if (user.role === Role.SUPER_ADMIN) redirectPath = '/admin';
+        if (sessionPayload.role === Role.CLUB_ADMIN) redirectPath = '/club';
+        if (sessionPayload.role === Role.SUPER_ADMIN) redirectPath = '/admin';
 
     } catch (error) {
         if ((error as any).digest?.startsWith('NEXT_REDIRECT')) throw error;

@@ -14,50 +14,54 @@ export async function getStudentAnalyticsAction() {
             return { error: 'Unauthorized' };
         }
 
-        await connectToDatabase();
-        // Ensure models are registered
-        const _slot = Slot;
-        const _event = Event;
-
-        // 1. Fetch all students
-        // We select specific fields to optimize
-        const students = await User.find({ role: 'STUDENT' })
-            .select('name email rollNumber branch semester role')
-            .lean();
-
-        // 2. Fetch all registrations with Event details
-        // We fetch ALL registrations to map them to students locally to avoid N+1 queries
-        const registrations = await Registration.find({ status: { $ne: 'CANCELLED' } })
-            .populate({
-                path: 'eventId',
-                select: 'name type category'
-            })
-            .lean();
-
-        // 3. Map registrations to students
-        // Create a map of userId -> [registrations]
-        const regMap = new Map();
-        registrations.forEach((reg: any) => {
-            const uId = reg.userId.toString();
-            if (!regMap.has(uId)) {
-                regMap.set(uId, []);
+        // 1. Aggregation Pipeline
+        const students = await User.aggregate([
+            { $match: { role: 'STUDENT' } },
+            {
+                $lookup: {
+                    from: 'registrations',
+                    let: { userId: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$userId', '$$userId'] }, status: { $ne: 'CANCELLED' } } },
+                        {
+                            $lookup: {
+                                from: 'events',
+                                localField: 'eventId',
+                                foreignField: '_id',
+                                as: 'event'
+                            }
+                        },
+                        { $unwind: '$event' },
+                        {
+                            $project: {
+                                eventName: '$event.name',
+                                category: '$event.category',
+                                type: '$event.type',
+                                status: '$status'
+                            }
+                        }
+                    ],
+                    as: 'registrations'
+                }
+            },
+            {
+                $project: {
+                    id: { $toString: '$_id' },
+                    name: 1,
+                    email: 1,
+                    rollNumber: { $ifNull: ['$rollNumber', 'N/A'] },
+                    branch: { $ifNull: ['$branch', 'Unknown'] },
+                    semester: { $ifNull: ['$semester', 'N/A'] },
+                    registrations: 1,
+                    // Calculated fields
+                    categories: '$registrations.category'
+                }
             }
-            if (reg.eventId) {
-                regMap.get(uId).push({
-                    eventName: reg.eventId.name,
-                    category: reg.eventId.category,
-                    type: reg.eventId.type,
-                    status: reg.status
-                });
-            }
-        });
+        ]);
 
-        // 4. Transform data for the UI
-        const analyticsData = students.map((student: any) => {
-            const studentRegs = regMap.get(student._id.toString()) || [];
-
-            // Calculate Criteria
-            const categories = new Set(studentRegs.map((r: any) => r.category).filter(Boolean));
+        // Post-process for criteria (easier in JS than complex aggregation conditionals)
+        const analyticsData = students.map((doc: any) => {
+            const categories = new Set(doc.categories);
             const hasTechnical = categories.has('Technical');
             const hasCultural = categories.has('Cultural');
             const hasSeminar = categories.has('Seminar');
@@ -66,13 +70,13 @@ export async function getStudentAnalyticsAction() {
             const criteriaCount = [hasTechnical, hasCultural, hasSeminar].filter(Boolean).length;
 
             return {
-                id: student._id.toString(),
-                name: student.name,
-                email: student.email,
-                rollNumber: student.rollNumber || 'N/A',
-                branch: student.branch || 'Unknown',
-                semester: student.semester || 'N/A',
-                registrations: studentRegs,
+                id: doc.id,
+                name: doc.name,
+                email: doc.email,
+                rollNumber: doc.rollNumber,
+                branch: doc.branch,
+                semester: doc.semester,
+                registrations: doc.registrations,
                 criteria: {
                     met: criteriaMet,
                     count: criteriaCount,

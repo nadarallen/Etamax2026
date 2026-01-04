@@ -16,11 +16,16 @@ export default function ClubEventRegistrationsPage({ params }) {
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchData = async () => {
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState(null);
+
+    const fetchData = async (pageNumber = page) => {
         setRefreshing(true);
-        const res = await getEventRegistrationsAction(id);
+        const res = await getEventRegistrationsAction(id, pageNumber);
         if (res.success) {
             setRegistrations(res.registrations);
+            setPagination(res.pagination);
         }
         setLoading(false);
         setRefreshing(false);
@@ -29,9 +34,9 @@ export default function ClubEventRegistrationsPage({ params }) {
     useEffect(() => {
         fetchData();
         // Optional: Auto-refresh every 30 seconds
-        const interval = setInterval(fetchData, 30000);
+        const interval = setInterval(() => fetchData(), 30000);
         return () => clearInterval(interval);
-    }, [id]);
+    }, [id, page]);
 
     const downloadCSV = () => {
         const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment Method'];
@@ -334,6 +339,31 @@ export default function ClubEventRegistrationsPage({ params }) {
                             </tbody>
                         </table>
                     )}
+                </div>
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-between items-center mt-4 text-sm text-gray-400">
+                <div>
+                    Showing {pagination ? (pagination.current - 1) * pagination.limit + 1 : 0} to {pagination ? Math.min(pagination.current * pagination.limit, pagination.total) : 0} of {pagination?.total || 0} entries
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        disabled={page === 1 || loading}
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Previous
+                    </button>
+                    <span className="flex items-center px-4 py-2 bg-white/5 border border-white/10 rounded-lg">
+                        Page {pagination?.current || 1} of {pagination?.pages || 1}
+                    </span>
+                    <button
+                        disabled={!pagination || page >= pagination.pages || loading}
+                        onClick={() => setPage(p => p + 1)}
+                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Next
+                    </button>
                 </div>
             </div>
         </div >

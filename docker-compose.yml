@@ -1,0 +1,36 @@
+services:
+  app:
+    container_name: etamax-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+      # If using local Mongo/Redis, use these service names as hostnames
+      - MONGODB_URI=mongodb://mongo:27017/etamax_prod
+      # Redis removed as Cloudflare handles Rate Limiting
+      # Copy other env vars from your .env.local here or use an env_file
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    depends_on:
+      - mongo
+    networks:
+      - etamax-network
+
+  mongo:
+    container_name: etamax-mongo
+    image: mongo:7.0
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - etamax-network
+
+networks:
+  etamax-network:
+    driver: bridge
+
+volumes:
+  mongo-data:

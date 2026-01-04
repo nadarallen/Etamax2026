@@ -183,7 +183,7 @@ export async function getEventsAction() {
     }
 }
 
-export async function getEventRegistrationsAction(eventId: string) {
+export async function getEventRegistrationsAction(eventId: string, page: number = 1, limit: number = 50) {
     try {
         const session = await getSession();
         if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
@@ -196,18 +196,28 @@ export async function getEventRegistrationsAction(eventId: string) {
         (await import('@/models/Slot')).default;
         (await import('@/models/Team')).default;
 
-        const registrations = await Registration.find({ eventId })
-            .populate('slotId')
-            .populate('teamId')
-            .sort({ createdAt: -1 })
-            .lean();
+        const skip = (page - 1) * limit;
 
-        if (registrations.length > 0) {
-            console.log('DEBUG_SLOT_POPULATION:', JSON.stringify(registrations[0].slotId, null, 2));
-        }
+        // Parallel fetch: Data + Count
+        const [registrations, total] = await Promise.all([
+            Registration.find({ eventId })
+                .populate('slotId')
+                .populate('teamId')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Registration.countDocuments({ eventId })
+        ]);
 
         return {
             registrations: JSON.parse(JSON.stringify(registrations)),
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                current: page,
+                limit
+            },
             success: true
         };
     } catch (error) {
