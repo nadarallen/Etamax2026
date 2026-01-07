@@ -25,7 +25,7 @@ export async function deleteUserAction(formData: FormData) {
     if (!userId) return;
 
     // Safety: Don't delete self
-    if (userId === session.userId) return; // Cannot delete self
+    if (userId === session.user.id) return; // Cannot delete self
 
     try {
         await connectToDatabase();
@@ -43,7 +43,7 @@ export async function updateUserRoleAction(formData: FormData) {
     const userId = formData.get('userId');
     const newRole = formData.get('role');
 
-    if (userId === session.userId) return;
+    if (userId === session.user.id) return;
 
     try {
         await connectToDatabase();

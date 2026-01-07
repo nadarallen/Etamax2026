@@ -23,6 +23,12 @@ const RegistrationSchema = z.object({
     teamCode: z.string().optional(),
 });
 
+// Constants for Enums
+const STATUS_JOINED = 'JOINED';
+const STATUS_PENDING = 'PENDING';
+const STATUS_PAID = 'PAID';
+const TEAM_STATUS_CONFIRMED = 'CONFIRMED';
+
 // Configure Nodemailer (Use Env Vars in production)
 // Remove top-level transporter
 // const transporter = ... 
@@ -40,7 +46,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 
         if (!parsed.success) {
             console.error("Zod Validation Error:", parsed.error);
-            const errors = parsed.error.errors || [];
+            const errors = (parsed.error as any).errors || (parsed.error as any).issues || [];
             const messages = errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
             return { error: `Input Validation Failed: ${messages}`, payload: data };
         }
@@ -91,6 +97,14 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         // new import for Team
         const Team = (await import('@/models/Team')).default;
 
+        // Fix Team Enums using string literals to match Schema values
+        const STATUS_JOINED = 'JOINED';
+        const STATUS_PENDING = 'PENDING';
+        const STATUS_PAID = 'PAID';
+        const TEAM_STATUS_CONFIRMED = 'CONFIRMED';
+        // Or if interface requires Enums, cast them:
+        // as any is easiest since runtime strings work for Mongoose
+
         let teamId = null;
 
         // Team Logic (if applicable)
@@ -117,8 +131,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                     leaderId: session.user.id,
                     members: [{
                         userId: session.user.id,
-                        status: 'JOINED',
-                        paymentStatus: paymentMethod === 'OFFLINE' ? 'PENDING' : 'PAID',
+                        status: STATUS_JOINED,
+                        paymentStatus: paymentMethod === 'OFFLINE' ? STATUS_PENDING : STATUS_PAID,
                         joinedAt: new Date()
                     }],
                     status: 'OPEN',
@@ -141,7 +155,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                     team.members = [];
                 }
 
-                const limit = team.maxMembers || event.maxMembers || 4; // Fallback to 4 if all fail
+                const limit = (team as any).maxMembers || (event as any).maxMembers || 4; // Fallback to 4 if all fail
 
                 if (team.members.length >= limit) {
                     return { error: 'Team is full.' };
@@ -155,11 +169,11 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                     const inheritedStatus = leaderMember ? leaderMember.paymentStatus : 'PENDING';
 
                     team.members.push({
-                        userId: session.user.id,
-                        status: 'JOINED',
+                        userId: session.user.id, // Mongoose handles string -> ObjectId
+                        status: STATUS_JOINED,
                         paymentStatus: inheritedStatus,
                         joinedAt: new Date()
-                    });
+                    } as any);
                     await team.save();
                 } else {
                     return { error: 'You are already in this team.' };
@@ -173,15 +187,13 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         if (parsed.data.teamAction === 'JOIN') {
             // Re-fetch team to get the status we just pushed (or calculate it again)
             // Ideally avoid refetch. We know inheritedStatus
-            const leaderMember = (await Team.findById(teamId)).members.find((m: any) => m.userId.toString() === session.user.id);
-            // Actually relying on DB might be safer or just variable.
-            // Let's use the logic: If Leader Paid -> Confirmed, Else Pending.
-            // We can't easily access 'inheritedStatus' here due to scope. 
-            // Let's refactor slightly to keep scope or just re-query.
-            // Optimized:
             const teamDoc = await Team.findById(teamId);
-            const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
-            finalStatus = (leader?.paymentStatus === 'PAID') ? RegStatus.CONFIRMED : RegStatus.PENDING;
+            if (teamDoc) {
+                const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
+                finalStatus = (leader?.paymentStatus === STATUS_PAID) ? RegStatus.CONFIRMED : RegStatus.PENDING;
+            } else {
+                finalStatus = RegStatus.PENDING;
+            }
         } else {
             finalStatus = paymentMethod === 'OFFLINE' ? RegStatus.PENDING : RegStatus.CONFIRMED;
         }
@@ -359,7 +371,7 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
                     memberUserIds.push(m.userId);
                 });
                 if (newStatus === RegStatus.CONFIRMED) {
-                    team.status = 'CONFIRMED';
+                    team.status = TEAM_STATUS_CONFIRMED as any;
                 }
                 await team.save();
 
@@ -376,8 +388,8 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
         }
 
         // If newly confirmed, send email
-        if (newStatus === RegStatus.CONFIRMED) {
-            if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        if (newStatus === RegStatus.CONFIRMED && updatedReg.email && updatedReg.fullName) {
+            if (process.env.EMAIL_USER && updatedReg.email) {
                 console.log(`Sending approval email to: ${updatedReg.email}`);
 
                 try {
@@ -392,19 +404,19 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
                     await transporter.sendMail({
                         from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
                         to: updatedReg.email,
-                        subject: `Registration Update: ${updatedReg.eventId.name}`,
+                        subject: `Registration Update: ${(updatedReg.eventId as any).name}`,
                         html: `
                             <div style="font-family: Arial, sans-serif; color: #333;">
                                 <h1>Registration Status Updated</h1>
                                 <p>Hi ${updatedReg.fullName},</p>
-                                <p>Your registration status for <strong>${updatedReg.eventId.name}</strong> has been updated to <strong>${newStatus}</strong>.</p>
+                                <p>Your registration status for <strong>${(updatedReg.eventId as any).name}</strong> has been updated to <strong>${newStatus}</strong>.</p>
                                 <hr />
                                 <p><strong>Event Details:</strong></p>
                                 <ul>
-                                    <li><strong>Event:</strong> ${updatedReg.eventId.name}</li>
-                                    <li><strong>Venue:</strong> ${updatedReg.slotId.venue}</li>
-                                    <li><strong>Day:</strong> Day ${updatedReg.slotId.dayNumber}</li>
-                                    <li><strong>Time:</strong> ${updatedReg.slotId.startTime} - ${updatedReg.slotId.endTime}</li>
+                                    <li><strong>Event:</strong> ${(updatedReg.eventId as any).name}</li>
+                                    <li><strong>Venue:</strong> ${(updatedReg.slotId as any).venue}</li>
+                                    <li><strong>Day:</strong> Day ${(updatedReg.slotId as any).dayNumber}</li>
+                                    <li><strong>Time:</strong> ${(updatedReg.slotId as any).startTime} - ${(updatedReg.slotId as any).endTime}</li>
                                 </ul>
                                 <p><strong>Current Status:</strong> ${newStatus}</p>
                                 <p>Please show this email at the entry if Confirmed.</p>

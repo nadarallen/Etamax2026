@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import connectToDatabase from '@/lib/db';
 import Registration from '@/models/Registration';
 import Event from '@/models/Event';
+import Slot from '@/models/Slot';
 import { getSession } from '@/lib/auth';
 import { nanoid } from 'nanoid';
 
@@ -26,10 +27,17 @@ export async function POST(req: NextRequest) {
         const event = await Event.findById(eventId);
         if (!event) return new NextResponse('Event not found', { status: 404 });
 
-        const slot = event.slots.find((s: any) => s._id.toString() === slotId);
+        // Fix: Fetch slot directly from Slot collection
+        const slot = await Slot.findById(slotId);
         if (!slot) return new NextResponse('Slot not found', { status: 404 });
 
-        if (slot.bookedCount >= slot.capacity) {
+        // precise validation: Ensure slot belongs to this event
+        if (slot.eventId.toString() !== eventId) {
+            return new NextResponse('Slot does not belong to this event', { status: 400 });
+        }
+
+        // Fix: Use correct property names from Slot schema
+        if (slot.registeredCount >= slot.maxCapacity) {
             return new NextResponse('Slot is fully booked', { status: 400 });
         }
 
@@ -42,7 +50,7 @@ export async function POST(req: NextRequest) {
             notes: {
                 eventId: eventId,
                 slotId: slotId,
-                userId: session.userId,
+                userId: session.user.id,
                 teamId: teamId || ''
             }
         };

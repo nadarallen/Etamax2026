@@ -13,7 +13,7 @@ import { randomBytes } from 'crypto';
 export async function createPartyAction(eventId: string, slotId: string, teamName?: string) {
     // 1. Auth Check
     const session = await getSession();
-    if (!session || !session.userId) {
+    if (!session || !session.user.id) {
         return { error: "Unauthorized" };
     }
 
@@ -34,9 +34,9 @@ export async function createPartyAction(eventId: string, slotId: string, teamNam
             code: code,
             eventId: eventId,
             slotId: slotId,
-            leaderId: session.userId,
+            leaderId: session.user.id,
             members: [{
-                userId: session.userId,
+                userId: session.user.id,
                 status: MemberStatus.JOINED, // Leader is auto-joined
                 paymentStatus: PaymentStatus.PENDING,
                 joinedAt: new Date()
@@ -56,7 +56,7 @@ export async function createPartyAction(eventId: string, slotId: string, teamNam
 // Prompt 12: Join Party Logic
 export async function joinPartyAction(code: string) {
     const session = await getSession();
-    if (!session || !session.userId) return { error: "Unauthorized" };
+    if (!session || !session.user.id) return { error: "Unauthorized" };
 
     try {
         await connectToDatabase();
@@ -66,7 +66,7 @@ export async function joinPartyAction(code: string) {
         if (!team) return { error: "Invalid or expired code" };
 
         // 2. Validate
-        const isMember = team.members.find((m: any) => m.userId.toString() === session.userId);
+        const isMember = team.members.find((m: any) => m.userId.toString() === session.user.id);
         if (isMember) {
             return { success: true, partyId: team._id.toString() };
         }
@@ -77,7 +77,7 @@ export async function joinPartyAction(code: string) {
 
         // 3. Update
         team.members.push({
-            userId: session.userId as any,
+            userId: session.user.id as any,
             status: MemberStatus.JOINED,
             paymentStatus: PaymentStatus.PENDING,
             joinedAt: new Date()
@@ -110,7 +110,7 @@ export async function getPartyDetails(partyId: string) {
 // Prompt 16: User Team Management
 export async function leavePartyAction(partyId: string) {
     const session = await getSession();
-    if (!session?.userId) return { error: "Unauthorized" };
+    if (!session?.user?.id) return { error: "Unauthorized" };
 
     try {
         await connectToDatabase();
@@ -118,19 +118,19 @@ export async function leavePartyAction(partyId: string) {
         if (!team) return { error: "Team not found" };
 
         // Prevent leaving if paid or if leader (unless dynamic leader assignment is built, which is out of scope for now)
-        const member = team.members.find((m: any) => m.userId.toString() === session.userId);
+        const member = team.members.find((m: any) => m.userId.toString() === session.user.id);
         if (!member) return { error: "Not a member" };
 
         if (member.paymentStatus === PaymentStatus.PAID) {
             return { error: "Cannot leave after payment. Contact support." };
         }
 
-        if (team.leaderId.toString() === session.userId) {
+        if (team.leaderId.toString() === session.user.id) {
             return { error: "Leader cannot leave. Delete the team instead." };
         }
 
         // Remove member
-        team.members = team.members.filter((m: any) => m.userId.toString() !== session.userId);
+        team.members = team.members.filter((m: any) => m.userId.toString() !== session.user.id);
         await team.save();
 
         return { success: true };
@@ -142,7 +142,7 @@ export async function leavePartyAction(partyId: string) {
 
 export async function kickMemberAction(partyId: string, memberId: string) {
     const session = await getSession();
-    if (!session?.userId) return { error: "Unauthorized" };
+    if (!session?.user?.id) return { error: "Unauthorized" };
 
     try {
         await connectToDatabase();
@@ -150,7 +150,7 @@ export async function kickMemberAction(partyId: string, memberId: string) {
         if (!team) return { error: "Team not found" };
 
         // Check Leadership
-        if (team.leaderId.toString() !== session.userId) return { error: "Only leader can kick members" };
+        if (team.leaderId.toString() !== session.user.id) return { error: "Only leader can kick members" };
 
         const member = team.members.find((m: any) => m.userId.toString() === memberId);
         if (!member) return { error: "Member not found" };

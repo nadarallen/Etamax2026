@@ -12,7 +12,7 @@ import { randomUUID } from 'crypto';
 // Prompt 17: Initiate Payment
 export async function initiatePaymentAction(eventId: string, slotId: string, teamId?: string) {
     const session = await getSession();
-    if (!session || !session.userId) return { error: "Unauthorized" };
+    if (!session || !session.user.id) return { error: "Unauthorized" };
 
     try {
         await connectToDatabase();
@@ -31,7 +31,7 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
             currency: currency,
             receipt: randomUUID(),
             notes: {
-                userId: session.userId,
+                userId: session.user.id,
                 eventId: eventId,
                 slotId: slotId,
                 teamId: teamId || '',
@@ -50,7 +50,7 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
 
         // 3. Create Local Payment Record
         await Payment.create({
-            userId: session.userId,
+            userId: session.user.id,
             amount: event.price, // Storing in Rupees in DB for readability or paise? Model usually stores what you prefer. Let's assume Rupees as per previous chats, but consistency matters. Let's store Rupees.
             currency: 'INR',
             method: PaymentMethod.ONLINE,
@@ -81,7 +81,7 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
 // In real dev, we might use the actual webhook route, but for pure simulation without ngrok:
 export async function simulateMockPaymentAction(orderId: string) {
     const session = await getSession();
-    if (!session || !session.userId) return { error: "Unauthorized" };
+    if (!session || !session.user.id) return { error: "Unauthorized" };
 
     await connectToDatabase();
     const payment = await Payment.findOne({ gatewayOrderId: orderId });
@@ -115,20 +115,21 @@ export async function simulateMockPaymentAction(orderId: string) {
                 await team.save();
             }
             const allPaid = team.members.every((m: any) => m.paymentStatus === 'PAID');
-            if (allPaid && team.members.length >= (await Event.findById(eventId))!.minTeamSize) {
+            // Safe fetch
+            const eventDoc = await Event.findById(eventId);
+            const minSize = eventDoc?.minTeamSize || 1;
+            if (allPaid && team.members.length >= minSize) {
                 team.status = TeamStatus.CONFIRMED;
-                await Event.updateOne(
-                    { 'slots._id': slotId },
-                    { $inc: { 'slots.$.bookedCount': team.members.length } }
-                );
+                // Update Slot Capacity
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
                 await team.save();
             }
         }
     } else {
-        await Event.updateOne(
-            { 'slots._id': slotId },
-            { $inc: { 'slots.$.bookedCount': 1 } }
-        );
+        // Update Slot Capacity
+        const Slot = (await import('@/models/Slot')).default;
+        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
     }
 
     await Registration.create({

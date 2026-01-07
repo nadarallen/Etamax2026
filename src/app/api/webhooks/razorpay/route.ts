@@ -63,23 +63,22 @@ export async function POST(req: NextRequest) {
 
                     // Check if all paid (Prompt 13)
                     const allPaid = team.members.every((m: any) => m.paymentStatus === TeamPaymentStatus.PAID);
-                    if (allPaid && team.members.length >= (await Event.findById(eventId))!.minTeamSize) {
+                    const event = await Event.findById(eventId);
+
+                    if (allPaid && event && event.minTeamSize && team.members.length >= event.minTeamSize) {
                         team.status = TeamStatus.CONFIRMED;
                         // Prompt 14: Consume Slot Capacity
-                        await Event.updateOne(
-                            { 'slots._id': slotId },
-                            { $inc: { 'slots.$.bookedCount': team.members.length } } // Atomic Increment
-                        );
+                        // Atomic Increment on Slot model
+                        const Slot = (await import('@/models/Slot')).default;
+                        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
                         await team.save();
                         teamUpdated = true;
                     }
                 }
             } else {
                 // Solo Event: Directly Consume Slot
-                await Event.updateOne(
-                    { 'slots._id': slotId },
-                    { $inc: { 'slots.$.bookedCount': 1 } }
-                );
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
             }
 
             // Create Registration Record (Receipt Proof)

@@ -85,7 +85,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         const sessionPayload = {
             userId: newUser._id.toString(),
             email: newUser.email,
-            role: newUser.role,
+            role: newUser.role as unknown as Role,
             name: newUser.name,
         };
 

@@ -4,6 +4,7 @@ import connectToDatabase from '@/lib/db';
 import Payment, { PaymentStatus, PaymentMethod } from '@/models/Payment';
 import Registration, { RegStatus } from '@/models/Registration';
 import Event from '@/models/Event';
+import Slot from '@/models/Slot';
 import { getSession } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -39,8 +40,12 @@ export async function POST(req: NextRequest) {
         // We might want to fetch amount from somewhere, but for now trust the flow or fetch Order details from Razorpay if needed.
         // For simplicity, we assume success means amount was correct.
 
+        // 2. Create Payment Record
+        // We might want to fetch amount from somewhere, but for now trust the flow or fetch Order details from Razorpay if needed.
+        // For simplicity, we assume success means amount was correct.
+
         await Payment.create({
-            userId: session.userId,
+            userId: session.user.id,
             amount: 0, // Should be fetched from event/order ideally
             method: PaymentMethod.ONLINE,
             status: PaymentStatus.SUCCESS,
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Create Registration
         const registration = await Registration.create({
-            userId: session.userId,
+            userId: session.user.id,
             eventId,
             slotId,
             teamId,
@@ -61,10 +66,7 @@ export async function POST(req: NextRequest) {
         });
 
         // 4. Update Slot Capacity
-        await Event.updateOne(
-            { 'slots._id': slotId },
-            { $inc: { 'slots.$.bookedCount': 1 } }
-        );
+        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
 
         return NextResponse.json({ success: true, registrationId: registration._id });
 

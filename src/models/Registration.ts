@@ -16,6 +16,14 @@ export interface IRegistration extends Document {
     status: RegStatus;
     etamaxId?: string;
     qrCodeHash: string;
+    expiresAt?: Date;
+    // Profile Fields
+    fullName: string;
+    rollNumber: string;
+    email: string;
+    branch: string;
+    semester: string;
+    paymentMethod?: string; // Optional in schema? lines 41-45 didn't show it but line 280 uses it?
     createdAt: Date;
     updatedAt: Date;
 }

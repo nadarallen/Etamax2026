@@ -24,20 +24,18 @@ async function fulfillPayment(payment: any) {
             }
             // Check if all paid
             const allPaid = team.members.every((m: any) => m.paymentStatus === TeamPaymentStatus.PAID);
-            if (allPaid && team.members.length >= (await Event.findById(eventId))!.minTeamSize) {
+            const event = await Event.findById(eventId);
+
+            if (allPaid && event && event.minTeamSize && team.members.length >= event.minTeamSize) {
                 team.status = TeamStatus.CONFIRMED;
-                await Event.updateOne(
-                    { 'slots._id': slotId },
-                    { $inc: { 'slots.$.bookedCount': team.members.length } }
-                );
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
                 await team.save();
             }
         }
     } else {
-        await Event.updateOne(
-            { 'slots._id': slotId },
-            { $inc: { 'slots.$.bookedCount': 1 } }
-        );
+        const Slot = (await import('@/models/Slot')).default;
+        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
     }
 }
 

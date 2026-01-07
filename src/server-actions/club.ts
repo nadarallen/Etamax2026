@@ -3,14 +3,14 @@
 import { z } from 'zod'; // Prompt 2, 6
 import { redirect } from 'next/navigation';
 import connectToDatabase from '@/lib/db';
-import Event, { EventType } from '@/models/Event';
+import Event from '@/models/Event';
 import { getSession, Role } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 const CreateEventSchema = z.object({
     title: z.string().min(3, "Title must be at least 3 characters"),
     description: z.string().optional(),
-    eventType: z.nativeEnum(EventType),
+    eventType: z.enum(['solo', 'duo', 'group']),
     price: z.coerce.number().min(0, "Price must be positive"),
     minTeamSize: z.coerce.number().min(1),
     maxTeamSize: z.coerce.number().min(1),
@@ -58,15 +58,14 @@ export async function createEventAction(prevState: State, formData: FormData): P
 
         // 3. Create Event
         const newEvent = await Event.create({
-            clubId: session.userId,
+            clubId: session.user.id,
             title,
             description,
             eventType,
             price,
-            minTeamSize: eventType === EventType.SOLO ? 1 : minTeamSize,
-            maxTeamSize: eventType === EventType.SOLO ? 1 : maxTeamSize,
+            minTeamSize: eventType === 'solo' ? 1 : minTeamSize,
+            maxTeamSize: eventType === 'solo' ? 1 : maxTeamSize,
             isPublished: false, // Default to draft
-            slots: [] // Slots created separately via Manage Page
         });
 
         revalidatePath('/club');

@@ -13,6 +13,7 @@ export interface IEvent extends Document {
     // schedule removed
     createdAt: Date;
     updatedAt: Date;
+    minTeamSize?: number;
 }
 
 const EventSchema: Schema = new Schema(
