@@ -47,16 +47,33 @@ export default function EventDetail({ params }) {
                 setSlots(s);
                 // Get unique days and sort
                 const days = [...new Set(s.map(slot => slot.dayNumber))].sort((a, b) => a - b);
+
                 if (days.length > 0) {
+                    // Find first day that isn't fully sold out
+                    const availableDay = days.find(day => {
+                        const daySlots = s.filter(slot => slot.dayNumber === day);
+                        const isDaySoldOut = daySlots.every(slot => {
+                            const isTeam = ['duo', 'group'].includes(ev.type);
+                            const cap = slot.maxCapacity || Infinity;
+                            const count = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
+                            return count >= cap;
+                        });
+                        return !isDaySoldOut;
+                    });
+
                     // Check if URL param matches a valid day
                     if (urlDay && days.includes(urlDay)) {
                         setSelectedDay(urlDay);
+                    } else if (availableDay) {
+                        // Default to first AVAILABLE day
+                        setSelectedDay(availableDay);
                     } else {
-                        // Default to first day if no param or invalid
+                        // All days sold out? Just show first day
                         setSelectedDay(days[0]);
                     }
                 }
             }
+
             if (profile) {
                 setUserProfile(profile);
             }
@@ -272,25 +289,43 @@ export default function EventDetail({ params }) {
 
                                     {/* Day Tabs */}
                                     <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                                        {[...new Set(slots.map(s => s.dayNumber))].sort((a, b) => a - b).map(day => (
-                                            <button
-                                                key={day}
-                                                type="button"
-                                                onClick={() => setSelectedDay(day)}
-                                                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${selectedDay === day
-                                                    ? 'bg-galaxy-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.4)]'
-                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                Day {day}
-                                            </button>
-                                        ))}
+                                        {[...new Set(slots.map(s => s.dayNumber))].sort((a, b) => a - b).map(day => {
+                                            const daySlots = slots.filter(s => s.dayNumber === day);
+                                            // Check if EVERY slot in this day is full. Safety checks for cap.
+                                            const isDaySoldOut = daySlots.length > 0 && daySlots.every(s => {
+                                                const isTeam = ['duo', 'group'].includes(event.type);
+                                                const cap = s.maxCapacity || 9999;
+                                                const count = isTeam ? (s.teamsCount || 0) : (s.registeredCount || 0);
+                                                return count >= cap;
+                                            });
+
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => setSelectedDay(day)}
+                                                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${selectedDay === day
+                                                        ? 'bg-galaxy-purple text-white border-galaxy-purple shadow-[0_0_15px_rgba(124,58,237,0.4)]'
+                                                        : isDaySoldOut
+                                                            ? 'bg-red-500/10 text-red-500 border-red-500/20 opacity-80'
+                                                            : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    Day {day}
+                                                    {isDaySoldOut && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Full</span>}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     {/* Slot Grid */}
                                     <div className="grid grid-cols-2 gap-3">
                                         {slots.filter(s => s.dayNumber === selectedDay).map(slot => {
-                                            const percentFull = (slot.registeredCount / slot.maxCapacity) * 100;
+                                            const isTeam = ['duo', 'group'].includes(event.type);
+                                            const currentCount = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
+                                            const maxCap = slot.maxCapacity || 1;
+
+                                            const percentFull = (currentCount / maxCap) * 100;
                                             const isFull = percentFull >= 100;
                                             const isFastFilling = !isFull && percentFull >= 80;
                                             const isSelected = selectedSlot?._id === slot._id;

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 export default function EventCard({ event, activeDay, isAdmin = false }) {
     const router = useRouter();
+    const isTeamEvent = event.type === 'duo' || event.type === 'group';
 
     // If activeDay is provided and we have slots, filter stats for that day
     let registered = event.stats?.totalRegistered || 0;
@@ -19,17 +20,37 @@ export default function EventCard({ event, activeDay, isAdmin = false }) {
         if (daySlots.length > 0) {
             capacity = daySlots.reduce((acc, s) => acc + s.maxCapacity, 0);
             registered = daySlots.reduce((acc, s) => acc + (s.registeredCount || 0), 0);
+            // Calculate day-specific team count
+            if (isTeamEvent) {
+                // Sum of teamsCount (from slots) for this day
+                // Note: This assumes teams don't span slots in a way that double counts, 
+                // but usually a team takes 1 slot.
+                const dayTeams = daySlots.reduce((acc, s) => acc + (s.teamsCount || 0), 0);
+                // Override the global team count with this day's count
+                event.stats = { ...event.stats, totalTeams: dayTeams };
+            }
             slotsCount = daySlots.length;
         }
     }
 
-    const percentFull = capacity > 0 ? (registered / capacity) * 100 : 0;
+
+
+    // Determine the count to compare against capacity
+    // For Team events, we must use the team count, not the registered members count.
+    // We now update event.stats.totalTeams dynamically above if activeDay is present.
+    let countToCheck = registered;
+    if (isTeamEvent) {
+        countToCheck = event.stats?.totalTeams || 0;
+    }
+
+    const percentFull = capacity > 0 ? (countToCheck / capacity) * 100 : 0;
+
     let statusText = 'Available';
     let statusColor = 'bg-green-500/20 text-green-400 border-green-500/30';
     let enrollText = 'Enroll Now';
     let isFull = false;
 
-    if (capacity > 0 && registered >= capacity) {
+    if (capacity > 0 && countToCheck >= capacity) {
         statusText = 'Sold Out';
         statusColor = 'bg-red-500/20 text-red-400 border-red-500/30';
         enrollText = 'Full';

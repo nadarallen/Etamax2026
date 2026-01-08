@@ -63,8 +63,23 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         if (!slot) return { error: 'Slot not found' };
 
         // 2. Check Capacity
-        const registrationCount = await Registration.countDocuments({ slotId, status: { $ne: RegStatus.CANCELLED } });
-        if (registrationCount >= slot.maxCapacity) {
+        let currentCount = 0;
+        const isTeamEvent = ['duo', 'group'].includes(event.type);
+
+        if (isTeamEvent) {
+            // For team events, count unique teams
+            const uniqueTeams = await Registration.distinct('teamId', {
+                slotId,
+                status: { $ne: RegStatus.CANCELLED },
+                teamId: { $exists: true, $ne: null }
+            });
+            currentCount = uniqueTeams.length;
+        } else {
+            // For solo events, count registrations
+            currentCount = await Registration.countDocuments({ slotId, status: { $ne: RegStatus.CANCELLED } });
+        }
+
+        if (currentCount >= slot.maxCapacity) {
             return { error: 'Slot is full. Please choose another slot.' };
         }
 
@@ -279,6 +294,32 @@ export async function getRegistrationReceiptAction(regId: string) {
 
         if (!reg) return null;
 
+        // Fetch Team Details if registered as a team
+        let teamData = null;
+        if (reg.teamId) {
+            const Team = (await import('@/models/Team')).default;
+            // Populate leader and members
+            const team = await Team.findById(reg.teamId)
+                .populate('leaderId')
+                .populate('members.userId');
+
+            if (team) {
+                teamData = {
+                    name: team.name,
+                    code: team.code,
+                    // @ts-ignore
+                    leaderName: team.leaderId.fullName,
+                    members: team.members.map((m: any) => ({
+                        // @ts-ignore
+                        name: m.userId.fullName,
+                        // @ts-ignore
+                        rollNumber: m.userId.rollNumber,
+                        status: m.status
+                    }))
+                };
+            }
+        }
+
         // Strictly pick fields to avoid passing complex Mongoose objects (Buffers, etc.)
         // Ensure NO undefined values are returned, use null instead.
         const serialized = {
@@ -293,6 +334,7 @@ export async function getRegistrationReceiptAction(regId: string) {
             etamaxId: reg.etamaxId || null,
             createdAt: reg.createdAt ? reg.createdAt.toISOString() : null,
             updatedAt: reg.updatedAt ? reg.updatedAt.toISOString() : null,
+            team: teamData, // Attached Team Data
             // Manual population serialization
             eventId: reg.eventId && typeof reg.eventId === 'object' && 'name' in reg.eventId ? {
                 // @ts-ignore

@@ -69,6 +69,41 @@ export default function ReceiptPage() {
 
             <ReceiptTemplate data={data} watermark={isPending ? "PAYMENT PENDING" : null} />
 
+            {/* Team Details Section */}
+            {data.team && (
+                <div className="mt-8 w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
+                    <h3 className="text-xl font-bold text-white mb-4 border-b border-white/10 pb-2">Team Details</h3>
+
+                    <div className="space-y-3">
+                        <div className="flex justify-between">
+                            <span className="text-gray-400 text-sm">Team Name</span>
+                            <span className="text-white font-medium">{data.team.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-400 text-sm">Team Leader</span>
+                            <span className="text-white font-medium">{data.team.leaderName}</span>
+                        </div>
+
+                        <div className="pt-2">
+                            <span className="text-gray-400 text-sm block mb-2">Members</span>
+                            <div className="space-y-2">
+                                {data.team.members.map((member, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-black/20 p-2 rounded-lg text-sm">
+                                        <span className="text-gray-300">{member.name}</span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${member.status === 'JOINED' || member.status === 'CONFIRMED'
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-yellow-500/20 text-yellow-400'
+                                            }`}>
+                                            {member.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="mt-8 mb-12 flex flex-col md:flex-row gap-4 w-full md:w-auto px-4">
                 <button
                     onClick={() => window.print()}

@@ -72,8 +72,11 @@ export async function middleware(req: NextRequest) {
 
     // Admin Routes
     if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
-        // Exception: Club Admins can access Create Event, Edit Event and Slots Config
-        const isSharedAdminRoute = path.startsWith('/admin/create-event') || path.startsWith('/admin/edit-event') || path.startsWith('/admin/events');
+        // Exception: Club Admins can access Create Event, Edit Event, Slots Config AND Desk
+        const isSharedAdminRoute = path.startsWith('/admin/create-event')
+            || path.startsWith('/admin/edit-event')
+            || path.startsWith('/admin/events')
+            || path.startsWith('/admin/desk');
 
         if (isSharedAdminRoute) {
             if (userRole !== Role.SUPER_ADMIN && userRole !== Role.CLUB_ADMIN) {

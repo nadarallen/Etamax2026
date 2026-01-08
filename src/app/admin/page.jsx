@@ -13,6 +13,7 @@ function AdminContent() {
     const [stats, setStats] = useState({ totalEvents: 0, totalRegistrations: 0, totalRevenue: 0 });
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDesk, setShowDesk] = useState(false); // Rapid Payment State
 
     const fetchData = async () => {
         try {
@@ -86,18 +87,26 @@ function AdminContent() {
 
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">All Events</h2>
-                <Link href="/admin/students">
-                    <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
-                        <Users size={16} /> Students Report
-                    </button>
-                </Link>
-                <Link href="/admin/create-event">
+                <div className="flex gap-3">
                     <button
-                        className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                        onClick={() => setShowDesk(true)}
+                        className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 animate-pulse hover:animate-none"
                     >
-                        + Create Event
+                        <span className="text-lg">⚡</span> Rapid Payment
                     </button>
-                </Link>
+                    <Link href="/admin/students">
+                        <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                            <Users size={16} /> Students Report
+                        </button>
+                    </Link>
+                    <Link href="/admin/create-event">
+                        <button
+                            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                        >
+                            + Create Event
+                        </button>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -164,9 +173,22 @@ function AdminContent() {
                     </div>
                 )}
             </div>
+
+            {/* Rapid Payment Modal */}
+            {showDesk && (
+                <Suspense fallback={null}>
+                    <RapidPaymentWrapper onClose={() => setShowDesk(false)} />
+                </Suspense>
+            )}
         </div>
     );
 }
+
+// Lazy load the panel for performance
+import dynamic from 'next/dynamic';
+const RapidPaymentWrapper = dynamic(() => import('@/components/admin/RapidPaymentPanel'), {
+    ssr: false
+});
 
 export default function AdminPage() {
     return (

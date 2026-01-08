@@ -140,13 +140,22 @@ const getEventsCached = unstable_cache(
         const regCountMap = new Map(regCounts.map((r: any) => [r._id.toString(), r.count]));
         const teamCountMap = new Map(teamCounts.map((r: any) => [r._id.toString(), r.count]));
 
+        // 3c. Aggregate Unique Teams by Slot (Slot Team Count) - NEW
+        const slotTeamCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
+            { $group: { _id: "$slotId", teams: { $addToSet: "$teamId" } } },
+            { $project: { _id: 1, count: { $size: "$teams" } } }
+        ]);
+        const slotTeamCountMap = new Map(slotTeamCounts.map((r: any) => [r._id.toString(), r.count]));
+
         // Process in memory
         const eventsWithStats = events.map((ev: any) => {
             const evSlots = allSlots.filter((s: any) => s.eventId.toString() === ev._id.toString());
 
             const slotsWithCounts = evSlots.map((slot: any) => ({
                 ...slot,
-                registeredCount: regCountMap.get(slot._id.toString()) || 0
+                registeredCount: regCountMap.get(slot._id.toString()) || 0,
+                teamsCount: slotTeamCountMap.get(slot._id.toString()) || 0 // Added
             }));
 
             const totalCapacity = slotsWithCounts.reduce((acc: number, s: any) => acc + s.maxCapacity, 0);
@@ -326,19 +335,27 @@ export async function getSlotsAction(eventId: string) {
 
         const slots = await Slot.find({ eventId }).sort({ dayNumber: 1, startTime: 1 }).lean();
 
-        // Get live registration counts
+        // Get live registration counts (Total People)
         const regCounts = await Registration.aggregate([
             { $match: { eventId: new (await import('mongoose')).Types.ObjectId(eventId), status: { $ne: 'CANCELLED' } } },
             { $group: { _id: "$slotId", count: { $sum: 1 } } }
         ]);
 
+        // Get unique team counts per slot
+        const teamCounts = await Registration.aggregate([
+            { $match: { eventId: new (await import('mongoose')).Types.ObjectId(eventId), status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
+            { $group: { _id: "$slotId", teams: { $addToSet: "$teamId" } } },
+            { $project: { _id: 1, count: { $size: "$teams" } } }
+        ]);
+
         const slotsWithCounts = slots.map((slot: any) => {
             const countObj = regCounts.find((r: any) => r._id.toString() === slot._id.toString());
-            // Use 0 if not found, or default db value if you prefer, but live is better
-            // Ideally we also update the DB registeredCount here but read-only is fine for UI
+            const teamCountObj = teamCounts.find((r: any) => r._id.toString() === slot._id.toString());
+
             return {
                 ...slot,
-                registeredCount: countObj ? countObj.count : 0
+                registeredCount: countObj ? countObj.count : 0,
+                teamsCount: teamCountObj ? teamCountObj.count : 0
             };
         });
 

@@ -53,6 +53,10 @@ const RegistrationSchema: Schema = new Schema(
         etamaxId: { type: String, unique: true, sparse: true },
         qrCodeHash: { type: String },
         expiresAt: { type: Date },
+
+        // Desk Payment Confirmation
+        confirmedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        confirmedAt: { type: Date },
     },
     { timestamps: true }
 );
