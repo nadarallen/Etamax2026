@@ -1,6 +1,9 @@
+/**
+ * Debug script to check event data and aggregation logic.
+ */
 const mongoose = require('mongoose');
 const path = require('path');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 // Mock Models
 const EventSchema = new mongoose.Schema({ name: String, type: String }, { strict: false });

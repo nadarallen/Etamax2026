@@ -1,3 +1,6 @@
+/**
+ * Script to test random user registration via Supabase.
+ */
 const { createClient } = require('@supabase/supabase-js');
 
 const url = 'https://gcaohjowfxcrhehqglwv.supabase.co';

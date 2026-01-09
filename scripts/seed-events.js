@@ -1,9 +1,12 @@
+/**
+ * Script to seed Event data from src/data/events.json into MongoDB.
+ */
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
 // 1. Load Env
-const envPath = path.resolve(__dirname, '.env.local');
+const envPath = path.resolve(__dirname, '../.env.local');
 const envFile = fs.readFileSync(envPath, 'utf8');
 const envVars = envFile.split('\n').reduce((acc, line) => {
     const parts = line.split('=');
@@ -17,7 +20,7 @@ const envVars = envFile.split('\n').reduce((acc, line) => {
 const MONGODB_URI = envVars.MONGODB_URI;
 
 // 2. Load JSON Data
-const eventsData = require('./src/data/events.json');
+const eventsData = require('../src/data/events.json');
 
 // 3. Define Schema Locally
 const EventSchema = new mongoose.Schema({

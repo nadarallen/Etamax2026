@@ -1,4 +1,7 @@
-require('dotenv').config({ path: '.env.local' });
+/**
+ * Script to test Email configuration (Nodemailer) by sending a self-email.
+ */
+require('dotenv').config({ path: '../.env.local' });
 const nodemailer = require('nodemailer');
 
 async function main() {

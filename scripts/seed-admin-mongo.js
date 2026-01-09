@@ -1,7 +1,10 @@
+/**
+ * Script to seed Admin users (Super Admin / Club Admin) directly into MongoDB.
+ */
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 const uri = process.env.MONGODB_URI;
 

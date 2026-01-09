@@ -1,3 +1,6 @@
+/**
+ * Script to create initial admin accounts in Supabase (Super Admin and Club Admin).
+ */
 const { createClient } = require('@supabase/supabase-js');
 
 const url = 'https://gcaohjowfxcrhehqglwv.supabase.co';

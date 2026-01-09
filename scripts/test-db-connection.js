@@ -1,10 +1,13 @@
+/**
+ * Script to test MongoDB connection by manually parsing .env.local.
+ */
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 
 // Load .env.local manually
 try {
-    const envPath = path.resolve(__dirname, '.env.local');
+    const envPath = path.resolve(__dirname, '../.env.local');
     const envConfig = fs.readFileSync(envPath, 'utf8');
     envConfig.split('\n').forEach(line => {
         if (line && !line.startsWith('#')) {

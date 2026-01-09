@@ -1,9 +1,12 @@
+/**
+ * Script to verify MongoDB connection and list users (manual env parsing).
+ */
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
 // 1. Load env manually since we don't have dotenv installed guaranteed
-const envPath = path.resolve(__dirname, '.env.local');
+const envPath = path.resolve(__dirname, '../.env.local');
 const envFile = fs.readFileSync(envPath, 'utf8');
 
 const envVars = envFile.split('\n').reduce((acc, line) => {

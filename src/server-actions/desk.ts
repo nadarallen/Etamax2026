@@ -181,18 +181,18 @@ export async function findGlobalStudentsAction(query: string) {
         const students = await User.find({
             role: 'STUDENT',
             $or: [
-                { fullName: regex },
+                { name: regex },
                 { rollNumber: regex },
                 { email: regex }
             ]
         })
-            .select('_id fullName rollNumber email branch semester')
+            .select('_id name rollNumber email branch semester')
             .limit(10)
             .lean();
 
         const serialized = students.map(s => ({
             _id: s._id.toString(),
-            fullName: s.fullName,
+            fullName: s.name,
             rollNumber: s.rollNumber,
             email: s.email,
             branch: s.branch,

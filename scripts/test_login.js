@@ -1,3 +1,6 @@
+/**
+ * Script to test Supabase login functionality.
+ */
 const { createClient } = require('@supabase/supabase-js');
 
 // Credentials you provided earlier

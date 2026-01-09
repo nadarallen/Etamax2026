@@ -1,6 +1,9 @@
+/**
+ * Script to verify if a specific user exists in MongoDB and check password hash.
+ */
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 const uri = process.env.MONGODB_URI;
 

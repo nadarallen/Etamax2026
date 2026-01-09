@@ -1,5 +1,8 @@
+/**
+ * Debug script to list all registrations with their user and event details.
+ */
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 const RegSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

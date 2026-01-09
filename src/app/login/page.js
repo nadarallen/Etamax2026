@@ -1,5 +1,5 @@
 'use client';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, Suspense } from 'react';
 import { loginAction } from '@/server-actions/auth';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ const initialState = {
     error: '',
 };
 
-export default function LoginPage() {
+function LoginForm() {
     const [state, formAction, isPending] = useActionState(loginAction, initialState);
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
@@ -116,5 +116,13 @@ export default function LoginPage() {
                 ETAMAX 2026 Secured System
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-galaxy-dark flex items-center justify-center text-white">Loading...</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

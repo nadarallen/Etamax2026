@@ -1,10 +1,13 @@
+/**
+ * Script to seed initial test users into MongoDB.
+ */
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs'); // Need to install bcryptjs if not global, but it's in node_modules
 
 // Load env
-const envPath = path.resolve(__dirname, '.env.local');
+const envPath = path.resolve(__dirname, '../.env.local');
 const envFile = fs.readFileSync(envPath, 'utf8');
 const envVars = envFile.split('\n').reduce((acc, line) => {
     const parts = line.split('=');

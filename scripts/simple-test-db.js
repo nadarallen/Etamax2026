@@ -1,5 +1,8 @@
+/**
+ * Simple script to test MongoDB connection and count users.
+ */
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 const uri = process.env.MONGODB_URI;
 

@@ -1,5 +1,8 @@
+/**
+ * Debug script to check if Mongoose population (Event/Slot) is working correctly for registrations.
+ */
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../.env.local' });
 
 // Define Schemas minimal for population
 const SlotSchema = new mongoose.Schema({ venue: String, startTime: String }, { strict: false });

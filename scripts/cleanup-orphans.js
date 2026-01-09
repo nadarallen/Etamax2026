@@ -1,9 +1,12 @@
+/**
+ * Script to clean up orphan registrations (those with teamId but no valid team linked) for group/duo events.
+ */
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
 // 1. Load Env
-const envPath = path.resolve(__dirname, '.env.local');
+const envPath = path.resolve(__dirname, '../.env.local');
 const envFile = fs.readFileSync(envPath, 'utf8');
 const envVars = envFile.split('\n').reduce((acc, line) => {
     const parts = line.split('=');
