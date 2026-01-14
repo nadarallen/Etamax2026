@@ -134,6 +134,32 @@ export async function confirmDeskPaymentAction(regId: string) {
         const result = await updateRegistrationStatusAction(targetRegId, RegStatus.CONFIRMED);
 
         if (result.success) {
+            // 2.5. Update Payment Record to SUCCESS (Fix Revenue Bug)
+            const Payment = (await import('@/models/Payment')).default;
+            const PaymentStatus = (await import('@/models/Payment')).PaymentStatus;
+
+            // Find payment linked to this registration (via paymentId if stored, or by metadata)
+            // Ideally registration has paymentId.
+            if (initialReg.paymentId) {
+                await Payment.findByIdAndUpdate(initialReg.paymentId, {
+                    status: 'SUCCESS', // Hardcoded string if Enum import is tricky, or use PaymentStatus.SUCCESS
+                    method: 'OFFLINE',
+                    updatedAt: new Date()
+                });
+            } else {
+                // Fallback: Find by metadata
+                await Payment.findOneAndUpdate({
+                    'metadata.eventId': initialReg.eventId,
+                    'metadata.slotId': initialReg.slotId,
+                    userId: initialReg.userId,
+                    status: { $ne: 'SUCCESS' }
+                }, {
+                    status: 'SUCCESS',
+                    method: 'OFFLINE',
+                    updatedAt: new Date()
+                });
+            }
+
             // 3. Add Audit Log (confirmedBy) to Target
             await Registration.findByIdAndUpdate(targetRegId, {
                 confirmedBy: session.user.id,
@@ -157,8 +183,53 @@ export async function confirmDeskPaymentAction(regId: string) {
         }
 
     } catch (error) {
+
         console.error("Desk Confirm Error:", error);
         return { error: 'Failed to confirm payment' };
+    }
+}
+
+// Desk Cancel Action
+export async function cancelDeskPaymentAction(regId: string) {
+    try {
+        const session = await getSession();
+        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+            return { error: 'Unauthorized' };
+        }
+
+        await connectToDatabase();
+        const Registration = (await import('@/models/Registration')).default;
+        const Slot = (await import('@/models/Slot')).default;
+        const Payment = (await import('@/models/Payment')).default;
+
+        const reg = await Registration.findById(regId);
+        if (!reg) return { error: 'Registration not found' };
+
+        // 1. Mark Registration Cancelled
+        reg.status = RegStatus.CANCELLED;
+        // Optionally store who cancelled it
+        reg.confirmedBy = session.user.id; // Using confirmedBy field for 'processed by'
+        await reg.save();
+
+        // 2. Mark Payment Failed/Cancelled
+        if (reg.paymentId) {
+            await Payment.findByIdAndUpdate(reg.paymentId, { status: 'FAILED' }); // or CANCELLED if enum exists
+        }
+
+        // 3. Increment Slot Capacity back (Free up the slot)
+        if (reg.slotId) {
+            await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
+        }
+
+        // 4. Handle Team Logic (If leader cancels, whole team might be affected?)
+        // For simplicity now, let's assume individual cancellation or manual team cleanup.
+        // If necessary, add team logic here.
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Desk Cancel Error:", error);
+        return { error: 'Failed to cancel registration' };
     }
 }
 

@@ -23,7 +23,12 @@ export interface IRegistration extends Document {
     email: string;
     branch: string;
     semester: string;
-    paymentMethod?: string; // Optional in schema? lines 41-45 didn't show it but line 280 uses it?
+    paymentMethod?: string;
+
+    // Desk Confirmation
+    confirmedBy?: mongoose.Types.ObjectId;
+    confirmedAt?: Date;
+
     createdAt: Date;
     updatedAt: Date;
 }

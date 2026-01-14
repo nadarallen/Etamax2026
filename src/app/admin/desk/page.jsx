@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { searchDeskRegistrationsAction, confirmDeskPaymentAction } from '@/server-actions/desk';
-import { Search, CheckCircle, Clock, AlertCircle, RefreshCw, X, ShieldCheck } from 'lucide-react';
+import { searchDeskRegistrationsAction, confirmDeskPaymentAction, cancelDeskPaymentAction } from '@/server-actions/desk';
+import { Search, CheckCircle, Clock, AlertCircle, RefreshCw, X, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DeskPage() {
@@ -10,6 +10,7 @@ export default function DeskPage() {
     const [registrations, setRegistrations] = useState([]);
     const [loading, setLoading] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
+    const [cancelModal, setCancelModal] = useState(null);
     const [processing, setProcessing] = useState(false);
 
     // Debounced Search
@@ -41,9 +42,25 @@ export default function DeskPage() {
                 r._id === confirmModal._id ? { ...r, status: 'CONFIRMED' } : r
             ));
             setConfirmModal(null);
-            // Optionally show toast
         } else {
             alert(res.error || 'Failed to confirm');
+        }
+        setProcessing(false);
+    };
+
+    const handleCancel = async () => {
+        if (!cancelModal) return;
+        setProcessing(true);
+        const res = await cancelDeskPaymentAction(cancelModal._id);
+
+        if (res.success) {
+            // Remove from list or mark cancelled
+            setRegistrations(prev => prev.map(r =>
+                r._id === cancelModal._id ? { ...r, status: 'CANCELLED' } : r
+            ));
+            setCancelModal(null);
+        } else {
+            alert(res.error || 'Failed to cancel');
         }
         setProcessing(false);
     };
@@ -68,6 +85,7 @@ export default function DeskPage() {
 
             {/* Search Bar */}
             <div className="relative mb-8">
+                {/* ... existing search bar ... */}
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Search className={`w-6 h-6 ${loading ? 'text-galaxy-purple animate-pulse' : 'text-gray-400'}`} />
                 </div>
@@ -92,7 +110,7 @@ export default function DeskPage() {
                 {registrations.map(reg => (
                     <div
                         key={reg._id}
-                        className={`bg-white/5 border ${reg.status === 'CONFIRMED' ? 'border-green-500/20 bg-green-500/5' : 'border-white/10'} rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all hover:border-white/20`}
+                        className={`bg-white/5 border ${reg.status === 'CONFIRMED' ? 'border-green-500/20 bg-green-500/5' : reg.status === 'CANCELLED' ? 'border-red-500/20 opacity-50' : 'border-white/10'} rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all hover:border-white/20`}
                     >
                         {/* Student Details */}
                         <div className="flex-1">
@@ -116,18 +134,27 @@ export default function DeskPage() {
                         {/* Status / Action */}
                         <div className="flex items-center gap-4 min-w-[200px] justify-end">
                             <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider ${reg.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400' :
-                                    reg.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
+                                reg.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
                                 }`}>
                                 {reg.status}
                             </span>
 
                             {reg.status === 'PENDING' && reg.paymentMethod === 'OFFLINE' && (
-                                <button
-                                    onClick={() => setConfirmModal(reg)}
-                                    className="px-6 py-2 bg-gradient-to-r from-galaxy-purple to-pink-600 text-white font-bold rounded-lg shadow-lg hover:shadow-galaxy-purple/50 active:scale-95 transition-all text-sm whitespace-nowrap"
-                                >
-                                    Confirm Cash
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setCancelModal(reg)}
+                                        className="p-2 bg-white/5 hover:bg-red-900/30 text-gray-400 hover:text-red-400 rounded-lg transition-all"
+                                        title="Cancel Request"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmModal(reg)}
+                                        className="px-6 py-2 bg-gradient-to-r from-galaxy-purple to-pink-600 text-white font-bold rounded-lg shadow-lg hover:shadow-galaxy-purple/50 active:scale-95 transition-all text-sm whitespace-nowrap"
+                                    >
+                                        Confirm Cash
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -170,6 +197,45 @@ export default function DeskPage() {
                             >
                                 {processing ? <RefreshCw className="animate-spin w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
                                 Confirm Received
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancellation Modal */}
+            {cancelModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-[#1a1a1f] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-red-500 mb-4 flex items-center gap-2">
+                            <AlertCircle /> Cancel Registration?
+                        </h3>
+
+                        <div className="bg-white/5 p-4 rounded-xl mb-6 space-y-2">
+                            <p className="text-gray-300 text-sm">
+                                Are you sure you want to cancel this offline request? This will <strong>free up the slot</strong> immediately.
+                            </p>
+                            <div className="flex justify-between mt-4">
+                                <span className="text-gray-400">Student</span>
+                                <span className="text-white font-medium">{cancelModal.fullName}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setCancelModal(null)}
+                                disabled={processing}
+                                className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
+                            >
+                                Keep it
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={processing}
+                                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/20 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {processing ? <RefreshCw className="animate-spin w-5 h-5" /> : <Trash2 className="w-5 h-5" />}
+                                Confirm Cancel
                             </button>
                         </div>
                     </div>

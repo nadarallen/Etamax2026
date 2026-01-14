@@ -4,6 +4,7 @@ import connectToDatabase from '@/lib/db';
 import Registration from '@/models/Registration';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
+import Payment, { PaymentStatus, PaymentMethod } from '@/models/Payment';
 import { getSession } from '@/lib/auth';
 import { nanoid } from 'nanoid';
 
@@ -57,13 +58,20 @@ export async function POST(req: NextRequest) {
 
         const order = await razorpay.orders.create(options);
 
-        // 3. DO NOT create Registration yet? 
-        // Or create PENDING registration?
-        // Standard flow: Create Order -> Client Pay -> Webhook/Verification -> Create Registration.
-        // But to reserve the slot, we might want to hold it? 
-        // For now, let's keep it simple: Validate slot here, but only increment on success.
-        // Risk: Overbooking if many users pay simultaneously.
-        // Improved flow: Create PENDING registration here.
+        // 3. Create Local Payment Record
+        await Payment.create({
+            userId: session.user.id,
+            amount: amount,
+            currency: 'INR',
+            method: PaymentMethod.ONLINE,
+            status: PaymentStatus.INITIATED,
+            gatewayOrderId: order.id,
+            metadata: {
+                eventId,
+                slotId,
+                teamId: teamId || ''
+            }
+        });
 
         return NextResponse.json(order);
 

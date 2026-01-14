@@ -34,11 +34,9 @@ export async function GET(req: NextRequest) {
                 reg.status = RegStatus.CANCELLED; // Or 'EXPIRED'
                 await reg.save();
 
-                // Release Slot
-                await Event.updateOne(
-                    { 'slots._id': reg.slotId },
-                    { $inc: { 'slots.$.bookedCount': -1 } }
-                );
+                // Release Slot (Correctly using Slot model)
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
 
                 results.releasedSlots++;
 
