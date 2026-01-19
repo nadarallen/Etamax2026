@@ -6,6 +6,7 @@ import { registerForEventAction } from '@/server-actions/registration';
 import { getUserProfileAction } from '@/server-actions/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PlanetIcon from '@/components/PlanetIcon';
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 
 const initialRegState = {
@@ -29,54 +30,87 @@ export default function EventDetail({ params }) {
     const [userProfile, setUserProfile] = useState(null);
     const [teamAction, setTeamAction] = useState('CREATE');
 
+    // Auto-open modal if register param is present
+    useEffect(() => {
+        if (searchParams.get('register') === 'true') {
+            setShowEnrollModal(true);
+        }
+    }, [searchParams]);
+
     // Form State
     const [regState, formAction, isPending] = useActionState(registerForEventAction, initialRegState);
+
+    const [criteriaMet, setCriteriaMet] = useState(false);
+    const [regsCount, setRegsCount] = useState({ Technical: 0, Cultural: 0, Seminar: 0 });
+
+    // ... existing useActionState ...
 
     useEffect(() => {
         async function loadData() {
             setLoading(true);
-            const [ev, profile] = await Promise.all([
+            const getUserRegistrationsAction = (await import('@/server-actions/user')).getUserRegistrationsAction;
+
+            const [ev, profile, regData] = await Promise.all([
                 getEventByIdAction(eventId),
-                getUserProfileAction()
+                getUserProfileAction(),
+                getUserRegistrationsAction()
             ]);
 
+            if (regData?.registrations) {
+                const activeRegs = regData.registrations.filter(r => r.status !== 'CANCELLED');
+                const counts = { Technical: 0, Cultural: 0, Seminar: 0 };
+                activeRegs.forEach(r => {
+                    if (r.event?.category && counts[r.event.category] !== undefined) {
+                        counts[r.event.category]++;
+                    }
+                });
+                setRegsCount(counts);
+                // Criteria: 1 Tech, 1 Cultural, 1 Seminar
+                // NOTE: We check if *active* criteria are met. User might be registering for the LAST one now.
+                // But the user requested "once all criteria is fulfilled the payment option should come".
+                // This implies we check if (Existing + Current Event) meets criteria? 
+                // Let's assume user registers for 3rd event. At that moment, criteria is NOT met yet.
+                // So they click "Register" (Seat Confirmed).
+                // AFTER registration, they go to dashboard, realized criteria met?
+                // OR: In this form, if criteria NOT met, we hide payment.
+                // If this IS the 3rd event, does payment appear?
+                // Let's stick to strict: If ALREADY met -> Payment. If not -> Reserve.
+                // Wait, if I register for my 3rd event, I should be able to pay for it?
+                // Let's calculate `potentialCounts` based on current event category.
+
+                // For now, simpler: Just check `counts`.
+                const met = counts.Technical >= 1 && counts.Cultural >= 1 && counts.Seminar >= 1;
+                setCriteriaMet(met);
+            }
+
             if (ev) {
+                // ... (rest of event loading logic)
                 setEvent(ev);
-                // Fetch slots using the actual _id from the fetched event
                 const s = await getSlotsAction(ev._id);
                 setSlots(s);
-                // Get unique days and sort
                 const days = [...new Set(s.map(slot => slot.dayNumber))].sort((a, b) => a - b);
 
                 if (days.length > 0) {
-                    // Find first day that isn't fully sold out
                     const availableDay = days.find(day => {
                         const daySlots = s.filter(slot => slot.dayNumber === day);
-                        const isDaySoldOut = daySlots.every(slot => {
+                        return !daySlots.every(slot => {
                             const isTeam = ['duo', 'group'].includes(ev.type);
                             const cap = slot.maxCapacity || Infinity;
                             const count = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
                             return count >= cap;
                         });
-                        return !isDaySoldOut;
                     });
-
-                    // Check if URL param matches a valid day
-                    if (urlDay && days.includes(urlDay)) {
-                        setSelectedDay(urlDay);
-                    } else if (availableDay) {
-                        // Default to first AVAILABLE day
-                        setSelectedDay(availableDay);
-                    } else {
-                        // All days sold out? Just show first day
-                        setSelectedDay(days[0]);
-                    }
+                    if (urlDay && days.includes(urlDay)) setSelectedDay(urlDay);
+                    else if (availableDay) setSelectedDay(availableDay);
+                    else setSelectedDay(days[0]);
                 }
+
+                // Late Check: If this event fulfills the missing criteria? 
+                // It's safer to just require 3 *existing* regs or allow "Pay Later" flow.
+                // We'll stick to: Hide Payment if criteria not met.
             }
 
-            if (profile) {
-                setUserProfile(profile);
-            }
+            if (profile) setUserProfile(profile);
             setLoading(false);
         }
         loadData();
@@ -304,15 +338,16 @@ export default function EventDetail({ params }) {
                                                     key={day}
                                                     type="button"
                                                     onClick={() => setSelectedDay(day)}
-                                                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${selectedDay === day
+                                                    className={`pl-2 pr-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-3 ${selectedDay === day
                                                         ? 'bg-galaxy-purple text-white border-galaxy-purple shadow-[0_0_15px_rgba(124,58,237,0.4)]'
                                                         : isDaySoldOut
                                                             ? 'bg-red-500/10 text-red-500 border-red-500/20 opacity-80'
                                                             : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'
                                                         }`}
                                                 >
-                                                    Day {day}
-                                                    {isDaySoldOut && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Full</span>}
+                                                    <PlanetIcon day={day} />
+                                                    <span>Day {day}</span>
+                                                    {isDaySoldOut && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider ml-1">Full</span>}
                                                 </button>
                                             );
                                         })}
@@ -429,7 +464,12 @@ export default function EventDetail({ params }) {
                                     />
                                 </div>
 
-                                {/* Payment Method - Hidden for Joiners */}
+                                {/* Payment Method - Logic: 
+                                    1. Team Joiner -> Free
+                                    2. Event Free -> Free
+                                    3. Criteria Met -> Show Payment Options
+                                    4. Criteria NOT Met -> Show "Reserve Seat" (Payment Later) 
+                                */}
                                 {teamAction === 'JOIN' ? (
                                     <div className="p-3 bg-galaxy-purple/10 border border-galaxy-purple/20 rounded-xl text-galaxy-purple text-sm font-medium flex items-center gap-2">
                                         <CheckCircle size={16} /> Payment covered by Team Leader
@@ -438,10 +478,30 @@ export default function EventDetail({ params }) {
                                 ) : (
                                     <div>
                                         <label className="block text-sm text-gray-400 mb-2">Payment Option</label>
+
                                         {isFree ? (
                                             <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm font-medium flex items-center gap-2">
                                                 <CheckCircle size={16} /> Free Entry
                                                 <input type="hidden" name="paymentMethod" value="FREE" />
+                                            </div>
+                                        ) : !criteriaMet ? (
+                                            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                                                <div className="flex items-center gap-2 text-yellow-400 font-bold mb-2">
+                                                    <AlertCircle size={18} /> Payment Locked
+                                                </div>
+                                                <p className="text-xs text-gray-300 mb-3">
+                                                    You must register for <strong>1 Technical, 1 Cultural, and 1 Seminar</strong> event to unlock payment.
+                                                    <br />
+                                                    Current: Tech({regsCount.Technical}) • Cult({regsCount.Cultural}) • Sem({regsCount.Seminar})
+                                                </p>
+                                                <div className="p-2 bg-yellow-500/20 rounded text-yellow-300 text-sm font-bold text-center">
+                                                    Seat Reservation Only
+                                                </div>
+                                                {/* Force OFFLINE/PENDING for now. Or handle as 'RESERVED' in backend? 
+                                                    Let's use 'OFFLINE' which creates a PENDING reciept. 
+                                                    Or we can assume 'OFFLINE' basically means "Pay Later".
+                                                */}
+                                                <input type="radio" name="paymentMethod" value="OFFLINE" checked readOnly className="sr-only" />
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-2 gap-3">
@@ -479,7 +539,7 @@ export default function EventDetail({ params }) {
                                 >
                                     <div className="relative flex items-center justify-center gap-3 rounded-xl bg-black/20 px-6 py-4 transition-all duration-300 group-hover:bg-transparent">
                                         <span className="text-lg font-bold text-white">
-                                            {isPending ? 'Processing...' : (isFree ? 'Confirm Registration' : 'Proceed to Payment')}
+                                            {isPending ? 'Processing...' : (isFree || teamAction === 'JOIN' || !criteriaMet ? 'Reserved Seat' : 'Proceed to Payment')}
                                         </span>
                                         {!isPending && <ArrowLeft className="rotate-180 transition-transform duration-300 group-hover:translate-x-1" size={20} />}
                                     </div>

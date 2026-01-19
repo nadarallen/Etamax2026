@@ -8,6 +8,7 @@ import Event from '@/models/Event';
 import Slot from '@/models/Slot';
 import User from '@/models/User';
 import nodemailer from 'nodemailer';
+import { revalidatePath } from 'next/cache';
 
 const RegistrationSchema = z.object({
     eventId: z.string(),
@@ -51,7 +52,13 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: `Input Validation Failed: ${messages}`, payload: data };
         }
 
-        const { eventId, slotId, fullName, rollNumber, email, branch, semester, paymentMethod } = parsed.data;
+        const { eventId, slotId, fullName, rollNumber, email, branch, semester } = parsed.data;
+        let { paymentMethod } = parsed.data;
+
+        // Force 'FREE' payment method if joining a team (Double check logic)
+        if (parsed.data.teamAction === 'JOIN') {
+            paymentMethod = 'FREE';
+        }
 
         await connectToDatabase();
 
@@ -252,6 +259,10 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             }
         }
 
+        revalidatePath('/events');
+        revalidatePath('/profile');
+        revalidatePath(`/events/${eventId}`);
+
         return {
             success: true,
             message: 'Registration successful! Redirecting to receipt...',
@@ -280,100 +291,109 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 export async function getRegistrationReceiptAction(regId: string) {
     try {
         await connectToDatabase();
-        // Ensure models are registered for population
         (await import('@/models/Event')).default;
         (await import('@/models/Slot')).default;
+        const Team = (await import('@/models/Team')).default;
 
-        const reg = await Registration.findById(regId)
+        // 1. Fetch the specific registration requested
+        const currentReg = await Registration.findById(regId).lean();
+        if (!currentReg) return null;
+
+        // 2. Fetch ALL registrations for this user
+        const allRegs = await Registration.find({
+            userId: currentReg.userId,
+            status: { $ne: RegStatus.CANCELLED } // Exclude cancelled
+        })
             .populate('eventId')
             .populate('slotId')
+            .sort({ createdAt: -1 })
             .lean();
 
-        console.log("Receipt Fetch - Reg:", reg ? reg._id : "Not Found");
-        if (reg && reg.eventId) console.log("Receipt Fetch - Event:", reg.eventId);
+        // 3. Helper to serialize a single registration
+        const serializeReg = async (reg: any) => {
+            let teamData = null;
+            if (reg.teamId) {
+                // Efficiently fetch team info
+                const team = await Team.findById(reg.teamId)
+                    .populate('leaderId')
+                    .populate('members.userId')
+                    .lean();
 
-        if (!reg) return null;
-
-        // Fetch Team Details if registered as a team
-        let teamData = null;
-        if (reg.teamId) {
-            const Team = (await import('@/models/Team')).default;
-            // Populate leader and members
-            const team = await Team.findById(reg.teamId)
-                .populate('leaderId')
-                .populate('members.userId');
-
-            if (team) {
-                teamData = {
-                    name: team.name,
-                    code: team.code,
-                    // @ts-ignore
-                    leaderName: team.leaderId.fullName,
-                    members: team.members.map((m: any) => ({
+                if (team) {
+                    teamData = {
+                        name: team.name,
+                        code: team.code,
                         // @ts-ignore
-                        name: m.userId.fullName,
-                        // @ts-ignore
-                        rollNumber: m.userId.rollNumber,
-                        status: m.status
-                    }))
-                };
+                        leaderName: team.leaderId?.fullName || "Unknown",
+                        members: team.members.map((m: any) => ({
+                            // @ts-ignore
+                            name: m.userId?.fullName || "Unknown",
+                            // @ts-ignore
+                            rollNumber: m.userId?.rollNumber || "N/A",
+                            status: m.status
+                        }))
+                    };
+                }
             }
-        }
 
-        // Strictly pick fields to avoid passing complex Mongoose objects (Buffers, etc.)
-        // Ensure NO undefined values are returned, use null instead.
-        const serialized = {
-            _id: reg._id.toString(),
-            fullName: reg.fullName || null,
-            rollNumber: reg.rollNumber || null,
-            email: reg.email || null,
-            branch: reg.branch || null,
-            semester: reg.semester || null,
-            status: reg.status || null,
-            paymentMethod: reg.paymentMethod || null,
-            etamaxId: reg.etamaxId || null,
-            createdAt: reg.createdAt ? reg.createdAt.toISOString() : null,
-            updatedAt: reg.updatedAt ? reg.updatedAt.toISOString() : null,
-            team: teamData, // Attached Team Data
-            // Manual population serialization
-            eventId: reg.eventId && typeof reg.eventId === 'object' && 'name' in reg.eventId ? {
-                // @ts-ignore
-                name: reg.eventId.name || null,
-                // @ts-ignore
-                price: reg.eventId.price || 0,
-                // @ts-ignore
-                type: reg.eventId.type || 'N/A',
-                // @ts-ignore
-                category: reg.eventId.category || 'N/A',
-                // @ts-ignore
-                _id: reg.eventId._id ? reg.eventId._id.toString() : null
-            } : null,
-            slotId: reg.slotId && typeof reg.slotId === 'object' && 'venue' in reg.slotId ? {
-                // @ts-ignore
-                startTime: reg.slotId.startTime,
-                // @ts-ignore
-                endTime: reg.slotId.endTime,
-                // @ts-ignore
-                venue: reg.slotId.venue || null,
-                // @ts-ignore
-                dayNumber: reg.slotId.dayNumber || null,
-                // @ts-ignore
-                _id: reg.slotId._id ? reg.slotId._id.toString() : null
-            } : null,
+            return {
+                _id: reg._id.toString(),
+                fullName: reg.fullName || null,
+                rollNumber: reg.rollNumber || null,
+                email: reg.email || null,
+                branch: reg.branch || null,
+                semester: reg.semester || null,
+                status: reg.status || null,
+                paymentMethod: reg.paymentMethod || null,
+                etamaxId: reg.etamaxId || null,
+                createdAt: reg.createdAt ? reg.createdAt.toISOString() : null,
+                team: teamData,
+                eventId: reg.eventId && typeof reg.eventId === 'object' && 'name' in reg.eventId ? {
+                    // @ts-ignore
+                    name: reg.eventId.name || null,
+                    // @ts-ignore
+                    price: reg.eventId.price || 0,
+                    // @ts-ignore
+                    type: reg.eventId.type || 'N/A',
+                    // @ts-ignore
+                    category: reg.eventId.category || 'N/A',
+                } : null,
+                slotId: reg.slotId && typeof reg.slotId === 'object' ? {
+                    // @ts-ignore
+                    startTime: reg.slotId.startTime,
+                    // @ts-ignore
+                    endTime: reg.slotId.endTime,
+                    // @ts-ignore
+                    venue: reg.slotId.venue || null,
+                    // @ts-ignore
+                    dayNumber: reg.slotId.dayNumber || null,
+                } : null,
+            };
         };
 
+        // 4. Serialize all
+        const serializedAll = await Promise.all(allRegs.map(r => serializeReg(r)));
 
-        return serialized;
+        // Find serialized version of current reg
+        const serializedCurrent = serializedAll.find(r => r._id === regId) || serializedAll[0];
+
+        return {
+            current: serializedCurrent,
+            all: serializedAll
+        };
+
     } catch (error) {
         console.error("Fetch Receipt Error:", error);
-        return null; // Return null instead of erroring to client
+        return null;
     }
 }
 
 export async function updateRegistrationStatusAction(regId: string, newStatus: string) {
     try {
         const session = await getSession();
-        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+        const role = session?.role?.toUpperCase();
+        if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
+            console.error("Update Status Unauthorized:", session?.role);
             return { error: 'Unauthorized' };
         }
 

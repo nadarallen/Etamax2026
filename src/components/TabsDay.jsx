@@ -1,3 +1,5 @@
+import PlanetIcon from './PlanetIcon';
+
 export default function TabsDay({ activeDay, onChange }) {
     const days = [1, 2, 3];
     return (
@@ -7,11 +9,12 @@ export default function TabsDay({ activeDay, onChange }) {
                     <button
                         key={day}
                         onClick={() => onChange(day)}
-                        className={`flex-1 py-4 rounded-xl font-bold tracking-wider text-sm md:text-base transition-all duration-300 ${activeDay === day
+                        className={`flex-1 py-4 rounded-xl font-bold tracking-wider text-sm md:text-base transition-all duration-300 flex items-center justify-center gap-3 ${activeDay === day
                             ? 'bg-gradient-to-r from-galaxy-purple to-purple-600 text-white shadow-lg scale-[1.02]'
                             : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
+                        <PlanetIcon day={day} />
                         DAY {day}
                     </button>
                 ))}

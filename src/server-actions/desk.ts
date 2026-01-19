@@ -12,8 +12,13 @@ import { updateRegistrationStatusAction } from './registration';
 export async function searchDeskRegistrationsAction(query: string) {
     try {
         const session = await getSession();
-        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
-            return { error: 'Unauthorized' };
+        console.log("Desk Search Session:", session?.user?.email, session?.role);
+
+        // Loose Role Check
+        const role = session?.role?.toUpperCase();
+        if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
+            console.error("Desk Unauthorized:", session?.role);
+            return { error: 'Unauthorized: Desk Access Required' };
         }
 
         await connectToDatabase();
@@ -47,8 +52,9 @@ export async function searchDeskRegistrationsAction(query: string) {
         const registrations = await Registration.find(filter)
             .sort({ createdAt: -1 })
             .limit(50) // Limit results
-            .populate('eventId')
-            .populate('slotId')
+            .limit(50) // Limit results
+            .populate({ path: 'eventId', model: Event })
+            .populate({ path: 'slotId', model: Slot })
             .lean();
 
         // Serialize results
@@ -137,7 +143,8 @@ export async function confirmDeskPaymentAction(regId: string) {
             // 3. Add Audit Log (confirmedBy) to Target
             await Registration.findByIdAndUpdate(targetRegId, {
                 confirmedBy: session.user.id,
-                confirmedAt: new Date()
+                confirmedAt: new Date(),
+                status: RegStatus.CONFIRMED // Explicitly ensure status is set here too if updateRegistrationStatusAction didn't persist it for some reason (it should, but safety first)
             });
 
             // 4. Batch Audit Log for Team Members (if applicable)
@@ -168,7 +175,10 @@ export async function confirmDeskPaymentAction(regId: string) {
 export async function findGlobalStudentsAction(query: string) {
     try {
         const session = await getSession();
-        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+        console.log("Global Search Session:", session?.user?.email, session?.role);
+
+        const role = session?.role?.toUpperCase();
+        if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
             return { error: 'Unauthorized' };
         }
 
@@ -179,7 +189,6 @@ export async function findGlobalStudentsAction(query: string) {
 
         const regex = new RegExp(query.trim(), 'i');
         const students = await User.find({
-            role: 'STUDENT',
             $or: [
                 { fullName: regex },
                 { rollNumber: regex },
@@ -216,17 +225,22 @@ export async function getStudentFullDetailsAction(userId: string) {
         }
 
         await connectToDatabase();
-        (await import('@/models/Event')).default;
-        (await import('@/models/Slot')).default;
-        (await import('@/models/Team')).default;
+        await connectToDatabase();
+        // Dynamic imports to ensure Models are registered
+        const Event = (await import('@/models/Event')).default;
+        const Slot = (await import('@/models/Slot')).default;
+        const Team = (await import('@/models/Team')).default;
+        const User = (await import('@/models/User')).default;
 
         const registrations = await Registration.find({ userId })
             .sort({ createdAt: -1 })
-            .populate('eventId')
-            .populate('slotId')
+            .sort({ createdAt: -1 })
+            .populate({ path: 'eventId', model: Event })
+            .populate({ path: 'slotId', model: Slot })
             .populate({
                 path: 'teamId',
-                populate: { path: 'members.userId', select: 'fullName' } // Fetch members for view-only
+                model: Team,
+                populate: { path: 'members.userId', model: User, select: 'fullName' }
             })
             .lean();
 
@@ -270,5 +284,41 @@ export async function getStudentFullDetailsAction(userId: string) {
     } catch (error) {
         console.error("Student Details Fetch Error:", error);
         return { error: 'Failed to fetch student details' };
+    }
+}
+
+// 3. Batch Approve Action
+export async function approveBatchRegistrationsAction(regIds: string[]) {
+    try {
+        const session = await getSession();
+        const role = session?.role?.toUpperCase();
+        if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
+            return { error: 'Unauthorized' };
+        }
+
+        if (!regIds || regIds.length === 0) return { error: 'No registrations selected' };
+
+        await connectToDatabase();
+
+        let successCount = 0;
+        let errors = [];
+
+        // We reuse confirmDeskPaymentAction to ensure all side-effects (Leader redirect, Email, Audit) ran
+        const results = await Promise.all(regIds.map(id => confirmDeskPaymentAction(id)));
+
+        results.forEach(res => {
+            if (res.success) successCount++;
+            else errors.push(res.error);
+        });
+
+        return {
+            success: true,
+            count: successCount,
+            message: `Successfully approved ${successCount} registrations.`
+        };
+
+    } catch (error) {
+        console.error("Batch Approve Error:", error);
+        return { error: 'Batch approval failed' };
     }
 }
