@@ -8,6 +8,7 @@ import Event from '@/models/Event';
 import Slot from '@/models/Slot';
 import User from '@/models/User';
 import nodemailer from 'nodemailer';
+import { revalidatePath } from 'next/cache';
 
 const RegistrationSchema = z.object({
     eventId: z.string(),
@@ -29,10 +30,6 @@ const STATUS_PENDING = 'PENDING';
 const STATUS_PAID = 'PAID';
 const TEAM_STATUS_CONFIRMED = 'CONFIRMED';
 
-// Configure Nodemailer (Use Env Vars in production)
-// Remove top-level transporter
-// const transporter = ... 
-
 export async function registerForEventAction(prevState: any, formData: FormData) {
     try {
         const session = await getSession();
@@ -51,7 +48,13 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: `Input Validation Failed: ${messages}`, payload: data };
         }
 
-        const { eventId, slotId, fullName, rollNumber, email, branch, semester, paymentMethod } = parsed.data;
+        const { eventId, slotId, fullName, rollNumber, email, branch, semester } = parsed.data;
+        let { paymentMethod } = parsed.data;
+
+        // Force 'FREE' payment method if joining a team (Double check logic)
+        if (parsed.data.teamAction === 'JOIN') {
+            paymentMethod = 'FREE';
+        }
 
         await connectToDatabase();
 
@@ -94,47 +97,40 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: `Roll Number ${rollNumber} is already registered for this event.` };
         }
 
-        // 4. Update Existing Registration Check for Team Updates
-        // If user is joining a team, they shouldn't already be in ONE for this event.
-        const existing = await Registration.findOne({
+        // 4. Check for Existing Registration & Reactivation Logic
+        const existingReg = await Registration.findOne({
             userId: session.user.id,
             eventId: eventId
         });
-        if (existing) {
-            return { error: 'You are already registered for this event.' };
+
+        let isReactivation = false;
+        if (existingReg) {
+            if (existingReg.status !== RegStatus.CANCELLED) {
+                return { error: 'You are already registered for this event.' };
+            }
+            isReactivation = true;
         }
 
-        console.log("Session:", session);
         if (!session.user?.id) {
             return { error: 'Invalid Session: User ID Not Found.' };
         }
 
-        // new import for Team
+        // Team Logic Dependencies
         const Team = (await import('@/models/Team')).default;
-
-        // Fix Team Enums using string literals to match Schema values
-        const STATUS_JOINED = 'JOINED';
-        const STATUS_PENDING = 'PENDING';
-        const STATUS_PAID = 'PAID';
-        const TEAM_STATUS_CONFIRMED = 'CONFIRMED';
-        // Or if interface requires Enums, cast them:
-        // as any is easiest since runtime strings work for Mongoose
 
         let teamId = null;
 
-        // Team Logic (if applicable)
+        // Team Logic (Create or Join)
         if (event.type === 'duo' || event.type === 'group') {
             const action = parsed.data.teamAction;
 
             if (action === 'CREATE') {
                 if (!parsed.data.teamName) return { error: 'Team Name is required.' };
 
-                // Generate Unique 6-char Numeric Code (Simpler for users)
                 const { customAlphabet } = await import('nanoid');
                 const nano = customAlphabet('0123456789', 6);
                 let code = nano();
 
-                // Ensure uniqueness
                 while (await Team.findOne({ code })) {
                     code = nano();
                 }
@@ -152,39 +148,29 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                     }],
                     status: 'OPEN',
                     slotId,
-                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days expiry
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
                 });
                 teamId = newTeam._id;
 
             } else if (action === 'JOIN') {
                 if (!parsed.data.teamCode) return { error: 'Team Code is required.' };
-
-                // Trim code
                 const codeToJoin = parsed.data.teamCode.trim().toUpperCase();
 
                 const team = await Team.findOne({ code: codeToJoin, eventId });
                 if (!team) return { error: 'Invalid Team Code for this event.' };
 
-                // Ensure members is array
-                if (!Array.isArray(team.members)) {
-                    team.members = [];
-                }
+                if (!Array.isArray(team.members)) team.members = [];
 
-                const limit = (team as any).maxMembers || (event as any).maxMembers || 4; // Fallback to 4 if all fail
+                const limit = (team as any).maxMembers || (event as any).maxMembers || 4;
+                if (team.members.length >= limit) return { error: 'Team is full.' };
 
-                if (team.members.length >= limit) {
-                    return { error: 'Team is full.' };
-                }
-
-                // Add to team
                 const isMember = team.members.some((m: any) => m.userId.toString() === session.user.id);
                 if (!isMember) {
-                    // Find Leader's status
                     const leaderMember = team.members.find((m: any) => m.userId.toString() === team.leaderId.toString());
                     const inheritedStatus = leaderMember ? leaderMember.paymentStatus : 'PENDING';
 
                     team.members.push({
-                        userId: session.user.id, // Mongoose handles string -> ObjectId
+                        userId: session.user.id,
                         status: STATUS_JOINED,
                         paymentStatus: inheritedStatus,
                         joinedAt: new Date()
@@ -197,11 +183,9 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             }
         }
 
-        // Determine Status based on Payment (or Inheritance)
+        // Determine Status
         let finalStatus = RegStatus.CONFIRMED;
         if (parsed.data.teamAction === 'JOIN') {
-            // Re-fetch team to get the status we just pushed (or calculate it again)
-            // Ideally avoid refetch. We know inheritedStatus
             const teamDoc = await Team.findById(teamId);
             if (teamDoc) {
                 const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
@@ -213,24 +197,50 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             finalStatus = paymentMethod === 'OFFLINE' ? RegStatus.PENDING : RegStatus.CONFIRMED;
         }
 
-        // 4. Create Registration with Unique ID
         const { customAlphabet } = await import('nanoid');
         const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
-        const etamaxId = `ETAMAX-${nanoid()}`;
+        let etamaxId = `ETAMAX-${nanoid()}`;
+        let newReg;
 
-        const newReg = await Registration.create({
-            userId: session.user.id,
-            eventId,
-            teamId, // Linked Here
-            slotId,
-            fullName,
-            rollNumber,
-            email,
-            branch,
-            semester,
-            status: finalStatus,
-            etamaxId
-        });
+        // DB Operations: Create or Update
+        if (isReactivation && existingReg) {
+            console.log(`Reactivating cancelled registration ${existingReg._id}`);
+            existingReg.status = finalStatus;
+            existingReg.slotId = slotId;
+            existingReg.fullName = fullName;
+            existingReg.rollNumber = rollNumber;
+            existingReg.email = email;
+            existingReg.branch = branch;
+            existingReg.semester = semester;
+            existingReg.teamId = teamId;
+            existingReg.paymentMethod = paymentMethod;
+            existingReg.etamaxId = etamaxId;
+            existingReg.createdAt = new Date(); // Reset timestamp
+
+            await existingReg.save();
+            newReg = existingReg;
+        } else {
+            newReg = await Registration.create({
+                userId: session.user.id,
+                eventId,
+                teamId,
+                slotId,
+                fullName,
+                rollNumber,
+                email,
+                branch,
+                semester,
+                status: finalStatus,
+                etamaxId
+            });
+        }
+
+        // 5. Reserve Slot Capacity (Strict Increment)
+        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
+        // Also update Team count if applicable, but for now simplistic registeredCount works for capacity checks
+        if (isTeamEvent) {
+            await Slot.findByIdAndUpdate(slotId, { $inc: { teamsCount: 1 } });
+        }
 
         // 6. Send Email Receipt (Only if Confirmed/Online)
         if (paymentMethod !== 'OFFLINE' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -251,6 +261,10 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                 console.error("Email failed", e);
             }
         }
+
+        revalidatePath('/events');
+        revalidatePath('/profile');
+        revalidatePath(`/events/${eventId}`);
 
         return {
             success: true,
@@ -280,100 +294,109 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 export async function getRegistrationReceiptAction(regId: string) {
     try {
         await connectToDatabase();
-        // Ensure models are registered for population
         (await import('@/models/Event')).default;
         (await import('@/models/Slot')).default;
+        const Team = (await import('@/models/Team')).default;
 
-        const reg = await Registration.findById(regId)
+        // 1. Fetch the specific registration requested
+        const currentReg = await Registration.findById(regId).lean();
+        if (!currentReg) return null;
+
+        // 2. Fetch ALL registrations for this user
+        const allRegs = await Registration.find({
+            userId: currentReg.userId,
+            status: { $ne: RegStatus.CANCELLED } // Exclude cancelled
+        })
             .populate('eventId')
             .populate('slotId')
+            .sort({ createdAt: -1 })
             .lean();
 
-        console.log("Receipt Fetch - Reg:", reg ? reg._id : "Not Found");
-        if (reg && reg.eventId) console.log("Receipt Fetch - Event:", reg.eventId);
+        // 3. Helper to serialize a single registration
+        const serializeReg = async (reg: any) => {
+            let teamData = null;
+            if (reg.teamId) {
+                // Efficiently fetch team info
+                const team = await Team.findById(reg.teamId)
+                    .populate('leaderId')
+                    .populate('members.userId')
+                    .lean();
 
-        if (!reg) return null;
-
-        // Fetch Team Details if registered as a team
-        let teamData = null;
-        if (reg.teamId) {
-            const Team = (await import('@/models/Team')).default;
-            // Populate leader and members
-            const team = await Team.findById(reg.teamId)
-                .populate('leaderId')
-                .populate('members.userId');
-
-            if (team) {
-                teamData = {
-                    name: team.name,
-                    code: team.code,
-                    // @ts-ignore
-                    leaderName: team.leaderId.fullName,
-                    members: team.members.map((m: any) => ({
+                if (team) {
+                    teamData = {
+                        name: team.name,
+                        code: team.code,
                         // @ts-ignore
-                        name: m.userId.fullName,
-                        // @ts-ignore
-                        rollNumber: m.userId.rollNumber,
-                        status: m.status
-                    }))
-                };
+                        leaderName: team.leaderId?.fullName || "Unknown",
+                        members: team.members.map((m: any) => ({
+                            // @ts-ignore
+                            name: m.userId?.fullName || "Unknown",
+                            // @ts-ignore
+                            rollNumber: m.userId?.rollNumber || "N/A",
+                            status: m.status
+                        }))
+                    };
+                }
             }
-        }
 
-        // Strictly pick fields to avoid passing complex Mongoose objects (Buffers, etc.)
-        // Ensure NO undefined values are returned, use null instead.
-        const serialized = {
-            _id: reg._id.toString(),
-            fullName: reg.fullName || null,
-            rollNumber: reg.rollNumber || null,
-            email: reg.email || null,
-            branch: reg.branch || null,
-            semester: reg.semester || null,
-            status: reg.status || null,
-            paymentMethod: reg.paymentMethod || null,
-            etamaxId: reg.etamaxId || null,
-            createdAt: reg.createdAt ? reg.createdAt.toISOString() : null,
-            updatedAt: reg.updatedAt ? reg.updatedAt.toISOString() : null,
-            team: teamData, // Attached Team Data
-            // Manual population serialization
-            eventId: reg.eventId && typeof reg.eventId === 'object' && 'name' in reg.eventId ? {
-                // @ts-ignore
-                name: reg.eventId.name || null,
-                // @ts-ignore
-                price: reg.eventId.price || 0,
-                // @ts-ignore
-                type: reg.eventId.type || 'N/A',
-                // @ts-ignore
-                category: reg.eventId.category || 'N/A',
-                // @ts-ignore
-                _id: reg.eventId._id ? reg.eventId._id.toString() : null
-            } : null,
-            slotId: reg.slotId && typeof reg.slotId === 'object' && 'venue' in reg.slotId ? {
-                // @ts-ignore
-                startTime: reg.slotId.startTime,
-                // @ts-ignore
-                endTime: reg.slotId.endTime,
-                // @ts-ignore
-                venue: reg.slotId.venue || null,
-                // @ts-ignore
-                dayNumber: reg.slotId.dayNumber || null,
-                // @ts-ignore
-                _id: reg.slotId._id ? reg.slotId._id.toString() : null
-            } : null,
+            return {
+                _id: reg._id.toString(),
+                fullName: reg.fullName || null,
+                rollNumber: reg.rollNumber || null,
+                email: reg.email || null,
+                branch: reg.branch || null,
+                semester: reg.semester || null,
+                status: reg.status || null,
+                paymentMethod: reg.paymentMethod || null,
+                etamaxId: reg.etamaxId || null,
+                createdAt: reg.createdAt ? reg.createdAt.toISOString() : null,
+                team: teamData,
+                eventId: reg.eventId && typeof reg.eventId === 'object' && 'name' in reg.eventId ? {
+                    // @ts-ignore
+                    name: reg.eventId.name || null,
+                    // @ts-ignore
+                    price: reg.eventId.price || 0,
+                    // @ts-ignore
+                    type: reg.eventId.type || 'N/A',
+                    // @ts-ignore
+                    category: reg.eventId.category || 'N/A',
+                } : null,
+                slotId: reg.slotId && typeof reg.slotId === 'object' ? {
+                    // @ts-ignore
+                    startTime: reg.slotId.startTime,
+                    // @ts-ignore
+                    endTime: reg.slotId.endTime,
+                    // @ts-ignore
+                    venue: reg.slotId.venue || null,
+                    // @ts-ignore
+                    dayNumber: reg.slotId.dayNumber || null,
+                } : null,
+            };
         };
 
+        // 4. Serialize all
+        const serializedAll = await Promise.all(allRegs.map(r => serializeReg(r)));
 
-        return serialized;
+        // Find serialized version of current reg
+        const serializedCurrent = serializedAll.find(r => r._id === regId) || serializedAll[0];
+
+        return {
+            current: serializedCurrent,
+            all: serializedAll
+        };
+
     } catch (error) {
         console.error("Fetch Receipt Error:", error);
-        return null; // Return null instead of erroring to client
+        return null;
     }
 }
 
 export async function updateRegistrationStatusAction(regId: string, newStatus: string) {
     try {
         const session = await getSession();
-        if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
+        const role = session?.role?.toUpperCase();
+        if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
+            console.error("Update Status Unauthorized:", session?.role);
             return { error: 'Unauthorized' };
         }
 
@@ -477,5 +500,71 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
     } catch (error) {
         console.error('Update Status Error:', error);
         return { error: 'Failed to update status' };
+    }
+}
+
+export async function cancelRegistrationAction(regId: string) {
+    try {
+        const session = await getSession();
+        if (!session) return { error: 'Unauthorized' };
+
+        await connectToDatabase();
+        const Registration = (await import('@/models/Registration')).default;
+        const Slot = (await import('@/models/Slot')).default;
+        const Team = (await import('@/models/Team')).default;
+
+        const reg = await Registration.findById(regId);
+        if (!reg) return { error: 'Registration not found' };
+
+        // Authorization: User owns reg OR Admin
+        const isAdmin = session.role === 'SUPER_ADMIN' || session.role === 'CLUB_ADMIN';
+        if (reg.userId.toString() !== session.user.id && !isAdmin) {
+            return { error: 'You can only cancel your own registrations.' };
+        }
+
+        if (reg.status === RegStatus.CANCELLED) {
+            return { error: 'Already cancelled.' };
+        }
+
+        // Logic: Mark Cancelled
+        reg.status = RegStatus.CANCELLED;
+        await reg.save();
+
+        // Decrement Slot Count
+        await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
+
+        // If Team Event: Handle Team Logic?
+        // If Leader cancels, do we dissolve team? Or just remove member?
+        // Prompt says "remove his participation".
+        if (reg.teamId) {
+            const team = await Team.findById(reg.teamId);
+            if (team) {
+                // Remove member
+                team.members = team.members.filter((m: any) => m.userId.toString() !== reg.userId.toString());
+
+                // Be careful if he was leader. For now, simplist is:
+                if (team.members.length === 0) {
+                    team.status = 'CANCELLED';
+                }
+                // Decrement team count from slot if team becomes empty/invalid? 
+                // Using simple heuristic: if team is cancelled/empty, decrement teamsCount
+                if (team.members.length === 0) {
+                    await Slot.findByIdAndUpdate(reg.slotId, { $inc: { teamsCount: -1 } });
+                }
+
+                await team.save();
+            }
+        } else {
+            // Solo logic covered by registeredCount
+        }
+
+        revalidatePath('/events');
+        revalidatePath('/profile');
+
+        return { success: true, message: 'Registration cancelled.' };
+
+    } catch (error) {
+        console.error("Cancel Error:", error);
+        return { error: 'Failed to cancel registration.' };
     }
 }

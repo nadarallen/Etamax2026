@@ -2,10 +2,11 @@
 
 import { useActionState, useEffect, useState, use } from 'react';
 import { getEventByIdAction, getSlotsAction } from '@/server-actions/events';
-import { registerForEventAction } from '@/server-actions/registration';
+import { registerForEventAction, cancelRegistrationAction } from '@/server-actions/registration';
 import { getUserProfileAction } from '@/server-actions/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PlanetIcon from '@/components/PlanetIcon';
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 
 const initialRegState = {
@@ -29,54 +30,88 @@ export default function EventDetail({ params }) {
     const [userProfile, setUserProfile] = useState(null);
     const [teamAction, setTeamAction] = useState('CREATE');
 
+    // Auto-open modal if register param is present
+    useEffect(() => {
+        if (searchParams.get('register') === 'true') {
+            setShowEnrollModal(true);
+        }
+    }, [searchParams]);
+
     // Form State
     const [regState, formAction, isPending] = useActionState(registerForEventAction, initialRegState);
+
+    const [criteriaMet, setCriteriaMet] = useState(false);
+    const [regsCount, setRegsCount] = useState({ Technical: 0, Cultural: 0, Seminar: 0 });
+    const [daysCovered, setDaysCovered] = useState(new Set());
+    const [currentReg, setCurrentReg] = useState(null);
+
+    // ... existing useActionState ...
 
     useEffect(() => {
         async function loadData() {
             setLoading(true);
-            const [ev, profile] = await Promise.all([
+            const getUserRegistrationsAction = (await import('@/server-actions/user')).getUserRegistrationsAction;
+
+            const [ev, profile, regData] = await Promise.all([
                 getEventByIdAction(eventId),
-                getUserProfileAction()
+                getUserProfileAction(),
+                getUserRegistrationsAction()
             ]);
 
+            if (regData?.registrations) {
+                const activeRegs = regData.registrations.filter(r => r.status !== 'CANCELLED');
+                const counts = { Technical: 0, Cultural: 0, Seminar: 0 };
+                const days = new Set();
+
+                activeRegs.forEach(r => {
+                    if (r.event?.category && counts[r.event.category] !== undefined) {
+                        counts[r.event.category]++;
+                    }
+                    if (r.slot?.dayNumber) {
+                        days.add(r.slot.dayNumber);
+                    }
+                });
+
+                setRegsCount(counts);
+                setDaysCovered(days);
+
+                // Check for current event match
+                const existing = activeRegs.find(r => r.eventId && (r.eventId === eventId || r.eventId._id === eventId));
+                setCurrentReg(existing || null);
+
+                // Criteria: 1 Tech, 1 Cult, 1 Sem, Day 1, Day 2, Day 3
+                const met = counts.Technical >= 1 && counts.Cultural >= 1 && counts.Seminar >= 1 && days.has(1) && days.has(2) && days.has(3);
+                setCriteriaMet(met);
+            }
+
             if (ev) {
+                // ... (rest of event loading logic)
                 setEvent(ev);
-                // Fetch slots using the actual _id from the fetched event
                 const s = await getSlotsAction(ev._id);
                 setSlots(s);
-                // Get unique days and sort
                 const days = [...new Set(s.map(slot => slot.dayNumber))].sort((a, b) => a - b);
 
                 if (days.length > 0) {
-                    // Find first day that isn't fully sold out
                     const availableDay = days.find(day => {
                         const daySlots = s.filter(slot => slot.dayNumber === day);
-                        const isDaySoldOut = daySlots.every(slot => {
+                        return !daySlots.every(slot => {
                             const isTeam = ['duo', 'group'].includes(ev.type);
                             const cap = slot.maxCapacity || Infinity;
                             const count = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
                             return count >= cap;
                         });
-                        return !isDaySoldOut;
                     });
-
-                    // Check if URL param matches a valid day
-                    if (urlDay && days.includes(urlDay)) {
-                        setSelectedDay(urlDay);
-                    } else if (availableDay) {
-                        // Default to first AVAILABLE day
-                        setSelectedDay(availableDay);
-                    } else {
-                        // All days sold out? Just show first day
-                        setSelectedDay(days[0]);
-                    }
+                    if (urlDay && days.includes(urlDay)) setSelectedDay(urlDay);
+                    else if (availableDay) setSelectedDay(availableDay);
+                    else setSelectedDay(days[0]);
                 }
+
+                // Late Check: If this event fulfills the missing criteria? 
+                // It's safer to just require 3 *existing* regs or allow "Pay Later" flow.
+                // We'll stick to: Hide Payment if criteria not met.
             }
 
-            if (profile) {
-                setUserProfile(profile);
-            }
+            if (profile) setUserProfile(profile);
             setLoading(false);
         }
         loadData();
@@ -84,13 +119,11 @@ export default function EventDetail({ params }) {
 
     const router = useRouter();
 
-    // Close modal on success and Redirect to Receipt
+    // Close modal on success and Redirect
+    // Close modal on success and Redirect
     useEffect(() => {
         if (regState?.success && regState?.registrationId) {
-            // Only auto-redirect if NOT offline
-            if (regState.paymentMethod !== 'OFFLINE') {
-                router.push(`/receipt/${regState.registrationId}`);
-            }
+            router.push('/payment/confirm');
         }
     }, [regState, router]);
 
@@ -169,9 +202,15 @@ export default function EventDetail({ params }) {
                         onClick={() => setShowEnrollModal(true)}
                         className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl text-lg shadow-[0_0_30px_rgba(123,92,255,0.3)] transition-all duration-300 active:scale-95 flex justify-center items-center gap-3"
                     >
-                        <span>Enroll Now</span>
+                        <span>{currentReg ? 'Manage Registration' : 'Reserve Seat'}</span>
                         <ArrowLeft className="rotate-180" size={20} />
                     </button>
+                    {/* Cancellation Status Indicator */}
+                    {currentReg && (
+                        <div className="text-center mt-2 text-xs text-green-400 font-bold bg-green-500/10 py-1 rounded-lg">
+                            ✓ You have reserved a seat
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -189,7 +228,7 @@ export default function EventDetail({ params }) {
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
 
-                        <h2 className="text-2xl font-bold text-white mb-6">Register for {event.name}</h2>
+                        <h2 className="text-2xl font-bold text-white mb-6">Reserve Seat for {event.name}</h2>
 
                         {regState.success ? (
                             <div className="text-center py-8">
@@ -304,15 +343,16 @@ export default function EventDetail({ params }) {
                                                     key={day}
                                                     type="button"
                                                     onClick={() => setSelectedDay(day)}
-                                                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${selectedDay === day
+                                                    className={`pl-2 pr-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-3 ${selectedDay === day
                                                         ? 'bg-galaxy-purple text-white border-galaxy-purple shadow-[0_0_15px_rgba(124,58,237,0.4)]'
                                                         : isDaySoldOut
                                                             ? 'bg-red-500/10 text-red-500 border-red-500/20 opacity-80'
                                                             : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'
                                                         }`}
                                                 >
-                                                    Day {day}
-                                                    {isDaySoldOut && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Full</span>}
+                                                    <PlanetIcon day={day} />
+                                                    <span>Day {day}</span>
+                                                    {isDaySoldOut && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider ml-1">Full</span>}
                                                 </button>
                                             );
                                         })}
@@ -429,61 +469,51 @@ export default function EventDetail({ params }) {
                                     />
                                 </div>
 
-                                {/* Payment Method - Hidden for Joiners */}
-                                {teamAction === 'JOIN' ? (
-                                    <div className="p-3 bg-galaxy-purple/10 border border-galaxy-purple/20 rounded-xl text-galaxy-purple text-sm font-medium flex items-center gap-2">
-                                        <CheckCircle size={16} /> Payment covered by Team Leader
-                                        <input type="hidden" name="paymentMethod" value="FREE" />
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <label className="block text-sm text-gray-400 mb-2">Payment Option</label>
-                                        {isFree ? (
-                                            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 text-sm font-medium flex items-center gap-2">
-                                                <CheckCircle size={16} /> Free Entry
-                                                <input type="hidden" name="paymentMethod" value="FREE" />
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <label className="cursor-pointer group relative">
-                                                    <input type="radio" name="paymentMethod" value="ONLINE" className="peer sr-only" />
-                                                    <div className="absolute inset-0 bg-galaxy-purple/20 blur-xl opacity-0 peer-checked:opacity-100 transition-opacity duration-500"></div>
-                                                    <div className="relative p-4 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/20 peer-checked:shadow-[0_0_20px_rgba(124,58,237,0.4)] active:scale-95 transition-all duration-200 text-center group-hover:border-white/30 h-full flex flex-col justify-center">
-                                                        <div className="font-bold text-white text-base mb-1">Pay Online</div>
-                                                        <div className="text-xs text-gray-300">UPI / Card</div>
-                                                    </div>
-                                                </label>
-                                                <label className="cursor-pointer group relative">
-                                                    <input type="radio" name="paymentMethod" value="OFFLINE" defaultChecked className="peer sr-only" />
-                                                    <div className="absolute inset-0 bg-galaxy-purple/20 blur-xl opacity-0 peer-checked:opacity-100 transition-opacity duration-500"></div>
-                                                    <div className="relative p-4 rounded-xl border border-white/10 bg-white/5 peer-checked:border-galaxy-purple peer-checked:bg-galaxy-purple/20 peer-checked:shadow-[0_0_20px_rgba(124,58,237,0.4)] active:scale-95 transition-all duration-200 text-center group-hover:border-white/30 h-full flex flex-col justify-center">
-                                                        <div className="font-bold text-white text-base mb-1">Pay Offline</div>
-                                                        <div className="text-xs text-gray-300">Cash at Desk</div>
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
                                 {regState?.error && (
-                                    <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                                        <AlertCircle size={16} /> {regState.error}
+                                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold mb-4 flex items-center gap-2">
+                                        <AlertCircle size={16} />
+                                        {regState.error}
                                     </div>
                                 )}
 
-                                <button
-                                    type="submit"
-                                    disabled={isPending || !selectedSlot}
-                                    className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-galaxy-purple to-pink-600 p-[1px] shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all duration-300 hover:shadow-[0_0_40px_rgba(124,58,237,0.6)] disabled:opacity-50 disabled:shadow-none mt-6"
-                                >
-                                    <div className="relative flex items-center justify-center gap-3 rounded-xl bg-black/20 px-6 py-4 transition-all duration-300 group-hover:bg-transparent">
-                                        <span className="text-lg font-bold text-white">
-                                            {isPending ? 'Processing...' : (isFree ? 'Confirm Registration' : 'Proceed to Payment')}
-                                        </span>
-                                        {!isPending && <ArrowLeft className="rotate-180 transition-transform duration-300 group-hover:translate-x-1" size={20} />}
-                                    </div>
-                                </button>
+                                {/* Buttons Container */}
+                                <div className="mt-8 flex flex-col gap-3">
+                                    {isFree || teamAction === 'JOIN' ? (
+                                        <button
+                                            type="submit"
+                                            name="paymentMethod"
+                                            value="FREE" // Or handled by server
+                                            disabled={isPending || !selectedSlot}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all"
+                                        >
+                                            {isPending ? 'Processing...' : 'Confirm Registration'}
+                                        </button>
+                                    ) : (
+                                        <>
+                                            {criteriaMet && (
+                                                <button
+                                                    type="submit"
+                                                    name="paymentMethod"
+                                                    value="ONLINE"
+                                                    disabled={isPending || !selectedSlot}
+                                                    className="w-full bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {isPending ? 'Processing...' : 'Pay Online'} <ArrowLeft className="rotate-180" size={18} />
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="submit"
+                                                name="paymentMethod"
+                                                value="OFFLINE"
+                                                disabled={isPending || !selectedSlot}
+                                                className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl border border-white/10 transition-all"
+                                            >
+                                                {isPending ? 'Processing...' : 'Reserve Seat'}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </form>
                         )}
                     </div>

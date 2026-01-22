@@ -38,11 +38,17 @@ export async function getUserRegistrationsAction() {
         // Ensure models are registered
         (await import('@/models/Event')).default;
         const SlotModel = (await import('@/models/Slot')).default;
+        const TeamModel = (await import('@/models/Team')).default;
 
         console.log("Fetching registrations for User ID:", session.user.id);
         const registrations = await Registration.find({ userId: session.user.id })
             .populate('eventId')
-            .populate({ path: 'slotId', model: SlotModel }) // Use model reference directly
+            .populate({ path: 'slotId', model: SlotModel })
+            .populate({
+                path: 'teamId',
+                model: TeamModel,
+                populate: { path: 'slotId', model: SlotModel } // Nested populate for team slot
+            })
             .sort({ createdAt: -1 })
             .lean();
 
@@ -55,25 +61,32 @@ export async function getUserRegistrationsAction() {
         const serialized = registrations.map((reg: any) => ({
             _id: reg._id.toString(),
             status: reg.status,
+            paymentMethod: reg.paymentMethod, // Include paymentMethod
             createdAt: reg.createdAt.toISOString(),
             event: reg.eventId ? {
                 _id: reg.eventId._id.toString(),
                 name: reg.eventId.name,
                 category: reg.eventId.category,
+                price: reg.eventId.price,
+                type: reg.eventId.type,
             } : null,
-            slot: reg.slotId ? {
-                _id: reg.slotId._id.toString(),
-                startTime: reg.slotId.startTime, // It's stored as String "10:00 AM" usually, or ISO? Schema says String.
-                // Wait, Schema says startTime: String. 
-                // In seed it might be ISO?
-                // The seed-events.js might shed light. 
-                // But generally, let's just pass it as is if it's a string, or safe convert.
-                // If it is "10:00 AM", new Date("10:00 AM") is Invalid Date.
-                // Let's just return it as string.
-                venue: reg.slotId.venue || 'TBD',
-                dayNumber: reg.slotId.dayNumber,
+            slot: (reg.slotId || reg.teamId?.slotId) ? {
+                _id: (reg.slotId || reg.teamId.slotId)._id.toString(),
+                startTime: (reg.slotId || reg.teamId.slotId).startTime,
+                venue: (reg.slotId || reg.teamId.slotId).venue || 'TBD',
+                dayNumber: (reg.slotId || reg.teamId.slotId).dayNumber,
+            } : null,
+            team: reg.teamId ? {
+                _id: reg.teamId._id.toString(),
+                name: reg.teamId.name,
+                code: reg.teamId.code,
+                leaderId: reg.teamId.leaderId.toString(),
+                memberCount: reg.teamId.members.length,
+                maxTeamSize: reg.eventId.maxTeamSize,
+                isFull: reg.teamId.members.length >= (reg.eventId.maxTeamSize || 1), // Assuming maxTeamSize might be missing for some
             } : null,
         }));
+
 
         return { registrations: serialized };
     } catch (error) {

@@ -36,39 +36,43 @@ export async function POST(req: NextRequest) {
 
         await connectToDatabase();
 
-        // 2. Create Payment Record
-        // We might want to fetch amount from somewhere, but for now trust the flow or fetch Order details from Razorpay if needed.
-        // For simplicity, we assume success means amount was correct.
+        // 2a. Fetch Payment Record to get Metadata (Critical for Bulk)
+        const paymentRecord = await Payment.findOne({ gatewayOrderId: razorpay_order_id });
+        if (!paymentRecord) {
+            return new NextResponse('Payment Record Not Found', { status: 404 });
+        }
 
-        // 2. Create Payment Record
-        // We might want to fetch amount from somewhere, but for now trust the flow or fetch Order details from Razorpay if needed.
-        // For simplicity, we assume success means amount was correct.
+        // 2b. Update Payment Status
+        paymentRecord.status = PaymentStatus.SUCCESS;
+        paymentRecord.gatewayPaymentId = razorpay_payment_id;
+        await paymentRecord.save();
 
-        await Payment.create({
-            userId: session.user.id,
-            amount: 0, // Should be fetched from event/order ideally
-            method: PaymentMethod.ONLINE,
-            status: PaymentStatus.SUCCESS,
-            gatewayOrderId: razorpay_order_id,
-            gatewayPaymentId: razorpay_payment_id,
-            metadata: { eventId, slotId, teamId }
-        });
+        const metadata = paymentRecord.metadata || {};
+        const registrationIds = metadata.registrationIds;
 
-        // 3. Create Registration
-        const registration = await Registration.create({
-            userId: session.user.id,
-            eventId,
-            slotId,
-            teamId,
-            paymentId: null, // Link to payment above if needed, but we didn't save payment ID in var
-            status: RegStatus.CONFIRMED,
-            qrCodeHash: crypto.randomBytes(16).toString('hex') // Generate QR hash
-        });
+        if (registrationIds && Array.isArray(registrationIds)) {
+            // BULK UPDATE
+            await Registration.updateMany(
+                { _id: { $in: registrationIds } },
+                {
+                    status: RegStatus.CONFIRMED,
+                    paymentId: paymentRecord._id
+                }
+            );
 
-        // 4. Update Slot Capacity
-        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
+            // TODO: Send emails for each? Or one master receipt?
+            // For now, assume one master email or individual emails triggered by a background job
+        } else {
+            // Fallback for single legacy (if any) or if metadata missing
+            console.log("No registration IDs found in metadata for bulk payment");
+        }
 
-        return NextResponse.json({ success: true, registrationId: registration._id });
+        // 4. Update Slot Capacity - ALREADY DONE AT RESERVATION TIME (Optimistic)
+        // So we don't need to increment again.
+
+        return NextResponse.json({ success: true, paymentId: paymentRecord._id });
+
+        return NextResponse.json({ success: true, paymentId: paymentRecord._id });
 
     } catch (error) {
         console.error('Payment Verification Error:', error);

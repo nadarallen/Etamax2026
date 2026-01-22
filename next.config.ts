@@ -6,4 +6,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 };
 
+
 export default nextConfig;
+
+// Trigger restart

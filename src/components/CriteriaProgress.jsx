@@ -1,19 +1,39 @@
 import React from 'react';
-import { CheckCircle2, Circle, Trophy, Cpu, Music, Mic2, Award, Lock, Unlock } from 'lucide-react';
+import { CheckCircle2, Circle, Trophy, Cpu, Music, Mic2, Award, Lock, Unlock, Calendar } from 'lucide-react';
 
 export default function CriteriaProgress({ registrations }) {
     // Logic: User needs 1 Technical, 1 Cultural, 1 Seminar
-    const categories = new Set(registrations.map(r => r.event?.category).filter(Boolean));
+    // Logic: User needs:
+    // 1. One Event for Day 1, Day 2, Day 3
+    // 2. One Technical, One Cultural, One Seminar
+    // Validated against `registrations` which contains { event: { category }, slot: { dayNumber } }
+
+    const activeRegs = registrations.filter(r => r.status !== 'CANCELLED');
+    const categories = new Set(activeRegs.map(r => r.event?.category?.toLowerCase()));
+    const days = new Set(activeRegs.map(r => r.slot?.dayNumber));
 
     const criteria = [
-        { id: 'Technical', label: 'Technical Event', icon: <Cpu size={18} />, desc: 'Register for 1 Tech event' },
-        { id: 'Cultural', label: 'Cultural Event', icon: <Music size={18} />, desc: 'Register for 1 Cultural event' },
-        { id: 'Seminar', label: 'Seminar', icon: <Mic2 size={18} />, desc: 'Attend 1 Seminar' }
+        // Categories
+        { id: 'technical', label: 'Technical', icon: <Cpu size={18} />, desc: 'Register for 1 Tech event' },
+        { id: 'cultural', label: 'Cultural', icon: <Music size={18} />, desc: 'Register for 1 Cultural event' },
+        { id: 'seminar', label: 'Seminar', icon: <Mic2 size={18} />, desc: 'Attend 1 Seminar' },
+        // Days
+        { id: 'Day 1', label: 'Day 1', icon: <Calendar size={18} />, desc: 'Event on Day 1' },
+        { id: 'Day 2', label: 'Day 2', icon: <Calendar size={18} />, desc: 'Event on Day 2' },
+        { id: 'Day 3', label: 'Day 3', icon: <Calendar size={18} />, desc: 'Event on Day 3' },
     ];
 
-    const completedCount = criteria.filter(c => categories.has(c.id)).length;
-    const isComplete = completedCount === 3;
-    const progressPercentage = (completedCount / 3) * 100;
+    const filledCriteria = criteria.map(c => {
+        if (c.id.startsWith('Day')) {
+            const d = parseInt(c.id.split(' ')[1]);
+            return days.has(d);
+        }
+        return categories.has(c.id);
+    });
+
+    const completedCount = filledCriteria.filter(Boolean).length;
+    const isComplete = completedCount === criteria.length;
+    const progressPercentage = (completedCount / criteria.length) * 100;
 
     return (
         <div className="relative group overflow-hidden bg-[#0f0f13] rounded-2xl border border-white/10 shadow-2xl p-6 md:p-8 mb-10">
@@ -40,7 +60,13 @@ export default function CriteriaProgress({ registrations }) {
 
                     <div className="space-y-4">
                         {criteria.map((item) => {
-                            const isDone = categories.has(item.id);
+                            let isDone = false;
+                            if (item.id.startsWith('Day')) {
+                                const d = parseInt(item.id.split(' ')[1]);
+                                isDone = days.has(d);
+                            } else {
+                                isDone = categories.has(item.id);
+                            }
                             return (
                                 <div
                                     key={item.id}

@@ -20,56 +20,68 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { eventId, slotId, teamId, amount } = await req.json();
+        const body = await req.json();
+        const { registrationIds } = body;
+
+        // Support legacy single event flow if needed, OR enforce registrationIds
+        if (!registrationIds || !Array.isArray(registrationIds) || registrationIds.length === 0) {
+            return new NextResponse('No registrations selected', { status: 400 });
+        }
 
         await connectToDatabase();
+        (await import('@/models/Event')).default; // Load Event model
 
-        // 1. Verify Event and Slot
-        const event = await Event.findById(eventId);
-        if (!event) return new NextResponse('Event not found', { status: 404 });
+        // 1. Fetch Registrations
+        const registrations = await Registration.find({
+            _id: { $in: registrationIds },
+            userId: session.user.id,
+            status: { $ne: 'CANCELLED' } // Safety
+        }).populate('eventId');
 
-        // Fix: Fetch slot directly from Slot collection
-        const slot = await Slot.findById(slotId);
-        if (!slot) return new NextResponse('Slot not found', { status: 404 });
-
-        // precise validation: Ensure slot belongs to this event
-        if (slot.eventId.toString() !== eventId) {
-            return new NextResponse('Slot does not belong to this event', { status: 400 });
+        if (registrations.length !== registrationIds.length) {
+            return new NextResponse('Some registrations not found or invalid', { status: 400 });
         }
 
-        // Fix: Use correct property names from Slot schema
-        if (slot.registeredCount >= slot.maxCapacity) {
-            return new NextResponse('Slot is fully booked', { status: 400 });
+        // 2. Calculate Total Amount
+        let totalAmount = 0;
+        registrations.forEach((reg: any) => {
+            if (reg.eventId && reg.eventId.price) {
+                totalAmount += reg.eventId.price;
+            }
+        });
+
+        if (totalAmount <= 0) {
+            // Free events? Handle gracefully or error. 
+            // Ideally free events shouldn't reach payment gateway unless mixed with paid.
+            // If ALL free, frontend should handle "Mark as Confirmed" without Razorpay.
+            return new NextResponse('Total amount is 0', { status: 400 });
         }
 
-        // 2. Create Razorpay Order
-        // Amount in paisa
+        // 3. Create Razorpay Order
         const options = {
-            amount: Math.round(amount * 100),
+            amount: Math.round(totalAmount * 100), // in paisa
             currency: 'INR',
             receipt: `rcpt_${nanoid(10)}`,
             notes: {
-                eventId: eventId,
-                slotId: slotId,
                 userId: session.user.id,
-                teamId: teamId || ''
+                regIds: JSON.stringify(registrationIds), // Store IDs in notes (limit 256 chars usually, be careful)
+                count: registrationIds.length
             }
         };
 
         const order = await razorpay.orders.create(options);
 
-        // 3. Create Local Payment Record
+        // 4. Create Local Payment Record
         await Payment.create({
             userId: session.user.id,
-            amount: amount,
+            amount: totalAmount,
             currency: 'INR',
             method: PaymentMethod.ONLINE,
             status: PaymentStatus.INITIATED,
             gatewayOrderId: order.id,
             metadata: {
-                eventId,
-                slotId,
-                teamId: teamId || ''
+                registrationIds, // Store array
+                type: 'BULK_REGISTRATION'
             }
         });
 

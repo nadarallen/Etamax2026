@@ -20,6 +20,7 @@ const EventSchema = z.object({
     price: z.coerce.number().min(0),
     prizePool: z.string().optional(),
     description: z.string(),
+    whatsappLink: z.string().optional(), // Added
 });
 
 const SlotSchema = z.object({
@@ -60,7 +61,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
         }
 
         const {
-            name, type, club, category, maxMembers, price, prizePool, description
+            name, type, club, category, maxMembers, price, prizePool, description, whatsappLink
         } = parsed.data;
 
         // Auto-generate ID if not provided
@@ -94,6 +95,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
             price,
             prizePool,
             description,
+            whatsappLink, // Added
             isPublished: true
         });
 
@@ -309,7 +311,8 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
             price: Number(formData.get('price')),
             prizePool: formData.get('prizePool'),
             description: formData.get('description'),
-            isPublished: formData.get('isPublished') === 'on'
+            isPublished: formData.get('isPublished') === 'on',
+            whatsappLink: formData.get('whatsappLink') // Added
         };
 
         await Event.findByIdAndUpdate(dbId, updates);
