@@ -226,7 +226,7 @@ export default function ManageSlotsPage({ params }) {
                             <button
                                 type="submit"
                                 disabled={isPending}
-                                className={`w-full font-bold py-3 rounded-lg mt-2 transition-all flex items-center justify-center gap-2 ${editingSlot ? 'bg-galaxy-accent hover:bg-galaxy-accent/80 text-black' : 'bg-galaxy-purple hover:bg-galaxy-purple/80 text-white'}`}
+                                className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isPending ? 'Saving...' : (editingSlot ? <><Save size={16} /> Update Slot</> : <><Plus size={16} /> Add Slot</>)}
                             </button>

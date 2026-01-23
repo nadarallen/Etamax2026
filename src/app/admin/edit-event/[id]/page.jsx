@@ -114,10 +114,7 @@ export default function EditEventPage({ params }) {
                                     <PrizeInput initialValue={eventData.prizePool} />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1 ml-1">Description</label>
-                                <textarea name="description" rows={6} defaultValue={eventData.description} required className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple" />
-                            </div>
+
 
                             <div className="flex items-center gap-3 pt-2">
                                 <input name="isPublished" type="checkbox" defaultChecked={eventData.isPublished} className="w-5 h-5 accent-galaxy-purple" />
@@ -154,6 +151,11 @@ function PriceInput({ initialValue }) {
     const [isPaid, setIsPaid] = useState(isInitiallyPaid);
     const [price, setPrice] = useState(initialValue || 0);
 
+    useEffect(() => {
+        setIsPaid(initialValue > 0);
+        setPrice(initialValue || 0);
+    }, [initialValue]);
+
     return (
         <>
             <div className="flex items-center gap-2 mb-1">
@@ -187,6 +189,12 @@ function PrizeInput({ initialValue }) {
     const hasInitialPrize = initialValue && initialValue !== '0' && initialValue !== '';
     const [hasPrize, setHasPrize] = useState(hasInitialPrize);
     const [prize, setPrize] = useState(initialValue || "₹5000");
+
+    useEffect(() => {
+        const has = initialValue && initialValue !== '0' && initialValue !== '';
+        setHasPrize(has);
+        if (has) setPrize(initialValue);
+    }, [initialValue]);
 
     return (
         <>

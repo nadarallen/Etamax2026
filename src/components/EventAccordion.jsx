@@ -62,9 +62,7 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay }) {
 
                     <div className="pl-4 grid md:grid-cols-[2fr_1fr] gap-6">
                         <div className="space-y-4">
-                            <p className="text-gray-300 text-sm leading-relaxed">
-                                {event.description}
-                            </p>
+
 
                             <div className="flex flex-wrap gap-4 mt-4">
                                 <div className="flex items-center gap-2 text-sm text-gray-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">

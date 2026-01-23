@@ -27,7 +27,7 @@ const EventSchema: Schema = new Schema(
         maxMembers: { type: Number, required: true },
         price: { type: Number, required: true },
         prizePool: { type: String, required: false },
-        description: { type: String, required: true },
+        description: { type: String, required: false },
         isPublished: { type: Boolean, default: true, index: true },
         whatsappLink: { type: String, required: false }, // New Field
         // schedule removed, using Slot model instead

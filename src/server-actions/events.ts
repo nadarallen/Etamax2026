@@ -6,7 +6,7 @@ import { getSession, Role } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
-import { revalidatePath, unstable_cache } from 'next/cache';
+import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
 
 // --- Validation Schemas ---
 
@@ -19,7 +19,7 @@ const EventSchema = z.object({
     maxMembers: z.coerce.number().min(1),
     price: z.coerce.number().min(0),
     prizePool: z.string().optional(),
-    description: z.string(),
+    description: z.string().optional(),
     whatsappLink: z.string().optional(), // Added
 });
 
@@ -102,6 +102,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
         console.log("Event Created:", newEvent._id);
 
         // We do revalidate, and the client will handle the redirect
+        revalidateTag('events'); // Clear cache
         revalidatePath('/events');
         return { success: true, eventId: newEvent._id.toString() };
 
@@ -250,6 +251,11 @@ export async function deleteEventAction(eventId: string): Promise<EventState> {
         await Event.findByIdAndDelete(eventId);
         await Slot.deleteMany({ eventId });
 
+        // Fix: Delete associated registrations to prevent orphan stats
+        const Registration = (await import('@/models/Registration')).default;
+        await Registration.deleteMany({ eventId });
+
+        revalidateTag('events'); // Clear cache
         revalidatePath('/events');
         revalidatePath('/admin');
         revalidatePath('/club');
@@ -317,6 +323,7 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
 
         await Event.findByIdAndUpdate(dbId, updates);
 
+        revalidateTag('events'); // Clear cache
         revalidatePath('/admin');
         revalidatePath('/events');
         revalidatePath('/club');

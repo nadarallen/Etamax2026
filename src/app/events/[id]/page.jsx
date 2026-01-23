@@ -186,21 +186,13 @@ export default function EventDetail({ params }) {
                     )}
                 </div>
 
-                <div className="mb-12 relative z-10">
-                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span className="w-1 h-8 bg-galaxy-purple rounded-full"></span>
-                        About the Event
-                    </h3>
-                    <div className="prose prose-invert max-w-none text-gray-300 leading-relaxed whitespace-pre-line text-lg">
-                        {event.description}
-                    </div>
-                </div>
+
 
                 {/* Sticky Action Bar */}
                 <div className="fixed bottom-0 left-0 w-full p-4 bg-galaxy-dark/95 backdrop-blur-xl border-t border-white/10 z-50 md:sticky md:bottom-0 md:bg-transparent md:backdrop-blur-none md:border-0 md:p-0">
                     <button
                         onClick={() => setShowEnrollModal(true)}
-                        className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl text-lg shadow-[0_0_30px_rgba(123,92,255,0.3)] transition-all duration-300 active:scale-95 flex justify-center items-center gap-3"
+                        className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 flex justify-center items-center gap-3"
                     >
                         <span>{currentReg ? 'Manage Registration' : 'Reserve Seat'}</span>
                         <ArrowLeft className="rotate-180" size={20} />

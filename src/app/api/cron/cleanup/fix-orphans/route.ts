@@ -5,8 +5,10 @@ import Registration from '@/models/Registration';
 import { getSession, Role } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-    // Auth disabled for cron/cleanup route (protected by middleware whitelist usually, but we want public access for this fix)
     // const session = await getSession();
+    // if (!session || session.role !== Role.SUPER_ADMIN) {
+    //     return new NextResponse('Unauthorized', { status: 401 });
+    // }
 
     try {
         await connectToDatabase();
@@ -16,13 +18,8 @@ export async function GET(req: NextRequest) {
         const validEventIds = events.map(e => e._id.toString());
 
         // Delete registrations with invalid eventId
-        // Also delete registrations where eventId is null/undefined
         const result = await Registration.deleteMany({
-            $or: [
-                { eventId: { $nin: validEventIds } },
-                { eventId: { $exists: false } },
-                { eventId: null }
-            ]
+            eventId: { $nin: validEventIds }
         });
 
         return NextResponse.json({

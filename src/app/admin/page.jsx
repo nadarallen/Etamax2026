@@ -90,9 +90,9 @@ function AdminContent() {
                 <div className="flex gap-3">
                     <button
                         onClick={() => setShowDesk(true)}
-                        className="bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-galaxy-purple border border-galaxy-purple/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 animate-pulse hover:animate-none"
+                        className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 animate-pulse hover:animate-none"
                     >
-                        <span className="text-lg">⚡</span> Rapid Payment
+                        <span className="text-lg">💳</span> Offline Desk
                     </button>
                     <Link href="/admin/students">
                         <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
@@ -153,9 +153,23 @@ function AdminContent() {
                             <button
                                 onClick={async () => {
                                     if (confirm('Are you sure you want to delete this event?')) {
-                                        await deleteEventAction(event._id);
-                                        // Ideally we should use optimistic updates or router refresh, but for now revalidatePath helps
-                                        fetchData();
+                                        // Optimistic Update
+                                        const originalEvents = [...events];
+                                        setEvents(events.filter(e => e._id !== event._id));
+
+                                        try {
+                                            const result = await deleteEventAction(event._id);
+                                            if (result.error) {
+                                                throw new Error(result.error);
+                                            }
+                                            // Success: Data is already gone from UI. 
+                                            // We can trigger a silent re-fetch to ensure sync with DB, but it's not blocking the UI.
+                                            fetchData();
+                                        } catch (error) {
+                                            console.error("Deletion failed:", error);
+                                            alert("Failed to delete event. Restoration initiated.");
+                                            setEvents(originalEvents); // Rollback
+                                        }
                                     }
                                 }}
                                 className="flex-0 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors flex items-center justify-center border border-red-500/20"
@@ -177,7 +191,7 @@ function AdminContent() {
             {/* Rapid Payment Modal */}
             {showDesk && (
                 <Suspense fallback={null}>
-                    <RapidPaymentWrapper onClose={() => setShowDesk(false)} />
+                    <OfflineDeskWrapper onClose={() => setShowDesk(false)} />
                 </Suspense>
             )}
         </div>
@@ -186,7 +200,7 @@ function AdminContent() {
 
 // Lazy load the panel for performance
 import dynamic from 'next/dynamic';
-const RapidPaymentWrapper = dynamic(() => import('@/components/admin/RapidPaymentPanel'), {
+const OfflineDeskWrapper = dynamic(() => import('@/components/admin/OfflineDeskPanel'), {
     ssr: false
 });
 
