@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ChevronDown, MapPin, Clock, MessageCircle, ExternalLink, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
-export default function EventAccordion({ event, isOpen, onToggle, activeDay }) {
+export default function EventAccordion({ event, isOpen, onToggle, activeDay, onEventClick }) {
     // Determine status badge color
     const getStatusColor = () => {
         if (event.isSoldOut) return 'bg-red-500/20 text-red-500 border-red-500/30';
@@ -67,22 +67,22 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay }) {
                             <div className="flex flex-wrap gap-4 mt-4">
                                 <div className="flex items-center gap-2 text-sm text-gray-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                                     <Clock size={16} className="text-galaxy-purple" />
-                                    <span>Time: {event.startTime || 'TBD'}</span>
+                                    <span>Time: {event.slots?.find(s => s.dayNumber === activeDay)?.startTime || 'TBD'}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-gray-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                                     <MapPin size={16} className="text-galaxy-purple" />
-                                    <span>Venue: {event.venue || 'TBD'}</span>
+                                    <span>Venue: {event.slots?.find(s => s.dayNumber === activeDay)?.venue || 'TBD'}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-3 justify-center border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-6">
-                            <Link
-                                href={`/events/${event.id}?register=true&day=${activeDay}`}
+                            <button
+                                onClick={onEventClick}
                                 className="w-full bg-white text-black hover:bg-gray-100 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95"
                             >
                                 Reserve Seat <ExternalLink size={16} />
-                            </Link>
+                            </button>
 
                             {event.whatsappLink && (
                                 <a

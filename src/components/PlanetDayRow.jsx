@@ -3,7 +3,7 @@ import { useState } from 'react';
 import PlanetIcon from './PlanetIcon';
 import EventAccordion from './EventAccordion';
 
-export default function PlanetDayRow({ day, events, isExpanded, onToggle, activeDay, expandedEventId, setExpandedEventId, hasRegistration }) {
+export default function PlanetDayRow({ day, events, isExpanded, onToggle, activeDay, expandedEventId, setExpandedEventId, hasRegistration, onEventClick }) {
 
     const [activeCategory, setActiveCategory] = useState('Technical');
     const [activeFilter, setActiveFilter] = useState(null);
@@ -115,6 +115,7 @@ export default function PlanetDayRow({ day, events, isExpanded, onToggle, active
                                             activeDay={day}
                                             isOpen={expandedEventId === event.id}
                                             onToggle={() => setExpandedEventId(expandedEventId === event.id ? null : event.id)}
+                                            onEventClick={() => onEventClick(event)}
                                         />
                                     ))}
                                 </div>

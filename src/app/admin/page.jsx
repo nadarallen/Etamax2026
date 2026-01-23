@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import eventsData from '@/data/events.json';
-import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users } from 'lucide-react';
+import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users, Search } from 'lucide-react';
 import Link from 'next/link';
 import { deleteEventAction } from '@/server-actions/events';
 
@@ -14,6 +14,7 @@ function AdminContent() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showDesk, setShowDesk] = useState(false); // Rapid Payment State
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchData = async () => {
         try {
@@ -41,58 +42,39 @@ function AdminContent() {
         fetchData();
     }, []);
 
-    if (loading) return <div className="min-h-screen pt-24 text-white text-center">Loading Dashboard...</div>;
+    // Filter Logic
+    const filteredEvents = events.filter(event =>
+        event.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="min-h-screen pt-24 px-4 md:px-8 max-w-7xl mx-auto">
 
-            <div className="flex justify-between items-center mb-12">
-                <div>
-                    <h1 className="text-3xl font-display font-bold text-white tracking-widest flex items-center gap-3">
-                        <Settings className="text-galaxy-purple" />
-                        ADMIN DASHBOARD
-                    </h1>
-                    <p className="text-gray-400 mt-2">Manage ETAMAX 2026 Events</p>
-                </div>
-                <div className="flex gap-4">
-                    <div className="text-right">
-                        <p className="text-xs text-gray-400 uppercase tracking-widest">Total Revenue</p>
-                        <p className="text-xl font-bold text-green-400">₹{stats.totalRevenue}</p>
-                    </div>
-                    <div>
-                        <button
-                            onClick={async () => {
-                                await import('@/server-actions/auth').then(mod => mod.logoutAction());
-                            }}
-                            className="flex items-center gap-2 px-6 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors h-full"
-                        >
-                            <LogOut size={16} />
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {/* ... Header and Stats ... */}
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                    <p className="text-gray-400 text-sm">Active Events</p>
-                    <p className="text-2xl font-bold text-white">{stats.totalEvents}</p>
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
+                <div className="w-full md:w-auto">
+                    <h2 className="text-xl font-bold text-white mb-4 md:mb-0">All Events</h2>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                    <p className="text-gray-400 text-sm">Total Registrations</p>
-                    <p className="text-2xl font-bold text-white">{stats.totalRegistrations}</p>
-                </div>
-            </div>
 
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">All Events</h2>
-                <div className="flex gap-3">
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    {/* Search Input */}
+                    <div className="relative flex-1 md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search events..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white focus:border-galaxy-purple outline-none transition-colors"
+                        />
+                    </div>
+
                     <button
                         onClick={() => setShowDesk(true)}
-                        className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 animate-pulse hover:animate-none"
+                        className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
                     >
-                        <span className="text-lg">💳</span> Offline Desk
+                        💳 Offline Desk
                     </button>
                     <Link href="/admin/students">
                         <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
@@ -106,19 +88,30 @@ function AdminContent() {
                             + Create Event
                         </button>
                     </Link>
+                    {/* ... other buttons ... */}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {events.map((event) => (
-                    <div key={event._id} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:border-galaxy-purple/30 transition-all group">
+                {filteredEvents.map((event) => (
+                    <div key={event._id} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:border-galaxy-purple/30 transition-all group flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <span className="text-xs font-bold text-galaxy-accent uppercase tracking-wider">{event.type}</span>
-                                <h3 className="text-xl font-bold text-white mt-1 group-hover:text-galaxy-purple transition-colors">{event.name}</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold text-galaxy-accent uppercase tracking-wider">{event.type}</span>
+                                    {event.activeDays && event.activeDays.length > 0 && (
+                                        <span className="text-[10px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">
+                                            Day {[...event.activeDays].sort().join(', ')}
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-xl font-bold text-white group-hover:text-galaxy-purple transition-colors">{event.name}</h3>
                             </div>
                             <span className="text-lg font-bold text-white/50">₹{event.price}</span>
                         </div>
+
+                        {/* ... rest of card ... */}
+
 
                         <div className="space-y-2 mb-6">
                             <div className="flex justify-between items-center text-sm text-gray-400">

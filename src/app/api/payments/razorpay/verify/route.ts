@@ -71,9 +71,6 @@ export async function POST(req: NextRequest) {
         // So we don't need to increment again.
 
         return NextResponse.json({ success: true, paymentId: paymentRecord._id });
-
-        return NextResponse.json({ success: true, paymentId: paymentRecord._id });
-
     } catch (error) {
         console.error('Payment Verification Error:', error);
         return new NextResponse('Verification Failed', { status: 500 });

@@ -3,18 +3,26 @@ import { useState, useEffect } from 'react';
 import { logoutAction } from '@/server-actions/auth';
 import { LogOut, User } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getEventsAction } from '@/server-actions/events';
 import EventAccordion from '@/components/EventAccordion';
 import PlanetDayRow from '@/components/PlanetDayRow';
+import EventRegistrationModal from '@/components/EventRegistrationModal';
+import AboutUsModal from '@/components/AboutUsModal';
 
-import { getUserRegistrationsAction } from '@/server-actions/user';
+import { getUserRegistrationsAction, getUserProfileAction } from '@/server-actions/user';
 
 
 export default function EventsPage() {
+    const router = useRouter();
     const [expandedDay, setExpandedDay] = useState(null);
     const [events, setEvents] = useState([]);
     const [expandedEventId, setExpandedEventId] = useState(null);
     const [userRegistrations, setUserRegistrations] = useState([]);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [aboutModalOpen, setAboutModalOpen] = useState(false);
+    const [selectedEventForModal, setSelectedEventForModal] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
     // const [criteriaMet, setCriteriaMet] = useState(false);
     const [criteria, setCriteria] = useState({ technical: 0, cultural: 0, seminar: 0, met: false });
     const [masterReceiptId, setMasterReceiptId] = useState(null);
@@ -30,6 +38,17 @@ export default function EventsPage() {
 
                 // 2. Fetch User Registrations
                 const regsData = await getUserRegistrationsAction();
+                const profile = await getUserProfileAction();
+
+                if (profile) {
+                    setUserProfile(profile);
+                    // Security Check: Redirect Admins
+                    if (['superadmin', 'clubadmin'].includes(profile.role)) {
+                        router.replace('/admin');
+                        return;
+                    }
+                }
+
                 if (regsData.success) {
                     setUserRegistrations(regsData.registrations);
 
@@ -91,6 +110,12 @@ export default function EventsPage() {
                             </p>
                         </div>
                         <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end">
+                            <button
+                                onClick={() => setAboutModalOpen(true)}
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl transition-all duration-300 border border-white/10 flex-1 md:flex-none"
+                            >
+                                <span className="font-medium text-sm whitespace-nowrap">About Us</span>
+                            </button>
                             <Link
                                 href="/profile"
                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/10 hover:bg-galaxy-purple/20 text-galaxy-purple hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/20 flex-1 md:flex-none"
@@ -126,10 +151,28 @@ export default function EventsPage() {
                                 activeDay={day}
                                 expandedEventId={expandedEventId}
                                 setExpandedEventId={setExpandedEventId}
+                                hasRegistration={userRegistrations.some(r => r.slot?.dayNumber === day && r.status !== 'CANCELLED')}
+                                onEventClick={(event) => {
+                                    setSelectedEventForModal(event);
+                                    setModalOpen(true);
+                                }}
                             />
                         );
                     })}
                 </div>
+
+                <EventRegistrationModal
+                    isOpen={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                    event={selectedEventForModal}
+                    userProfile={userProfile}
+                    activeDay={expandedDay}
+                />
+
+                <AboutUsModal
+                    isOpen={aboutModalOpen}
+                    onClose={() => setAboutModalOpen(false)}
+                />
 
                 {/* Final Timeline Node: Simple Payment Button - AT THE BOTTOM */}
                 <div className="relative pl-8 md:pl-16 py-8 md:py-12 animate-fade-in-up">
