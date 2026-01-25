@@ -9,6 +9,7 @@ export default function RegistrationForm({ event, onSubmit }) {
     });
 
     // Initialize members
+    // Default to minTeamSize (which is now 1 by default in DB) or 1
     const [memberCount, setMemberCount] = useState(event.minTeamSize || 1);
 
     const handleChange = (e) => {
@@ -99,8 +100,9 @@ export default function RegistrationForm({ event, onSubmit }) {
                                 onChange={(e) => setMemberCount(parseInt(e.target.value))}
                             >
                                 {/* Generate options based on minTeamSize and maxTeamSize */}
-                                {[...Array((event.maxTeamSize || 4) - (event.minTeamSize || 2) + 1)].map((_, i) => {
-                                    const val = (event.minTeamSize || 2) + i;
+                                {/* Generate options based on minTeamSize and maxTeamSize */}
+                                {[...Array((event.maxTeamSize || 4) - (event.minTeamSize || 1) + 1)].map((_, i) => {
+                                    const val = (event.minTeamSize || 1) + i;
                                     return <option key={val} value={val}>{val}</option>
                                 })}
                             </select>

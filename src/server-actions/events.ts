@@ -21,6 +21,8 @@ const EventSchema = z.object({
     prizePool: z.string().optional(),
     description: z.string().optional(),
     whatsappLink: z.string().optional(), // Added
+    minTeamSize: z.coerce.number().min(1).default(1),
+    maxTeamSize: z.coerce.number().min(1).default(4),
 });
 
 const SlotSchema = z.object({
@@ -61,7 +63,8 @@ export async function createEventAction(prevState: EventState, formData: FormDat
         }
 
         const {
-            name, type, club, category, maxMembers, price, prizePool, description, whatsappLink
+            name, type, club, category, maxMembers, price, prizePool, description, whatsappLink,
+            minTeamSize, maxTeamSize
         } = parsed.data;
 
         // Auto-generate ID if not provided
@@ -96,6 +99,8 @@ export async function createEventAction(prevState: EventState, formData: FormDat
             prizePool,
             description,
             whatsappLink, // Added
+            minTeamSize,
+            maxTeamSize,
             isPublished: true
         });
 
@@ -210,15 +215,19 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
 
         const skip = (page - 1) * limit;
 
+        let query = Registration.find({ eventId })
+            .populate('slotId')
+            .populate('teamId')
+            .sort({ createdAt: -1 });
+
+        // If limit is > 0, apply pagination
+        if (limit > 0) {
+            query = query.skip(skip).limit(limit);
+        }
+
         // Parallel fetch: Data + Count
         const [registrations, total] = await Promise.all([
-            Registration.find({ eventId })
-                .populate('slotId')
-                .populate('teamId')
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .lean(),
+            query.lean(),
             Registration.countDocuments({ eventId })
         ]);
 
@@ -318,7 +327,9 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
             prizePool: formData.get('prizePool'),
             description: formData.get('description'),
             isPublished: formData.get('isPublished') === 'on',
-            whatsappLink: formData.get('whatsappLink') // Added
+            whatsappLink: formData.get('whatsappLink'), // Added
+            minTeamSize: Number(formData.get('minTeamSize')) || 1,
+            maxTeamSize: Number(formData.get('maxTeamSize')) || 4,
         };
 
         await Event.findByIdAndUpdate(dbId, updates);

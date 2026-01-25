@@ -30,6 +30,8 @@ const EventSchema: Schema = new Schema(
         description: { type: String, required: false },
         isPublished: { type: Boolean, default: true, index: true },
         whatsappLink: { type: String, required: false }, // New Field
+        minTeamSize: { type: Number, default: 1 }, // Added
+        maxTeamSize: { type: Number, default: 4 }, // Added
         // schedule removed, using Slot model instead
     },
     { timestamps: true }

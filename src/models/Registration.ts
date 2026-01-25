@@ -29,6 +29,8 @@ export interface IRegistration extends Document {
     confirmedBy?: mongoose.Types.ObjectId;
     confirmedAt?: Date;
 
+    emailSent?: boolean;
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -62,6 +64,8 @@ const RegistrationSchema: Schema = new Schema(
         // Desk Payment Confirmation
         confirmedBy: { type: Schema.Types.ObjectId, ref: 'User' },
         confirmedAt: { type: Date },
+
+        emailSent: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

@@ -143,6 +143,9 @@ function AdminContent() {
                                     <Users size={14} /> Users
                                 </button>
                             </Link>
+
+                            <QuickExport eventId={event._id} eventName={event.name} />
+
                             <button
                                 onClick={async () => {
                                     if (confirm('Are you sure you want to delete this event?')) {
@@ -196,6 +199,7 @@ import dynamic from 'next/dynamic';
 const OfflineDeskWrapper = dynamic(() => import('@/components/admin/OfflineDeskPanel'), {
     ssr: false
 });
+import QuickExport from '@/components/admin/QuickExport';
 
 export default function AdminPage() {
     return (

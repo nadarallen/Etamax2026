@@ -17,7 +17,7 @@ export async function getUserManagedTeamsAction() {
         (await import('@/models/Event')).default;
 
         const teams = await Team.find({ leaderId: session.user.id })
-            .populate('eventId', 'name maxMembers price type id')
+            .populate('eventId', 'name maxMembers minTeamSize maxTeamSize price type id')
             .populate({
                 path: 'members.userId',
                 model: 'User',

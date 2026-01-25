@@ -89,8 +89,7 @@ export async function POST(req: NextRequest) {
             const etamaxId = `ETAMAX-${nanoid()}`;
 
             // Create Registration Record (Receipt Proof)
-            // Fix: Include all required fields from User profile
-            await Registration.create({
+            const registration = await Registration.create({
                 userId: user._id,
                 eventId,
                 teamId,
@@ -105,35 +104,87 @@ export async function POST(req: NextRequest) {
                 email: user.email,
                 branch: user.branch || 'N/A',
                 semester: user.semester || 'N/A',
+                emailSent: false, // Default
             });
 
             // Send Success Email
-            if (process.env.EMAIL_USER && process.env.EMAIL_PASS && user.email) {
+            if (user.email) {
                 try {
+                    // Fetch Event and Slot Details for Email
+                    const eventDetails = await Event.findById(eventId);
+                    const Slot = (await import('@/models/Slot')).default;
+                    const slotDetails = await Slot.findById(slotId);
+
+                    let formattedDate = 'TBD';
+                    if (slotDetails && slotDetails.dayNumber) {
+                        const dayMap: { [key: number]: string } = {
+                            1: 'February 12, 2026',
+                            2: 'February 13, 2026',
+                            3: 'February 14, 2026'
+                        };
+                        formattedDate = dayMap[slotDetails.dayNumber] || `Day ${slotDetails.dayNumber}`;
+                    }
+
                     const nodemailer = (await import('nodemailer')).default;
+
+                    // Email Rotation Logic
+                    // We check for EMAIL_USER, EMAIL_USER_2, EMAIL_USER_3, EMAIL_USER_4
+                    const accounts = [];
+                    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) accounts.push({ user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS });
+                    if (process.env.EMAIL_USER_2 && process.env.EMAIL_PASS_2) accounts.push({ user: process.env.EMAIL_USER_2, pass: process.env.EMAIL_PASS_2 });
+                    if (process.env.EMAIL_USER_3 && process.env.EMAIL_PASS_3) accounts.push({ user: process.env.EMAIL_USER_3, pass: process.env.EMAIL_PASS_3 });
+                    if (process.env.EMAIL_USER_4 && process.env.EMAIL_PASS_4) accounts.push({ user: process.env.EMAIL_USER_4, pass: process.env.EMAIL_PASS_4 });
+
+                    if (accounts.length === 0) {
+                        console.error("No email accounts configured.");
+                        throw new Error("No Email Configured");
+                    }
+
+                    // Pick random account to distribute load
+                    const selectedAccount = accounts[Math.floor(Math.random() * accounts.length)];
+
                     const transporter = nodemailer.createTransport({
                         service: 'gmail',
-                        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+                        auth: { user: selectedAccount.user, pass: selectedAccount.pass },
                     });
 
                     await transporter.sendMail({
-                        from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
+                        from: '"Etamax 2026" <' + selectedAccount.user + '>',
                         to: user.email,
-                        subject: `Registration Confirmed - Etamax 2026`,
+                        subject: `Registration Successful for ${eventDetails?.name || 'Etamax Event'} ✅`,
                         html: `
-                            <div style="font-family: Arial, sans-serif; color: #333;">
-                                <h1 style="color: #28a745;">Registration Confirmed!</h1>
-                                <p>Hi ${user.name},</p>
-                                <p>We have received your payment for order <strong>${order_id}</strong>.</p>
-                                <p><strong>Registration ID:</strong> ${etamaxId}</p>
-                                <hr />
-                                <p>Please show this email or your QR code (on the dashboard) at the venue.</p>
-                                <br/>
-                                <p>Best,<br/>Etamax Team</p>
+                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+                                    <h1 style="margin: 0; font-size: 24px;">Registration Confirmed!</h1>
+                                </div>
+                                <div style="padding: 20px;">
+                                    <p style="font-size: 16px;">Hello <strong>${user.name}</strong>,</p>
+                                    <p style="font-size: 16px;">Your registration for <strong>${eventDetails?.name}</strong> has been confirmed successfully ✅</p>
+                                    
+                                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                                        <p style="margin: 5px 0;"><strong>📌 Event:</strong> ${eventDetails?.name}</p>
+                                        <p style="margin: 5px 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
+                                        <p style="margin: 5px 0;"><strong>⏰ Time:</strong> ${slotDetails?.startTime} - ${slotDetails?.endTime}</p>
+                                        <p style="margin: 5px 0;"><strong>📍 Venue:</strong> ${slotDetails?.venue}</p>
+                                        <p style="margin: 5px 0;"><strong>🆔 Registration ID:</strong> ${etamaxId}</p>
+                                    </div>
+
+                                    <p style="font-size: 16px;"><strong>Payment Status:</strong> <span style="color: #28a745; font-weight: bold;">SUCCESS ✅</span></p>
+                                    <p style="font-size: 14px; color: #555;">Please save this email or your QR code (available on your dashboard) for entry.</p>
+                                    
+                                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                                    
+                                    <p style="font-size: 14px; color: #777;">Thank you for registering!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>
+                                </div>
                             </div>
                         `
                     });
-                    console.log(`Success email sent to ${user.email}`);
+
+                    // Update Email Sent Status
+                    registration.emailSent = true;
+                    await registration.save();
+
+                    console.log(`Success email sent to ${user.email} for ${eventDetails?.name} via ${selectedAccount.user}`);
                 } catch (emailErr) {
                     console.error("Failed to send success email:", emailErr);
                 }

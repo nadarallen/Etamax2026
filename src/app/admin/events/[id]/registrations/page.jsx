@@ -6,6 +6,8 @@ import { updateRegistrationStatusAction } from '@/server-actions/registration';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, RefreshCw, Search, Mail, User, Calendar, Filter, Crown } from 'lucide-react';
 import Link from 'next/link';
+// import jsPDF from 'jspdf'; // Moved to dynamic import
+// import 'jspdf-autotable';
 
 export default function EventRegistrationsPage({ params }) {
     // Unwrap params using React.use()
@@ -39,31 +41,55 @@ export default function EventRegistrationsPage({ params }) {
         return () => clearInterval(interval);
     }, [id, page]);
 
-    const downloadCSV = () => {
-        const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment Method'];
-        const rows = registrations.map(reg => [
+    const downloadExport = async (format) => {
+        // Fetch ALL registrations (limit = 0)
+        let allRegs = registrations;
+        if (pagination && pagination.total > registrations.length) {
+            const res = await getEventRegistrationsAction(id, 1, 0); // Limit 0 = fetch all
+            if (res.success) {
+                allRegs = res.registrations;
+            }
+        }
+
+        const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment'];
+        const data = allRegs.map(reg => [
             reg.etamaxId || 'N/A',
             reg.fullName,
             reg.rollNumber,
             reg.email,
             reg.branch,
             reg.semester,
-            reg.slotId ? `${reg.slotId.startTime || '?'} - ${reg.slotId.endTime || '?'} (Day ${reg.slotId.dayNumber || '?'})` : 'N/A',
+            reg.slotId ? `D${reg.slotId.dayNumber} ${reg.slotId.startTime}-${reg.slotId.endTime}` : 'Deleted',
             reg.slotId?.venue || 'N/A',
             reg.status,
-            reg.paymentMethod
+            reg.paymentMethod || 'Online'
         ]);
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(e => e.join(','))
-        ].join('\n');
+        if (format === 'csv') {
+            const csvContent = [
+                headers.join(','),
+                ...data.map(e => e.join(','))
+            ].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `registrations-${id}.csv`;
+            link.click();
+        }
+        else if (format === 'pdf') {
+            doc.text("Event Registrations", 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Total: ${allRegs.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `registrations-${id}.csv`;
-        link.click();
+            doc.autoTable({
+                startY: 25,
+                head: [headers],
+                body: data,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [41, 128, 185] },
+            });
+            doc.save(`registrations-${id}.pdf`);
+        }
     };
 
     const handleStatusChange = async (regId, newStatus) => {

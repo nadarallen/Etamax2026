@@ -51,10 +51,12 @@ export default function TeamManager() {
         }
     };
 
-    // Helper to check if team is full
-    const isTeamFull = (team) => {
-        const max = team.eventId?.maxMembers || 0;
-        return team.members.length >= max;
+    // Helper to check if team is valid for payment
+    const isTeamValid = (team) => {
+        const min = team.eventId?.minTeamSize || 1;
+        // Default max to 4 if missing, or use maxMembers if defined
+        const max = team.eventId?.maxTeamSize || team.eventId?.maxMembers || 4;
+        return team.members.length >= min && team.members.length <= max;
     };
 
     if (loading) return null;
@@ -76,7 +78,7 @@ export default function TeamManager() {
                 {teams.map(team => {
                     const isPaymentPending = team.status === 'LOCKED' || team.members.some(m => m.paymentStatus === 'PENDING');
                     const isConfirmed = team.status === 'CONFIRMED';
-                    const teamFull = isTeamFull(team);
+                    const teamValid = isTeamValid(team);
                     const maxMembers = team.eventId?.maxMembers || '?';
                     const isLeader = team.leaderId === team.members.find(m => m.userId === team.leaderId)?.userId; // Session check ideally, but we can assume viewer is leader if in this list (since getUserManagedTeamsAction only returns led teams? Wait, logic says 'managed' so yes. But checking session user ID in frontend requires passed prop or context. Actually getUserManagedTeamsAction filters by leaderId: session.id, so viewer IS leader. )
 
@@ -197,10 +199,10 @@ export default function TeamManager() {
                                                 <span className="text-xl font-bold text-white">₹{team.eventId?.price || 0}</span>
                                             </div>
 
-                                            {!teamFull ? (
+                                            {!teamValid ? (
                                                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex items-center gap-3 text-yellow-200 text-sm">
                                                     <AlertTriangle size={18} />
-                                                    <span>Fill all <b>{maxMembers}</b> slots to enable payment.</span>
+                                                    <span>Minimum <b>{team.eventId?.minTeamSize || 1}</b> members required to enable payment.</span>
                                                 </div>
                                             ) : (
                                                 <div className="w-full space-y-3">
