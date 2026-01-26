@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import GalaxyBackground from "../components/GalaxyBackground";
+import { HyperspaceBackground } from "@/components/ui/hyperspace-background";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,9 +23,14 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <GalaxyBackground>
-          {children}
-        </GalaxyBackground>
+        <div className="relative min-h-screen w-full overflow-x-hidden">
+          <div className="fixed inset-0 z-0">
+            <HyperspaceBackground />
+          </div>
+          <div className="relative z-10">
+            {children}
+          </div>
+        </div>
       </body>
     </html>
   );

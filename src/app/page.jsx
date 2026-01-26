@@ -1,5 +1,5 @@
-import Splash from '@/components/Splash';
+import { HyperspaceBackgroundDemo } from '@/components/HyperspaceBackgroundDemo';
 
 export default function Home() {
-    return <Splash />;
+    return <div className="min-h-screen grid place-items-center"><HyperspaceBackgroundDemo /></div>;
 }

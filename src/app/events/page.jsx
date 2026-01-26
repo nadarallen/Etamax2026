@@ -99,7 +99,7 @@ export default function EventsPage() {
                 <div className="flex flex-col space-y-8">
                     <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 border-b border-white/5 pb-8">
                         <div className="space-y-2">
-                            <div className="inline-block px-3 py-1 rounded-full bg-galaxy-purple/20 border border-galaxy-purple/30 text-galaxy-accent text-xs font-bold tracking-widest uppercase mb-2 animate-pulse">
+                            <div className="inline-block px-3 py-1 rounded-full bg-galaxy-purple/20 border border-galaxy-purple/30 text-white text-xs font-bold tracking-widest uppercase mb-2 animate-pulse">
                                 Etamax 2026
                             </div>
                             <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
@@ -118,17 +118,17 @@ export default function EventsPage() {
                             </button>
                             <Link
                                 href="/profile"
-                                className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/10 hover:bg-galaxy-purple/20 text-galaxy-purple hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/20 flex-1 md:flex-none"
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/10 hover:bg-galaxy-purple/20 text-white hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/20 flex-1 md:flex-none"
                             >
                                 <User size={18} />
-                                <span className="font-medium text-sm whitespace-nowrap">My Profile</span>
+                                <span className="font-medium text-sm whitespace-nowrap text-white">My Profile</span>
                             </Link>
                             <button
                                 onClick={async () => await logoutAction()}
                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 border border-red-500/20 flex-1 md:flex-none"
                             >
                                 <LogOut size={18} />
-                                <span className="font-medium text-sm">Logout</span>
+                                <span className="font-medium text-sm text-red">Logout</span>
                             </button>
                         </div>
                     </div>

@@ -33,7 +33,7 @@ export default function PlanetDayRow({ day, events, isExpanded, onToggle, active
                         ${hasRegistration ? 'grayscale-0 drop-shadow-[0_0_35px_rgba(234,179,8,0.8)] scale-110' : 'grayscale hover:grayscale-0'}
                         ${isExpanded && !hasRegistration ? 'grayscale-0 scale-105' : ''}
                         `}>
-                        <div className={`w-full h-full rounded-full ${isExpanded ? 'animate-spin-slow' : ''}`}>
+                        <div className={`w-full h-full rounded-full`}>
                             <PlanetIcon day={day} size="large" />
                         </div>
 

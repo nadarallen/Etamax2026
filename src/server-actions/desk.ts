@@ -28,7 +28,7 @@ export async function searchDeskRegistrationsAction(query: string) {
         (await import('@/models/Slot')).default;
         (await import('@/models/User')).default;
 
-        let filter: any = {};
+        const filter: any = {};
 
         // Search Logic
         if (query && query.trim().length > 0) {
@@ -372,7 +372,7 @@ export async function approveBatchRegistrationsAction(regIds: string[]) {
         await connectToDatabase();
 
         let successCount = 0;
-        let errors = [];
+        const errors = [];
 
         // We reuse confirmDeskPaymentAction to ensure all side-effects (Leader redirect, Email, Audit) ran
         const results = await Promise.all(regIds.map(id => confirmDeskPaymentAction(id)));

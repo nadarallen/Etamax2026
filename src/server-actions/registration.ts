@@ -199,7 +199,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 
         const { customAlphabet } = await import('nanoid');
         const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
-        let etamaxId = `ETAMAX-${nanoid()}`;
+        const etamaxId = `ETAMAX-${nanoid()}`;
         let newReg;
 
         // DB Operations: Create or Update
@@ -429,7 +429,7 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
 
                 // 1. Update Team Members Payment Status
                 const newPaymentStatus = newStatus === RegStatus.CONFIRMED ? 'PAID' : 'PENDING';
-                let memberUserIds = [];
+                const memberUserIds = [];
 
                 team.members.forEach((m: any) => {
                     m.paymentStatus = newPaymentStatus;

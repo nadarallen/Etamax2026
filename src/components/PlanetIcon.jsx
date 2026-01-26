@@ -20,7 +20,7 @@ const PlanetIcon = ({ day, size = 'small' }) => {
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-900 opacity-80"></div>
 
                     {/* Moving Clouds/Land Texture */}
-                    <div className="absolute inset-0 w-[300%] h-full animate-[spin-texture_15s_linear_infinite] opacity-90"
+                    <div className="absolute inset-0 w-[300%] h-full opacity-90"
                         style={{
                             background: 'url("https://grainy-gradients.vercel.app/noise.svg"), linear-gradient(90deg, transparent 0%, #4ade80 15%, transparent 30%, #4ade80 50%, transparent 70%, #4ade80 85%, transparent 100%)',
                             backgroundSize: 'auto, 50% 80%',
@@ -29,7 +29,7 @@ const PlanetIcon = ({ day, size = 'small' }) => {
                     />
 
                     {/* Clouds Layer 2 */}
-                    <div className="absolute inset-0 w-[300%] h-full animate-[spin-texture_20s_linear_infinite] opacity-40 mix-blend-overlay"
+                    <div className="absolute inset-0 w-[300%] h-full opacity-40 mix-blend-overlay"
                         style={{
                             background: 'linear-gradient(90deg, white 0%, transparent 20%, white 40%, transparent 60%, white 80%, transparent 100%)',
                             backgroundSize: '40% 100%'
@@ -54,13 +54,13 @@ const PlanetIcon = ({ day, size = 'small' }) => {
                     <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-[#450a0a]"></div>
 
                     {/* Moving Texture */}
-                    <div className="absolute inset-0 w-[200%] h-full animate-[spin-texture_25s_linear_infinite]"
+                    <div className="absolute inset-0 w-[200%] h-full"
                         style={{
                             backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.4) 10%, transparent 20%), radial-gradient(circle at 20% 80%, rgba(0,0,0,0.4) 5%, transparent 15%)',
                             backgroundSize: '50% 50%'
                         }}
                     />
-                    <div className="absolute inset-0 w-[200%] h-full animate-[spin-texture_12s_linear_infinite] opacity-60 mix-blend-color-dodge"
+                    <div className="absolute inset-0 w-[200%] h-full opacity-60 mix-blend-color-dodge"
                         style={{
                             background: 'repeating-linear-gradient(90deg, transparent 0px, #fca5a5 2px, transparent 4px, transparent 20px)'
                         }}
@@ -88,7 +88,7 @@ const PlanetIcon = ({ day, size = 'small' }) => {
                     <div className="absolute inset-0 bg-gradient-to-b from-[#3b0764] via-[#6b21a8] to-[#3b0764]"></div>
 
                     {/* Banded Gas Texture */}
-                    <div className="absolute inset-0 w-full h-[200%] animate-[spin-vertical_10s_linear_infinite]"
+                    <div className="absolute inset-0 w-full h-[200%]"
                         style={{
                             background: 'repeating-linear-gradient(0deg, transparent 0%, rgba(255,255,255,0.1) 10%, transparent 20%, rgba(0,0,0,0.2) 30%, transparent 40%)',
                             backgroundSize: '100% 50%'

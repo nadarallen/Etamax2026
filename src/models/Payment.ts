@@ -23,9 +23,11 @@ export interface IPayment extends Document {
     gatewayPaymentId?: string; // Razorpay Payment ID
     referenceId?: string; // Offline Ref ID
     metadata: {
-        eventId: string;
+        eventId?: string;
         teamId?: string;
-        slotId: string;
+        slotId?: string;
+        registrationIds?: string[];
+        type?: string;
     };
     createdAt: Date;
     updatedAt: Date;
@@ -50,9 +52,11 @@ const PaymentSchema: Schema = new Schema(
         gatewayPaymentId: { type: String },
         referenceId: { type: String }, // User provided for Offline
         metadata: {
-            eventId: { type: String, required: true },
+            eventId: { type: String, required: false },
             teamId: { type: String },
-            slotId: { type: String, required: true },
+            slotId: { type: String, required: false },
+            registrationIds: { type: [String] },
+            type: { type: String }
         },
     },
     { timestamps: true }
