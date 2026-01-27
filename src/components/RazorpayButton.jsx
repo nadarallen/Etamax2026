@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { loadRazorpay } from '@/utils/razorpay';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CreditCard } from 'lucide-react';
 
-export default function RazorpayButton({ amount, onSuccess, userDetails, eventDetails }) {
+export default function RazorpayButton({ amount, onSuccess, userDetails, eventDetails, className }) {
     const [isLoading, setIsLoading] = useState(false);
 
     const handlePayment = async () => {
@@ -89,9 +89,18 @@ export default function RazorpayButton({ amount, onSuccess, userDetails, eventDe
         <button
             onClick={handlePayment}
             disabled={isLoading}
-            className="flex items-center justify-center w-full py-3 bg-galaxy-purple hover:bg-galaxy-accent text-white rounded-lg font-bold transition-all"
+            className={`group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-px shadow-lg shadow-violet-500/30 transition-all hover:shadow-violet-500/50 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${className || ''}`}
         >
-            {isLoading ? <Loader2 className="animate-spin mr-2" /> : 'Pay Online (Razorpay)'}
+            <div className="relative flex items-center justify-center gap-2 bg-black/20 backdrop-blur-sm py-3.5 rounded-xl transition-all group-hover:bg-transparent">
+                {isLoading ? (
+                    <Loader2 className="animate-spin text-white" />
+                ) : (
+                    <>
+                        <CreditCard size={18} className="text-white" />
+                        <span className="font-bold text-white tracking-wide">Pay Online</span>
+                    </>
+                )}
+            </div>
         </button>
     );
 }

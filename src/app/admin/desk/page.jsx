@@ -1,8 +1,5 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { searchDeskRegistrationsAction, confirmDeskPaymentAction, cancelDeskPaymentAction } from '@/server-actions/desk';
-import { Search, CheckCircle, Clock, AlertCircle, RefreshCw, X, ShieldCheck, Trash2 } from 'lucide-react';
+import { confirmDeskPaymentAction, cancelDeskPaymentAction, searchDeskRegistrationsAction } from '@/server-actions/desk'; // searchDeskRegistrationsAction unused in code but might be needed? No, using dynamic import.
+import { Search, CheckCircle, AlertCircle, RefreshCw, X, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DeskPage() {
@@ -11,11 +8,9 @@ export default function DeskPage() {
     const [selectedStudent, setSelectedStudent] = useState(null); // Selected Student Full Details
     const [registrations, setRegistrations] = useState([]);
     const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
-    const [confirmModal, setConfirmModal] = useState(null);
+
+    // State Merge: Keeping all states involved in conflicts
     const [cancelModal, setCancelModal] = useState(null);
-=======
->>>>>>> a294f87b335a942be94585e6a8fff747fa58d553
     const [processing, setProcessing] = useState(false);
 
     // Debounced Search for STUDENTS
@@ -40,23 +35,14 @@ export default function DeskPage() {
 
     const selectStudent = async (studentId) => {
         setLoading(true);
-        setQuery(''); // Clear search? or keep name?
-        setSearchResults([]); // Hide dropdown
+        setQuery('');
+        setSearchResults([]);
 
         const { getStudentFullDetailsAction } = await import('@/server-actions/desk');
         const res = await getStudentFullDetailsAction(studentId);
 
         if (res.success) {
-            // Find student basic info from results or res
-            // Actually getStudentFullDetailsAction returns list of regs. 
-            // We can extract user details from the first reg OR we might need to fetch user separately?
-            // Wait, getStudentFullDetailsAction returns regs. 
-            // We need a way to show "Student Name" even if they have 0 regs?
-            // The previous action findGlobalStudentsAction gives us basic info.
-            // Let's store the student info from the search result.
-            // Find matching student from searchResults
-            // Issue: searchResults might be cleared. 
-            // Logic: Pass student object to this function.
+            // Logic ...
         }
         setLoading(false);
     };
@@ -90,24 +76,16 @@ export default function DeskPage() {
         const res = await approveBatchRegistrationsAction(ids);
 
         if (res.success) {
-<<<<<<< HEAD
-            // Update UI Optimistically
-            setRegistrations(prev => prev.map(r =>
-                r._id === confirmModal._id ? { ...r, status: 'CONFIRMED' } : r
-            ));
-            setConfirmModal(null);
-=======
-            // Refresh
+            // Using Incoming logic: Refresh
             handleSelectStudent(selectedStudent);
             alert(res.message);
->>>>>>> a294f87b335a942be94585e6a8fff747fa58d553
         } else {
             alert(res.error);
         }
         setProcessing(false);
     };
 
-<<<<<<< HEAD
+    // Keep handleCancel from HEAD
     const handleCancel = async () => {
         if (!cancelModal) return;
         setProcessing(true);
@@ -125,10 +103,7 @@ export default function DeskPage() {
         setProcessing(false);
     };
 
-    return (
-        <div className="min-h-screen pt-24 px-4 pb-20 max-w-7xl mx-auto text-white">
-=======
-    // Single Approve
+    // Keep handleSingleApprove from Incoming
     const handleSingleApprove = async (regId) => {
         if (!confirm("Confirm single payment?")) return;
         setProcessing(true);
@@ -142,7 +117,6 @@ export default function DeskPage() {
         }
         setProcessing(false);
     }
->>>>>>> a294f87b335a942be94585e6a8fff747fa58d553
 
     return (
         <div className="min-h-screen pt-24 px-4 pb-20 max-w-6xl mx-auto text-white">
@@ -159,14 +133,7 @@ export default function DeskPage() {
                 </Link>
             </div>
 
-<<<<<<< HEAD
-            {/* Search Bar */}
-            <div className="relative mb-8">
-                {/* ... existing search bar ... */}
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className={`w-6 h-6 ${loading ? 'text-galaxy-purple animate-pulse' : 'text-gray-400'}`} />
-=======
-            {/* 1. Search Section */}
+            {/* 1. Search Section (From Incoming) */}
             <div className="relative mb-8 z-50">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -194,7 +161,6 @@ export default function DeskPage() {
                             <X size={20} />
                         </button>
                     )}
->>>>>>> a294f87b335a942be94585e6a8fff747fa58d553
                 </div>
 
                 {/* Dropdown Results */}
@@ -218,65 +184,9 @@ export default function DeskPage() {
                         ))}
                     </div>
                 )}
-<<<<<<< HEAD
-
-                {registrations.map(reg => (
-                    <div
-                        key={reg._id}
-                        className={`bg-white/5 border ${reg.status === 'CONFIRMED' ? 'border-green-500/20 bg-green-500/5' : reg.status === 'CANCELLED' ? 'border-red-500/20 opacity-50' : 'border-white/10'} rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-all hover:border-white/20`}
-                    >
-                        {/* Student Details */}
-                        <div className="flex-1">
-                            <h3 className="text-lg font-bold text-white">{reg.fullName}</h3>
-                            <div className="flex flex-wrap gap-3 text-sm text-gray-400 mt-1">
-                                <span className="text-galaxy-purple font-mono bg-galaxy-purple/10 px-2 py-0.5 rounded">{reg.rollNumber}</span>
-                                <span>{reg.branch} - Sem {reg.semester}</span>
-                                <span className="flex items-center gap-1"><Clock size={12} /> {new Date(reg.createdAt).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-
-                        {/* Event Details */}
-                        <div className="flex-1 md:text-center">
-                            <div className="text-white font-medium">{reg.eventId?.name || 'Unknown Event'}</div>
-                            <div className="text-xs text-gray-400">
-                                {reg.slotId ? `Day ${reg.slotId.dayNumber} • ${reg.slotId.startTime}` : 'Slot Unknown'}
-                            </div>
-                            <div className="text-xs text-gray-500">{reg.eventId?.price > 0 ? `₹${reg.eventId.price}` : 'Free'}</div>
-                        </div>
-
-                        {/* Status / Action */}
-                        <div className="flex items-center gap-4 min-w-[200px] justify-end">
-                            <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider ${reg.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400' :
-                                reg.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
-                                }`}>
-                                {reg.status}
-                            </span>
-
-                            {reg.status === 'PENDING' && reg.paymentMethod === 'OFFLINE' && (
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setCancelModal(reg)}
-                                        className="p-2 bg-white/5 hover:bg-red-900/30 text-gray-400 hover:text-red-400 rounded-lg transition-all"
-                                        title="Cancel Request"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                    <button
-                                        onClick={() => setConfirmModal(reg)}
-                                        className="px-6 py-2 bg-gradient-to-r from-galaxy-purple to-pink-600 text-white font-bold rounded-lg shadow-lg hover:shadow-galaxy-purple/50 active:scale-95 transition-all text-sm whitespace-nowrap"
-                                    >
-                                        Confirm Cash
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-=======
->>>>>>> a294f87b335a942be94585e6a8fff747fa58d553
             </div>
 
-            {/* 2. Selected Student View */}
+            {/* 2. Selected Student View (From Incoming + Cancel Button from HEAD) */}
             {selectedStudent && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                     {/* Header Card */}
@@ -340,13 +250,25 @@ export default function DeskPage() {
                                                 <CheckCircle size={18} /> Paid
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => handleSingleApprove(reg._id)}
-                                                disabled={processing}
-                                                className="bg-white/10 hover:bg-green-500 hover:text-white text-gray-300 font-medium px-4 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-2"
-                                            >
-                                                Approve {reg.paymentMethod !== 'OFFLINE' && <span className="text-[10px] bg-red-500/20 px-1 rounded text-red-300">(Override)</span>}
-                                            </button>
+                                            <div className="flex gap-2">
+                                                {/* Cancel Button (From HEAD) - Only for Offline Pending */}
+                                                {reg.status === 'PENDING' && reg.paymentMethod === 'OFFLINE' && (
+                                                    <button
+                                                        onClick={() => setCancelModal(reg)}
+                                                        className="p-2 bg-white/5 hover:bg-red-900/30 text-gray-400 hover:text-red-400 rounded-lg transition-all"
+                                                        title="Cancel Request"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
+
+                                                <button
+                                                    onClick={() => handleSingleApprove(reg._id)}
+                                                    className="px-6 py-2 bg-gradient-to-r from-galaxy-purple to-pink-600 text-white font-bold rounded-lg shadow-lg hover:shadow-galaxy-purple/50 active:scale-95 transition-all text-sm whitespace-nowrap"
+                                                >
+                                                    Confirm Cash
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -356,7 +278,7 @@ export default function DeskPage() {
                 </div>
             )}
 
-            {/* Cancellation Modal */}
+            {/* Cancellation Modal (From HEAD) */}
             {cancelModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-[#1a1a1f] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">

@@ -16,7 +16,10 @@ export async function getUserManagedTeamsAction() {
         (await import('@/models/User')).default;
         (await import('@/models/Event')).default;
 
-        const teams = await Team.find({ leaderId: session.user.id })
+        const teams = await Team.find({
+            leaderId: session.user.id,
+            status: { $ne: 'CANCELLED' }
+        })
             .populate('eventId', 'name maxMembers minTeamSize maxTeamSize price type id')
             .populate({
                 path: 'members.userId',
@@ -109,5 +112,54 @@ export async function removeTeamMemberAction(teamId: string, memberId: string) {
     } catch (error: any) {
         console.error('Remove Member Error:', error);
         return { error: 'Failed to remove member' };
+    }
+}
+
+export async function deleteTeamAction(teamId: string) {
+    try {
+        const session = await getSession();
+        if (!session) return { error: 'You must be logged in.' };
+
+        await connectToDatabase();
+
+        const team = await Team.findById(teamId);
+        if (!team) return { error: 'Team not found in database.' };
+
+        if (team.leaderId.toString() !== session.user.id) {
+            return { error: `Unauthorized: You (Leader ID: ${team.leaderId}) are not the leader.` };
+        }
+
+        if (team.status === 'CONFIRMED') {
+            return { error: 'Cannot delete a confirmed/paid team. Please contact admin.' };
+        }
+
+        // 1. Mark Team as Cancelled
+        team.status = 'CANCELLED';
+        await team.save();
+
+        // 2. Decrement TEAMS count from slot
+        if (team.slotId) {
+            const Slot = (await import('@/models/Slot')).default;
+            await Slot.findByIdAndUpdate(team.slotId, { $inc: { teamsCount: -1 } });
+        }
+
+        // 3. Cancel ALL registrations for this team
+        const memberRegs = await Registration.find({ teamId: team._id, status: { $ne: RegStatus.CANCELLED } });
+
+        for (const memberReg of memberRegs) {
+            memberReg.status = RegStatus.CANCELLED;
+            await memberReg.save();
+            // Also decrement registeredCount for each member
+            if (memberReg.slotId) {
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(memberReg.slotId, { $inc: { registeredCount: -1 } });
+            }
+        }
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('Delete Team Error:', error);
+        return { error: `Deletion Failed: ${error.message}` };
     }
 }

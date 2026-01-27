@@ -33,6 +33,10 @@ const SlotSchema = new mongoose.Schema({
     registeredCount: {
         type: Number,
         default: 0
+    },
+    teamsCount: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

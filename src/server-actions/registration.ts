@@ -7,8 +7,10 @@ import Registration, { RegStatus } from '@/models/Registration';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
 import User from '@/models/User';
+import Team from '@/models/Team';
 import nodemailer from 'nodemailer';
 import { revalidatePath } from 'next/cache';
+import { getUserRegistrationsAction } from './user';
 
 const RegistrationSchema = z.object({
     eventId: z.string(),
@@ -37,8 +39,20 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: 'You must be logged in to register.' };
         }
 
-        const data = Object.fromEntries(formData);
-        console.log("Registration Payload:", data);
+        const rawData = Object.fromEntries(formData);
+        // Ensure serialization safety for client (Next.js Server Action issue)
+        const data: Record<string, any> = {};
+        for (const [key, value] of Object.entries(rawData)) {
+            if (typeof value === 'string') {
+                data[key] = value;
+            } else {
+                // If it's a file, we might skip it or just store filename? 
+                // For registration form, we expect strings.
+                data[key] = "";
+            }
+        }
+
+        console.log("Registration Payload (Sanitized):", data);
         const parsed = RegistrationSchema.safeParse(data);
 
         if (!parsed.success) {
@@ -116,7 +130,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         }
 
         // Team Logic Dependencies
-        const Team = (await import('@/models/Team')).default;
+        // const Team = (await import('@/models/Team')).default;
 
         let teamId = null;
 
@@ -266,11 +280,14 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         revalidatePath('/profile');
         revalidatePath(`/events/${eventId}`);
 
+        const userRegs = await getUserRegistrationsAction();
+
         return {
             success: true,
             message: 'Registration successful! Redirecting to receipt...',
             registrationId: newReg._id.toString(),
-            paymentMethod
+            paymentMethod,
+            registrations: userRegs.registrations || []
         };
 
     } catch (error: any) {
@@ -287,16 +304,21 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             errorMessage = error.message;
         }
 
-        return { error: errorMessage, payload: Object.fromEntries(formData) };
+        // Sanitize formData for error return
+        const safePayload: Record<string, string> = {};
+        formData.forEach((value, key) => {
+            if (typeof value === 'string') safePayload[key] = value;
+        });
+        return { error: errorMessage, payload: safePayload };
     }
 }
 
 export async function getRegistrationReceiptAction(regId: string) {
     try {
         await connectToDatabase();
-        (await import('@/models/Event')).default;
-        (await import('@/models/Slot')).default;
-        const Team = (await import('@/models/Team')).default;
+        // (await import('@/models/Event')).default;
+        // (await import('@/models/Slot')).default;
+        // const Team = (await import('@/models/Team')).default;
 
         // 1. Fetch the specific registration requested
         const currentReg = await Registration.findById(regId).lean();
@@ -401,9 +423,9 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
         }
 
         await connectToDatabase();
-        const Registration = (await import('@/models/Registration')).default;
-        (await import('@/models/Event')).default;
-        (await import('@/models/Slot')).default;
+        // const Registration = (await import('@/models/Registration')).default;
+        // (await import('@/models/Event')).default;
+        // (await import('@/models/Slot')).default;
 
         // Verify status validity if needed, or rely on TS/Schema
         const validStatuses = [RegStatus.PENDING, RegStatus.CONFIRMED, RegStatus.CANCELLED];
@@ -421,7 +443,7 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
 
         // CASCADE UPDATE for Team Leaders
         if (updatedReg.teamId) {
-            const Team = (await import('@/models/Team')).default; // Dynamic import if needed
+            // const Team = (await import('@/models/Team')).default; // Dynamic import if needed
             const team = await Team.findById(updatedReg.teamId);
 
             if (team && team.leaderId.toString() === updatedReg.userId.toString()) {
@@ -429,7 +451,7 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
 
                 // 1. Update Team Members Payment Status
                 const newPaymentStatus = newStatus === RegStatus.CONFIRMED ? 'PAID' : 'PENDING';
-                const memberUserIds = [];
+                const memberUserIds: string[] = [];
 
                 team.members.forEach((m: any) => {
                     m.paymentStatus = newPaymentStatus;
@@ -509,9 +531,9 @@ export async function cancelRegistrationAction(regId: string) {
         if (!session) return { error: 'Unauthorized' };
 
         await connectToDatabase();
-        const Registration = (await import('@/models/Registration')).default;
-        const Slot = (await import('@/models/Slot')).default;
-        const Team = (await import('@/models/Team')).default;
+        // const Registration = (await import('@/models/Registration')).default;
+        // const Slot = (await import('@/models/Slot')).default;
+        // const Team = (await import('@/models/Team')).default;
 
         const reg = await Registration.findById(regId);
         if (!reg) return { error: 'Registration not found' };
@@ -536,23 +558,42 @@ export async function cancelRegistrationAction(regId: string) {
         // If Team Event: Handle Team Logic?
         // If Leader cancels, do we dissolve team? Or just remove member?
         // Prompt says "remove his participation".
+        // If Team Event: Handle Team Logic
         if (reg.teamId) {
             const team = await Team.findById(reg.teamId);
             if (team) {
-                // Remove member
-                team.members = team.members.filter((m: any) => m.userId.toString() !== reg.userId.toString());
+                // Check if user is the LEADER
+                if (team.leaderId.toString() === reg.userId.toString()) {
+                    console.log(`Leader ${reg.userId} cancelling. Dissolving team ${team._id}...`);
 
-                // Be careful if he was leader. For now, simplist is:
-                if (team.members.length === 0) {
-                    team.status = 'CANCELLED';
-                }
-                // Decrement team count from slot if team becomes empty/invalid? 
-                // Using simple heuristic: if team is cancelled/empty, decrement teamsCount
-                if (team.members.length === 0) {
+                    // 1. Mark Team as Cancelled
+                    team.status = 'CANCELLED'; // Or EXPIRED? CANCELLED seems best.
+                    await team.save();
+
+                    // 2. Decrement TEAMS count from slot
                     await Slot.findByIdAndUpdate(reg.slotId, { $inc: { teamsCount: -1 } });
-                }
 
-                await team.save();
+                    // 3. Cancel ALL registrations for this team (including the leader's which is already done above, but good to be safe/consistent)
+                    // We already set reg.status = CANCELLED above. Now do others.
+                    const memberRegs = await Registration.find({ teamId: team._id, status: { $ne: RegStatus.CANCELLED }, _id: { $ne: reg._id } });
+
+                    for (const memberReg of memberRegs) {
+                        memberReg.status = RegStatus.CANCELLED;
+                        await memberReg.save();
+                        // Also decrement registeredCount for each member
+                        await Slot.findByIdAndUpdate(memberReg.slotId, { $inc: { registeredCount: -1 } });
+                    }
+                    console.log(`Dissolved team and cancelled ${memberRegs.length} other members.`);
+
+                } else {
+                    // Just a member
+                    console.log(`Member ${reg.userId} leaving team ${team._id}...`);
+                    team.members = team.members.filter((m: any) => m.userId.toString() !== reg.userId.toString());
+                    await team.save();
+
+                    // Note: registeredCount was ALREADY decremented at the top of this function.
+                    // We don't decrement teamsCount because the team still exists.
+                }
             }
         } else {
             // Solo logic covered by registeredCount

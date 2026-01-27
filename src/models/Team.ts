@@ -5,6 +5,7 @@ export enum TeamStatus {
     LOCKED = 'LOCKED', // Pending Payment
     CONFIRMED = 'CONFIRMED', // All Paid
     EXPIRED = 'EXPIRED',
+    CANCELLED = 'CANCELLED',
 }
 
 export enum MemberStatus {

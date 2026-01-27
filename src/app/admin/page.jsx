@@ -5,6 +5,7 @@ import eventsData from '@/data/events.json';
 import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users, Search } from 'lucide-react';
 import Link from 'next/link';
 import { deleteEventAction } from '@/server-actions/events';
+import { logoutAction } from '@/server-actions/auth';
 
 function AdminContent() {
     const router = useRouter();
@@ -88,6 +89,12 @@ function AdminContent() {
                             + Create Event
                         </button>
                     </Link>
+                    <button
+                        onClick={() => logoutAction()}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
+                    >
+                        <LogOut size={16} /> Logout
+                    </button>
                     {/* ... other buttons ... */}
                 </div>
             </div>

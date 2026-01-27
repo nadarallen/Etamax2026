@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import RazorpayButton from './RazorpayButton';
-import { getUserManagedTeamsAction, removeTeamMemberAction } from '@/server-actions/team';
-import { Users, Trash2, Copy, Check, Crown, AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react';
+import { getUserManagedTeamsAction, removeTeamMemberAction, deleteTeamAction } from '@/server-actions/team';
+import { Users, Trash2, Copy, Check, Crown, AlertTriangle, Sparkles, ShieldCheck, Wallet, CreditCard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function TeamManager() {
@@ -48,6 +48,20 @@ export default function TeamManager() {
             loadTeams(); // Refresh
         } else {
             alert(res.error || 'Failed to remove member'); // Show specific error (e.g. Payment Confirmed)
+        }
+    };
+
+    const handleDeleteTeam = async (teamId) => {
+        if (!confirm('Are you sure you want to DELETE this team? This explicitly dissolves the team and cancels all members. This cannot be undone.')) return;
+
+        setLoading(true); // Re-use loading state or add specific one
+        const res = await deleteTeamAction(teamId);
+        if (res.success) {
+            alert('Team deleted successfully.');
+            loadTeams();
+        } else {
+            alert(res.error || 'Failed to delete team');
+            setLoading(false);
         }
     };
 
@@ -105,6 +119,17 @@ export default function TeamManager() {
                                                         <ShieldCheck size={10} /> Verified
                                                     </span>
                                                 </div>
+                                            )}
+
+                                            {/* Delete Team Button for Leader (Only if not confirmed) */}
+                                            {!isConfirmed && (
+                                                <button
+                                                    onClick={() => handleDeleteTeam(team._id)}
+                                                    className="p-1.5 ml-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 transition-all"
+                                                    title="Dissolve Team"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
                                             )}
                                         </div>
                                         <p className="text-sm font-medium text-purple-400 flex items-center gap-2">
@@ -223,9 +248,10 @@ export default function TeamManager() {
                                                     />
                                                     <button
                                                         onClick={() => alert(`Offline Payment Instructions:\n\n1. Visit the Registration Desk.\n2. Show your Team ID: ${team.code}\n3. Pay ₹${team.eventId?.price} in cash/UPI.\n4. Admin will confirm your payment.`)}
-                                                        className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-lg border border-white/10 transition-colors"
+                                                        className="w-full group flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#252525] text-gray-300 hover:text-white font-bold py-3.5 rounded-xl border border-white/5 hover:border-white/20 transition-all active:scale-[0.98]"
                                                     >
-                                                        Pay Offline / At Desk
+                                                        <Wallet className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                                                        <span>Pay Offline / At Desk</span>
                                                     </button>
                                                 </div>
                                             )}

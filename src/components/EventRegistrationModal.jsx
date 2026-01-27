@@ -3,10 +3,10 @@
 import { useActionState, useEffect, useState } from 'react';
 import { getSlotsAction } from '@/server-actions/events';
 import { registerForEventAction } from '@/server-actions/registration';
+import { getUserRegistrationsAction } from '@/server-actions/user';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import PlanetIcon from '@/components/PlanetIcon';
-import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Lock, Check, XCircle } from 'lucide-react';
+import PlanetIcon from './PlanetIcon';
 
 const initialRegState = {
     error: '',
@@ -18,6 +18,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
     const router = useRouter();
     const [slots, setSlots] = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
+    const [latestRegistrations, setLatestRegistrations] = useState([]);
+    const [criteriaLoading, setCriteriaLoading] = useState(false);
 
     // Form State
     const [regState, formAction, isPending] = useActionState(registerForEventAction, initialRegState);
@@ -47,7 +49,19 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
     // Close modal on success and Redirect
     useEffect(() => {
         if (regState?.success) {
-            // Optional: wait a bit or let user click button
+            if (regState.registrations) {
+                // Use optimized data from server action
+                setLatestRegistrations(regState.registrations);
+            } else {
+                // Fallback: Fetch latest registrations
+                setCriteriaLoading(true);
+                getUserRegistrationsAction().then(res => {
+                    if (res.registrations) {
+                        setLatestRegistrations(res.registrations);
+                    }
+                    setCriteriaLoading(false);
+                });
+            }
         }
     }, [regState]);
 
@@ -57,7 +71,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl w-full max-w-lg p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl w-full max-w-lg p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -74,32 +88,75 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                         </div>
                         <h3 className="text-xl font-bold text-white mb-2">Registration Successful!</h3>
 
-                        {regState.paymentMethod === 'OFFLINE' ? (
-                            <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl text-left">
-                                <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
-                                    <AlertCircle size={16} /> Payment Pending
-                                </p>
-                                <p className="text-gray-300 text-sm">
-                                    Please proceed to the <strong>Offline Registration Desk</strong> to complete your payment correctly.
-                                    Show the receipt below at the desk.
-                                </p>
-                            </div>
+                        {criteriaLoading ? (
+                            <p className="text-gray-400 mb-6">Updating your progress...</p>
                         ) : (
-                            <p className="text-gray-400 mb-6">{regState.message}</p>
+                            (() => {
+                                // Calculate Missing
+                                const activeRegs = latestRegistrations.filter(r => r.status && r.status !== 'CANCELLED');
+                                let techCount = 0, cultCount = 0, semCount = 0;
+                                const days = new Set();
+                                activeRegs.forEach(r => {
+                                    const cat = r.event?.category?.toLowerCase();
+                                    if (cat === 'technical') techCount++;
+                                    else if (cat === 'cultural') cultCount++;
+                                    else if (cat === 'seminar') semCount++;
+                                    if (r.slot?.dayNumber) days.add(r.slot.dayNumber);
+                                });
+
+                                const missing = [];
+                                if (techCount < 1) missing.push({ label: '1 Technical Event', type: 'category' });
+                                if (cultCount < 1) missing.push({ label: '1 Cultural Event', type: 'category' });
+                                if (semCount < 1) missing.push({ label: '1 Seminar', type: 'category' });
+                                if (!days.has(1)) missing.push({ label: 'Day 1 Event', type: 'day' });
+                                if (!days.has(2)) missing.push({ label: 'Day 2 Event', type: 'day' });
+                                if (!days.has(3)) missing.push({ label: 'Day 3 Event', type: 'day' });
+
+                                if (missing.length === 0) {
+                                    return (
+                                        <div className="mb-6 bg-green-500/10 border border-green-500/20 p-4 rounded-xl text-left">
+                                            <p className="text-green-400 font-bold mb-2 flex items-center gap-2">
+                                                <CheckCircle size={16} /> All Criteria Met!
+                                            </p>
+                                            <p className="text-gray-300 text-sm">
+                                                You have fulfilled all participation requirements. You can now proceed to payment.
+                                            </p>
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <div className="mb-6 bg-galaxy-purple/10 border border-galaxy-purple/20 p-5 rounded-xl text-left">
+                                            <p className="text-white font-bold mb-3 flex items-center gap-2">
+                                                <Lock size={16} className="text-yellow-400" /> Unlock Payment
+                                            </p>
+                                            <p className="text-gray-400 text-sm mb-3">
+                                                Great start! To unlock online payment, you need to complete the following:
+                                            </p>
+                                            <div className="space-y-2">
+                                                {/* What you HAVE */}
+                                                {/* What you NEED */}
+                                                {missing.map((item, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-sm text-yellow-200/80">
+                                                        <XCircle size={16} className="text-red-500 shrink-0" />
+                                                        <span className="text-gray-300 font-medium">{item.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 pt-3 border-t border-white/10 text-xs text-gray-500">
+                                                * Register for more events to fulfil these criteria.
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                            })()
                         )}
 
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={() => router.push('/payment/confirm')}
-                                className="bg-galaxy-purple hover:bg-galaxy-purple/90 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-galaxy-purple/20"
-                            >
-                                Continue
-                            </button>
-                            <button
                                 onClick={onClose}
-                                className="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                                className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-xl font-bold transition-colors w-full"
                             >
-                                Close
+                                Browse More Events
                             </button>
                         </div>
                     </div>
@@ -112,18 +169,18 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                             <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10">
                                 <label className="block text-sm text-gray-400 mb-2 font-bold uppercase tracking-wider">Team Registration</label>
 
-                                <div className="flex bg-black/40 p-1 rounded-lg mb-4">
+                                <div className="flex bg-white/5 border border-white/10 p-1.5 rounded-xl mb-6 relative">
                                     <button
                                         type="button"
                                         onClick={() => setTeamAction('CREATE')}
-                                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${teamAction === 'CREATE' ? 'bg-galaxy-purple text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all relative z-10 flex items-center justify-center gap-2 ${teamAction === 'CREATE' ? 'bg-galaxy-purple text-white shadow-[0_0_20px_rgba(124,58,237,0.4)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Create Team
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setTeamAction('JOIN')}
-                                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${teamAction === 'JOIN' ? 'bg-galaxy-purple text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all relative z-10 flex items-center justify-center gap-2 ${teamAction === 'JOIN' ? 'bg-galaxy-purple text-white shadow-[0_0_20px_rgba(124,58,237,0.4)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Join Team
                                     </button>
@@ -201,7 +258,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                     </div>
 
                                     {/* Slot Grid */}
-                                    <div className="grid grid-cols-2 gap-3 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {slots.filter(s => s.dayNumber === selectedDay).map(slot => {
                                             const isTeam = ['duo', 'group'].includes(event.type);
                                             const currentCount = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
@@ -213,11 +270,11 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                             const isSelected = selectedSlot?._id === slot._id;
 
                                             // Determine Border/Text Color based on status
-                                            let statusColorClass = 'border-green-500/30 text-green-400';
-                                            if (isFull) statusColorClass = 'border-red-500/30 text-red-400 cursor-not-allowed opacity-60';
-                                            else if (isFastFilling) statusColorClass = 'border-yellow-500/30 text-yellow-400';
+                                            let statusColorClass = 'border-white/10 text-gray-400 bg-white/5';
+                                            if (isFull) statusColorClass = 'border-red-500/30 text-red-400 cursor-not-allowed opacity-60 bg-red-500/5';
+                                            else if (isFastFilling) statusColorClass = 'border-yellow-500/30 text-yellow-400 bg-yellow-500/5';
 
-                                            if (isSelected) statusColorClass = 'border-galaxy-purple bg-galaxy-purple/10';
+                                            if (isSelected) statusColorClass = 'border-galaxy-purple bg-galaxy-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] scale-[1.02] z-10';
 
                                             return (
                                                 <label
@@ -225,8 +282,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                     className={`
                                                         relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all h-full
                                                         ${statusColorClass}
-                                                        ${!isFull ? 'cursor-pointer hover:border-opacity-60 active:scale-95' : ''}
-                                                        ${isSelected ? 'shadow-[0_0_15px_rgba(124,58,237,0.2)]' : 'bg-white/5'}
+                                                        ${!isFull && !isSelected ? 'cursor-pointer hover:border-white/30 hover:bg-white/10 active:scale-95' : ''}
                                                     `}
                                                 >
                                                     <input
@@ -235,11 +291,21 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                         value={slot._id}
                                                         checked={isSelected}
                                                         disabled={isFull}
-                                                        onChange={() => !isFull && setSelectedSlot(slot)}
+                                                        onChange={() => { }} /* Handled by onClick for toggle behavior */
+                                                        onClick={() => {
+                                                            if (!isFull) {
+                                                                if (isSelected) {
+                                                                    setSelectedSlot(null);
+                                                                } else {
+                                                                    setSelectedSlot(slot);
+                                                                }
+                                                            }
+                                                        }}
                                                         className="sr-only"
                                                     />
+                                                    {isSelected && <div className="absolute top-2 right-2"><CheckCircle size={14} className="text-white" /></div>}
                                                     <div className="font-bold text-sm mb-1">{slot.startTime} - {slot.endTime}</div>
-                                                    <div className="text-[10px] uppercase font-bold tracking-wider mb-0 opacity-80">
+                                                    <div className={`text-[10px] uppercase font-bold tracking-wider mb-0 ${isSelected ? 'text-white/80' : 'opacity-80'}`}>
                                                         {isFull ? 'SOLD OUT' : (isFastFilling ? 'FILLING FAST' : 'AVAILABLE')}
                                                     </div>
                                                 </label>
@@ -249,7 +315,25 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                             <p className="col-span-2 text-sm text-gray-500 text-center py-4">No slots available for Day {selectedDay}</p>
                                         )}
                                     </div>
-                                    {!selectedSlot && <p className="text-xs text-red-400 mt-2">Please select a time slot</p>}
+
+                                    {selectedSlot ? (
+                                        <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
+                                                    <Check size={16} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] text-green-400 uppercase font-bold tracking-wider">Selected Slot</p>
+                                                    <p className="text-white font-bold text-sm">{selectedSlot.startTime} - {selectedSlot.endTime}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-green-500 font-bold px-2 py-1 bg-green-500/10 rounded">Day {selectedDay}</span>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-red-400 mt-2 flex items-center gap-1.5 font-medium">
+                                            <AlertCircle size={12} /> Please select a time slot to proceed
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>

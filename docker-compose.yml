@@ -6,12 +6,13 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3000:3000"
-      # If using local Mongo/Redis, use these service names as hostnames
-      - MONGODB_URI=mongodb://mongo:27017/etamax_prod
-      # Redis removed as Cloudflare handles Rate Limiting
-      # Copy other env vars from your .env.local here or use an env_file
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - "${PORT:-3000}:3000"
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      # Add other necessary variables here
     depends_on:
       - mongo
     networks:

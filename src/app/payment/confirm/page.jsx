@@ -172,14 +172,6 @@ export default function PaymentConfirmPage() {
                                                 {(reg.event?.price > 0) ? `₹${reg.event.price}` : <span className="text-green-400">FREE</span>}
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleRemove(reg._id)}
-                                            disabled={calculating || isProcessing}
-                                            className="text-gray-500 hover:text-red-400 transition-colors p-2 rounded-full hover:bg-white/5"
-                                            title="Remove/Cancel Event"
-                                        >
-                                            <Trash2 size={20} />
-                                        </button>
                                     </div>
                                 </div>
                             ))}
