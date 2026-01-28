@@ -37,6 +37,13 @@ function LoginForm() {
 
                 {/* Form */}
                 <form action={formAction} className="space-y-6">
+                    {/* Success Message for Registration */}
+                    {searchParams.get('registered') && (
+                        <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-lg text-sm text-center mb-4">
+                            🎉 Account created! Check your email for password.
+                        </div>
+                    )}
+
                     {state?.error && (
                         <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm text-center">
                             {state.error}

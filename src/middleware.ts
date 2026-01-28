@@ -31,6 +31,33 @@ export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
 
+    // 0. Authenticate & Detect Role Early
+    const accessToken = req.cookies.get('session')?.value;
+    let userRole = null;
+
+    if (accessToken) {
+        try {
+            const { payload } = await jwtVerify(accessToken, new TextEncoder().encode(process.env.JWT_SECRET || 'super-secret-key-change-me'));
+            const metadata = (payload as any) || {};
+            userRole = metadata.role;
+        } catch (e) {
+            // Invalid token, ignore
+        }
+    }
+
+    // 0.1 SUPER ADMIN JAIL: Strictly force Super Admin to Admin Panel
+    if (userRole === Role.SUPER_ADMIN) {
+        const isAllowedPath =
+            path.startsWith('/admin') ||
+            path.startsWith('/api') || // Allow APIs (for logout, data fetching)
+            path.startsWith('/_next') || // Internal Next.js assets
+            path === '/favicon.ico';
+
+        if (!isAllowedPath) {
+            return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+        }
+    }
+
     // 1. Rate Limiting (Security Prompt 28)
     if (path === '/login' || path === '/register') {
         const { success } = await ratelimit.limit(ip);
@@ -39,34 +66,25 @@ export async function middleware(req: NextRequest) {
         }
     }
 
-    // 1. Public Routes
+    // 2. Public Routes (For non-super-admins)
     if (path === '/' ||
         path.startsWith('/login') ||
         path.startsWith('/register') ||
         path.startsWith('/api/webhooks') ||
         path.startsWith('/api/cron') ||
-        path.startsWith('/tickets') // Allow public tickets
+        path.startsWith('/tickets')
     ) {
         return NextResponse.next();
     }
 
-    // 2. Auth Check
-    const accessToken = req.cookies.get('session')?.value;
+    // 3. Auth Check (If we are here, it's a protected route and we need a token)
     if (!accessToken) {
         return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    let userRole = Role.STUDENT;
+    // userRole is already parsed above
+    if (!userRole) userRole = Role.STUDENT; // Fallback if token parse failed logic somehow slipped (shouldn't happen due to accessToken check above)
 
-    try {
-        // Verify JWT properly
-        const { payload } = await jwtVerify(accessToken, new TextEncoder().encode(process.env.JWT_SECRET || 'super-secret-key-change-me'));
-        const metadata = (payload as any) || {}; // our payload is flat now
-        userRole = metadata.role || Role.STUDENT;
-    } catch (e) {
-        // Invalid token
-        return NextResponse.redirect(new URL('/login', req.url));
-    }
 
     // 3. Role Based Access Control
 

@@ -58,7 +58,7 @@ const TeamSchema: Schema = new Schema(
         name: { type: String, required: true },
         code: { type: String, required: true, unique: true, index: true }, // 6-char unique code
         eventId: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
-        slotId: { type: Schema.Types.ObjectId, required: true }, // Binding to Slot (Prompt 14)
+        slotId: { type: Schema.Types.ObjectId, ref: 'Slot', required: true }, // Binding to Slot (Prompt 14)
         leaderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         members: { type: [TeamMemberSchema], default: [] },
         status: {

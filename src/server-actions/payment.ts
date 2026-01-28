@@ -107,24 +107,47 @@ export async function simulateMockPaymentAction(orderId: string) {
     // We imported Payment, Event at top. Team is missing in imports.
 
     if (teamId) {
-        const team = await Team.findById(teamId);
         if (team) {
-            const member = team.members.find((m: any) => m.userId.toString() === userId.toString());
-            if (member) {
-                member.paymentStatus = TeamPaymentStatus.PAID; // Hardcoding string to avoid import hell in this file
-                await team.save();
-            }
-            const allPaid = team.members.every((m: any) => m.paymentStatus === 'PAID');
-            // Safe fetch
+            // "Leader pays for everyone" logic:
+            // Mark ALL members as PAID
+            team.members.forEach((m: any) => {
+                m.paymentStatus = TeamPaymentStatus.PAID;
+            });
+
+            // Check for minimum size (default to 2 as per new rule)
             const eventDoc = await Event.findById(eventId);
-            const minSize = eventDoc?.minTeamSize || 1;
-            if (allPaid && team.members.length >= minSize) {
+            const minSize = eventDoc?.minTeamSize || 2;
+
+            // If team size is sufficient, confirm the team
+            if (team.members.length >= minSize) {
                 team.status = TeamStatus.CONFIRMED;
-                // Update Slot Capacity
+
+                // Update Slot Capacity (Only once for the team? Or per member?)
+                // Usually capacity is per-team for team events, or per-person?
+                // Logic above: `inc: { registeredCount: team.members.length }`
+                // If the slot counts *people*, we increment by length.
+                // If it counts *teams*, we increment by 1.
+                // Looking at delete logic: `inc: { teamsCount: -1 }`.
+                // It seems we track both?
+                // Let's stick to updating registeredCount (people) logic if that was original intent,
+                // but `teamsCount` is likely what we care about for 'duo'/'group' limits?
                 const Slot = (await import('@/models/Slot')).default;
+
+                // We should probably increment teamsCount logic if not done already.
+                // But previous code was `registeredCount: team.members.length`.
+                // I will keep `registeredCount` update for analytics, but `teamsCount` is important for capacity.
+                // Let's assume registration handles the initial `teamsCount` increment?
+                // Usually `registerForEventAction` increments counts when creating the team placeholder.
+                // If this is just CONFIRMING, do we increment now?
+                // If status was PENDING, maybe we didn't count it against cap?
+                // Let's check `getSlotsAction` to see what counts against cap.
+                // Original code: `await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });`
+                // This implies we ONLY count them when confirmed?
+                // Valid point. I will preserve existing logic but ensuring all members are paid.
+
                 await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
-                await team.save();
             }
+            await team.save();
         }
     } else {
         // Update Slot Capacity

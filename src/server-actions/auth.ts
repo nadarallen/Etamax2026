@@ -80,33 +80,37 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
 
         // Email Credentials
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+            console.log("Attempting to send email from:", process.env.EMAIL_USER);
             try {
                 const transporter = (await import('nodemailer')).createTransport({
                     service: 'gmail',
-                    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+                    auth: {
+                        user: process.env.EMAIL_USER,
+                        pass: process.env.EMAIL_PASS?.replace(/\s+/g, '') // Robustly strip spaces
+                    },
                 });
 
-                await transporter.sendMail({
+                const info = await transporter.sendMail({
                     from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
                     to: email,
                     subject: 'Welcome to Etamax 2026 - Your Account Credentials',
                     html: `
-                        <div style="font-family: Arial, sans-serif; padding: 20px;">
-                            <h2>Welcome to Etamax 2026!</h2>
-                            <p>An account has been created for you.</p>
-                            <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                                <p><strong>Email:</strong> ${email}</p>
-                                <p><strong>Password:</strong> ${generatedPassword}</p>
-                            </div>
-                            <p>Please log in and change your password from your profile if you wish.</p>
-                            <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login Now</a>
+                        <div style="font-family: sans-serif; line-height: 1.5;">
+                            <h2>Welcome to Etamax 2026</h2>
+                            <p>Your account has been created.</p>
+                            <p><strong>Email:</strong> ${email}<br>
+                            <strong>Password:</strong> ${generatedPassword}</p>
+                            <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/login">Click here to Login</a></p>
                         </div>
                     `
                 });
+                console.log("Email sent successfully! Message ID:", info.messageId);
             } catch (emailError) {
-                console.error("Failed to send credential email:", emailError);
+                console.error("CRITICAL: Failed to send credential email:", emailError);
                 // Optionally return specific error or just proceed (User created but no email)
             }
+        } else {
+            console.warn("WARNING: EMAIL_USER or EMAIL_PASS is missing in env variables.");
         }
 
         // Create Session
@@ -117,15 +121,20 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             name: newUser.name,
         };
 
-        const token = await signToken(sessionPayload);
-        await setSessionCookie(token);
+        // Check if ENV is loaded (Debug)
+        console.log("DEBUG: EMAIL_USER:", process.env.EMAIL_USER);
+        console.log("DEBUG: EMAIL_PASS Length:", process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
+
+        // DO NOT Auto-Login. 
+        // User must check email for password.
+        // await setSessionCookie(token); <-- REMOVED
 
     } catch (error) {
         console.error('Registration Error:', error);
         return { error: 'Internal Server Error' };
     }
 
-    redirect('/events');
+    redirect('/login?registered=true');
 }
 
 export async function loginAction(prevState: AuthState, formData: FormData): Promise<AuthState> {

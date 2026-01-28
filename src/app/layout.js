@@ -17,6 +17,8 @@ export const metadata = {
   description: "Etamax 2026",
 };
 
+import GlobalCriteriaPopup from "@/components/GlobalCriteriaPopup";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -29,6 +31,7 @@ export default function RootLayout({ children }) {
           </div>
           <div className="relative z-10">
             {children}
+            <GlobalCriteriaPopup />
           </div>
         </div>
       </body>

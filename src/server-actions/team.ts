@@ -14,13 +14,17 @@ export async function getUserManagedTeamsAction() {
         await connectToDatabase();
         // Ensure models are loaded
         (await import('@/models/User')).default;
-        (await import('@/models/Event')).default;
+        const Slot = (await import('@/models/Slot')).default; // Capture model
 
         const teams = await Team.find({
-            leaderId: session.user.id,
+            $or: [
+                { leaderId: session.user.id },
+                { 'members.userId': session.user.id }
+            ],
             status: { $ne: 'CANCELLED' }
         })
             .populate('eventId', 'name maxMembers minTeamSize maxTeamSize price type id')
+            .populate({ path: 'slotId', model: Slot, select: 'startTime endTime dayNumber venue' }) // Explicit model
             .populate({
                 path: 'members.userId',
                 model: 'User',
@@ -28,7 +32,14 @@ export async function getUserManagedTeamsAction() {
             })
             .lean();
 
-        const enhancedTeams = teams.map((team: any) => {
+        console.log("Fetched Teams (Raw):", JSON.stringify(teams, null, 2));
+
+        // Deduplicate teams by _id
+        const uniqueTeamsMap = new Map();
+        teams.forEach((t: any) => uniqueTeamsMap.set(t._id.toString(), t));
+        const uniqueTeams = Array.from(uniqueTeamsMap.values());
+
+        const enhancedTeams = uniqueTeams.map((team: any) => {
             // @ts-ignore
             const membersWithDetails = (team.members || []).map((m: any) => {
                 // In lean mode, if populated, userId is the user object.
@@ -56,13 +67,28 @@ export async function getUserManagedTeamsAction() {
                 };
             });
 
+            const isLeader = team.leaderId.toString() === session.user.id;
+
+            // Strict Slot Serialization to avoid Buffer/Uint8Array issues
+            let safeSlotId = null;
+            if (team.slotId) {
+                safeSlotId = {
+                    _id: team.slotId._id ? team.slotId._id.toString() : null,
+                    dayNumber: Number(team.slotId.dayNumber) || 1, // Ensure number
+                    startTime: String(team.slotId.startTime || ''),
+                    endTime: String(team.slotId.endTime || ''),
+                    venue: String(team.slotId.venue || '')
+                };
+            }
+
             return {
                 ...team,
                 _id: team._id.toString(),
                 eventId: team.eventId ? { ...team.eventId, _id: team.eventId._id.toString() } : null,
-                slotId: team.slotId ? team.slotId.toString() : null,
+                slotId: safeSlotId,
                 leaderId: team.leaderId.toString(),
                 members: membersWithDetails,
+                isLeader, // Added flag
                 createdAt: team.createdAt ? new Date(team.createdAt).toISOString() : null,
                 updatedAt: team.updatedAt ? new Date(team.updatedAt).toISOString() : null,
                 expiresAt: team.expiresAt ? new Date(team.expiresAt).toISOString() : null,
