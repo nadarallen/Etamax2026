@@ -56,7 +56,8 @@ export async function getStudentAnalyticsAction() {
                     // Calculated fields
                     categories: '$registrations.category'
                 }
-            }
+            },
+            { $sort: { rollNumber: 1 } }
         ]);
 
         // Post-process for criteria (easier in JS than complex aggregation conditionals)
