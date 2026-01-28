@@ -32,7 +32,15 @@ const SlotSchema = new mongoose.Schema({
     },
     registeredCount: {
         type: Number,
-        default: 0
+        default: 0,
+        validate: {
+            validator: function (this: any, value: number) {
+                // Only validate if maxCapacity exists on this document
+                // Note: 'this' might not be the document in update queries, but works for .save()
+                return this.maxCapacity ? value <= this.maxCapacity : true;
+            },
+            message: 'Slot capacity exceeded'
+        }
     },
     teamsCount: {
         type: Number,

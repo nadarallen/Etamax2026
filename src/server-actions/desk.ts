@@ -2,6 +2,7 @@
 
 import { getSession, Role } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
+import mongoose from 'mongoose';
 import Registration, { RegStatus } from '@/models/Registration';
 import User from '@/models/User';
 import Event from '@/models/Event';
@@ -215,7 +216,7 @@ export async function cancelDeskPaymentAction(regId: string) {
         // 1. Mark Registration Cancelled
         reg.status = RegStatus.CANCELLED;
         // Optionally store who cancelled it
-        reg.confirmedBy = session.user.id; // Using confirmedBy field for 'processed by'
+        reg.confirmedBy = new mongoose.Types.ObjectId(session.user.id); // Using confirmedBy field for 'processed by'
         await reg.save();
 
         // 2. Mark Payment Failed/Cancelled

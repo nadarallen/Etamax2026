@@ -11,7 +11,7 @@ import bcrypt from 'bcryptjs';
 const RegisterSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+
     rollNumber: z.string().optional(), // Optional in Zod, enforced logically
     branch: z.string().optional(),
     semester: z.string().optional(),
@@ -35,13 +35,10 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: (parsed.error as any).errors[0].message };
     }
 
-    const { name, email, password, rollNumber, branch, semester } = parsed.data;
+    const { name, email, rollNumber, branch, semester } = parsed.data;
 
     try {
         await connectToDatabase();
-
-        // Debug Log
-        console.log("Register Action Payload:", { name, email, role: 'PENDING', rollNumber, branch, semester });
 
         // Check if user exists
         const existingUser = await User.findOne({ email });
@@ -56,30 +53,61 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
 
         // Enforce Roll Number and Branch for Students
         if (role === Role.STUDENT) {
-            if (!rollNumber || rollNumber.trim() === '') {
-                return { error: 'Roll Number is required for students.' };
-            }
-            if (!branch || branch.trim() === '') {
-                return { error: 'Branch is required for students.' };
-            }
-            if (!semester || semester.trim() === '') {
-                return { error: 'Semester is required for students.' };
-            }
+            if (!rollNumber || rollNumber.trim() === '') return { error: 'Roll Number is required.' };
+            if (!branch || branch.trim() === '') return { error: 'Branch is required.' };
+            if (!semester || semester.trim() === '') return { error: 'Semester is required.' };
         }
 
+        // Generate Random Password
+        const { customAlphabet } = await import('nanoid');
+        const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 10);
+        const generatedPassword = nanoid();
+
         // Hash Password
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(generatedPassword, 10);
 
         // Create User
         const newUser = await User.create({
             name,
             email,
             passwordHash,
+            generatedPassword,
             role,
             rollNumber: role === Role.STUDENT ? rollNumber : undefined,
             branch: role === Role.STUDENT ? branch : undefined,
             semester: role === Role.STUDENT ? semester : undefined,
         });
+
+        // Email Credentials
+        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+            try {
+                const transporter = (await import('nodemailer')).createTransport({
+                    service: 'gmail',
+                    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+                });
+
+                await transporter.sendMail({
+                    from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
+                    to: email,
+                    subject: 'Welcome to Etamax 2026 - Your Account Credentials',
+                    html: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px;">
+                            <h2>Welcome to Etamax 2026!</h2>
+                            <p>An account has been created for you.</p>
+                            <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                <p><strong>Email:</strong> ${email}</p>
+                                <p><strong>Password:</strong> ${generatedPassword}</p>
+                            </div>
+                            <p>Please log in and change your password from your profile if you wish.</p>
+                            <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background: #6d28d9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login Now</a>
+                        </div>
+                    `
+                });
+            } catch (emailError) {
+                console.error("Failed to send credential email:", emailError);
+                // Optionally return specific error or just proceed (User created but no email)
+            }
+        }
 
         // Create Session
         const sessionPayload = {

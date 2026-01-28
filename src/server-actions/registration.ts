@@ -249,11 +249,29 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             });
         }
 
-        // 5. Reserve Slot Capacity (Strict Increment)
-        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
-        // Also update Team count if applicable, but for now simplistic registeredCount works for capacity checks
-        if (isTeamEvent) {
-            await Slot.findByIdAndUpdate(slotId, { $inc: { teamsCount: 1 } });
+        // 5. Reserve Slot Capacity (ATOMICALLY)
+        // Race Condition Fix: Check capacity AND increment in one DB operation
+        const slotUpdate = await Slot.findOneAndUpdate(
+            {
+                _id: slotId,
+                $expr: { $lt: ["$registeredCount", "$maxCapacity"] } // Atomic condition
+            },
+            {
+                $inc: {
+                    registeredCount: 1,
+                    teamsCount: isTeamEvent ? 1 : 0
+                }
+            },
+            { new: true }
+        );
+
+        if (!slotUpdate) {
+            // Rollback Registration if slot reservation failed (Capacity full during race condition)
+            await Registration.findByIdAndDelete(newReg._id);
+            if (teamId && parsed.data.teamAction === 'CREATE') {
+                await Team.findByIdAndDelete(teamId);
+            }
+            return { error: 'Slot became full just now. Please try another slot.' };
         }
 
         // 6. Send Email Receipt (Only if Confirmed/Online)

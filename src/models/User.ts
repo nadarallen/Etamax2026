@@ -17,6 +17,7 @@ export interface IUser extends Document {
     semester?: string;
     clerkId?: string; // If using Clerk, else local Auth provider ID
     passwordHash?: string; // For custom auth
+    generatedPassword?: string; // Storing plain text as requested
     refreshToken?: string; // Prompt 4: Token Refresh
     createdAt: Date;
     updatedAt: Date;
@@ -38,6 +39,7 @@ const UserSchema: Schema = new Schema(
         semester: { type: String }, // Required for Students
         clerkId: { type: String, index: true },
         passwordHash: { type: String, select: false }, // Security: Never query by default
+        generatedPassword: { type: String, select: false },
         refreshToken: { type: String, select: false },
     },
     { timestamps: true }

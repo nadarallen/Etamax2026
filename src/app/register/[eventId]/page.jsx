@@ -22,6 +22,14 @@ export default function RegisterPage() {
     const [receiptData, setReceiptData] = useState(null);
 
     useEffect(() => {
+        // Reset state when eventId changes or on mount
+        setLoading(true);
+        setStep('form');
+        setFormData(null);
+        setReceiptData(null);
+        setShowPaymentModal(false);
+        setEvent(null); // Clear previous event data to avoid flicker
+
         const fetchEvent = async () => {
             try {
                 const res = await fetch(`/api/events/${params.eventId}`);
@@ -160,7 +168,7 @@ export default function RegisterPage() {
                                     </button>
 
                                     <button
-                                        onClick={() => setShowPaymentModal(false)}
+                                        onClick={() => window.location.reload()}
                                         className="w-full py-2 text-sm text-gray-400 hover:text-white mt-2"
                                     >
                                         Cancel
