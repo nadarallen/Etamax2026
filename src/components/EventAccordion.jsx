@@ -41,7 +41,7 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay, onE
                         <p className="text-xs md:text-sm text-gray-500 truncate flex items-center gap-2">
                             <span className="uppercase tracking-wider font-semibold text-galaxy-accent">{event.type}</span>
                             <span>•</span>
-                            <span>₹{event.price}</span>
+                            <span>{event.price > 0 ? `₹${event.price}` : <span className="text-green-400 font-bold">Free</span>}</span>
                         </p>
                     </div>
                 </div>

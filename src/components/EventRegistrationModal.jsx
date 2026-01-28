@@ -165,7 +165,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                         <input type="hidden" name="eventId" value={event._id} />
 
                         {/* Team Selection Logic */}
-                        {['duo', 'group'].includes(event.type) && (
+                        {(['duo', 'group'].includes(event?.type?.toLowerCase()) || (event?.minTeamSize > 1)) && (
                             <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10">
                                 <label className="block text-sm text-gray-400 mb-2 font-bold uppercase tracking-wider">Team Registration</label>
 
@@ -231,7 +231,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                             const daySlots = slots.filter(s => s.dayNumber === day);
                                             // Check day sold out
                                             const isDaySoldOut = daySlots.length > 0 && daySlots.every(s => {
-                                                const isTeam = ['duo', 'group'].includes(event.type);
+                                                const isTeam = ['duo', 'group'].includes(event?.type?.toLowerCase()) || (event?.minTeamSize > 1);
                                                 const cap = s.maxCapacity || 9999;
                                                 const count = isTeam ? (s.teamsCount || 0) : (s.registeredCount || 0);
                                                 return count >= cap;
@@ -257,10 +257,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                         })}
                                     </div>
 
-                                    {/* Slot Grid */}
                                     <div className="grid grid-cols-2 gap-3">
                                         {slots.filter(s => s.dayNumber === selectedDay).map(slot => {
-                                            const isTeam = ['duo', 'group'].includes(event.type);
+                                            const isTeam = ['duo', 'group'].includes(event?.type?.toLowerCase()) || (event?.minTeamSize > 1);
                                             const currentCount = isTeam ? (slot.teamsCount || 0) : (slot.registeredCount || 0);
                                             const maxCap = slot.maxCapacity || 1;
 

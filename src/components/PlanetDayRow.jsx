@@ -67,12 +67,12 @@ export default function PlanetDayRow({ day, events, isExpanded, onToggle, active
                             {/* LOCAL FILTERS */}
                             <div className="flex flex-col gap-6 mb-8 relative z-10">
                                 {/* Category Tabs - Premium Look */}
-                                <div className="flex flex-col sm:flex-row p-1.5 bg-black/40 border border-white/5 rounded-2xl w-full md:w-fit self-center md:self-start gap-2 sm:gap-0">
+                                <div className="flex flex-row p-1 bg-black/40 border border-white/5 rounded-2xl w-full md:w-fit self-center md:self-start gap-1 overflow-x-auto">
                                     {['Technical', 'Cultural', 'Seminar'].map(cat => (
                                         <button
                                             key={cat}
                                             onClick={() => setActiveCategory(cat)}
-                                            className={`relative flex-1 md:flex-none px-8 py-3 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden ${activeCategory === cat ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                            className={`relative flex-1 md:flex-none px-4 py-2.5 md:px-8 md:py-3 rounded-xl text-xs md:text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeCategory === cat ? 'text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                         >
                                             {/* Active Indicator Background */}
                                             {activeCategory === cat && (
@@ -85,7 +85,7 @@ export default function PlanetDayRow({ day, events, isExpanded, onToggle, active
 
                                 {/* Type Pills - Modern Tags */}
                                 <div className="flex flex-wrap gap-3 items-center">
-                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest mr-2">Filter By:</span>
+                                    {/* Removed Filter By text */}
                                     {[
                                         { label: 'All', value: null },
                                         { label: 'Solo', value: 'solo' },
