@@ -29,9 +29,9 @@ async function main() {
     try {
         const info = await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER, // Send to self for testing
+            to: "deyon2705@gmail.com", // Specific test recipient
             subject: "Test Email from Etamax Debugger",
-            text: "If you are reading this, the email configuration is working!",
+            text: "If you are reading this, the email configuration is working! Sent to deyon2705.",
         });
 
         console.log("✅ Email sent successfully!");
