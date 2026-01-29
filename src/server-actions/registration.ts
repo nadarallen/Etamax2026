@@ -73,10 +73,10 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         await connectToDatabase();
 
         // 1. Verify Event and Slot
-        const event = await Event.findById(eventId);
+        const event = await Event.findById(eventId).lean();
         if (!event) return { error: 'Event not found' };
 
-        const slot = await Slot.findById(slotId);
+        const slot = await Slot.findById(slotId).lean();
         if (!slot) return { error: 'Slot not found' };
 
         // 2. Check Capacity
@@ -96,7 +96,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             currentCount = await Registration.countDocuments({ slotId, status: { $ne: RegStatus.CANCELLED } });
         }
 
-        if (currentCount >= slot.maxCapacity) {
+        if (currentCount >= (slot as any).maxCapacity) {
             return { error: 'Slot is full. Please choose another slot.' };
         }
 
@@ -105,7 +105,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             eventId,
             rollNumber,
             status: { $ne: RegStatus.CANCELLED }
-        });
+        }).lean();
 
         if (existingRollNo) {
             return { error: `Roll Number ${rollNumber} is already registered for this event.` };
@@ -115,7 +115,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         const existingReg = await Registration.findOne({
             userId: session.user.id,
             eventId: eventId
-        });
+        }); // Keep this mongoose doc for .save() later if reactivating
 
         let isReactivation = false;
         if (existingReg) {
@@ -145,7 +145,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                 const nano = customAlphabet('0123456789', 6);
                 let code = nano();
 
-                while (await Team.findOne({ code })) {
+                while (await Team.findOne({ code }).lean()) {
                     code = nano();
                 }
 
@@ -280,7 +280,9 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             // For brevity in replacement, re-using existing logic but wrapping safely
             try {
                 const transporter = nodemailer.createTransport({
-                    service: 'gmail',
+                    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+                    port: Number(process.env.EMAIL_PORT) || 465,
+                    secure: true, // true for 465, false for other ports
                     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
                 });
                 await transporter.sendMail({
@@ -499,7 +501,9 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
 
                 try {
                     const transporter = nodemailer.createTransport({
-                        service: 'gmail',
+                        host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+                        port: Number(process.env.EMAIL_PORT) || 465,
+                        secure: true,
                         auth: {
                             user: process.env.EMAIL_USER,
                             pass: process.env.EMAIL_PASS,

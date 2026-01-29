@@ -1,7 +1,9 @@
 /**
  * Script to test Email configuration (Nodemailer) by sending a self-email.
  */
-require('dotenv').config({ path: '../.env.local' });
+const dotenv = require('dotenv');
+// Try to load from .env in the parent directory
+dotenv.config({ path: require('path').resolve(__dirname, '../.env') });
 const nodemailer = require('nodemailer');
 
 async function main() {
@@ -15,7 +17,9 @@ async function main() {
     }
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+        port: 465,
+        secure: true,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,

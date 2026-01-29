@@ -83,7 +83,9 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             console.log("Attempting to send email from:", process.env.EMAIL_USER);
             try {
                 const transporter = (await import('nodemailer')).createTransport({
-                    service: 'gmail',
+                    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+                    port: Number(process.env.EMAIL_PORT) || 465,
+                    secure: true,
                     auth: {
                         user: process.env.EMAIL_USER,
                         pass: process.env.EMAIL_PASS?.replace(/\s+/g, '') // Robustly strip spaces
