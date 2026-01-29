@@ -8,7 +8,7 @@ import Event from '@/models/Event';
 import Slot from '@/models/Slot';
 import User from '@/models/User';
 import Team from '@/models/Team';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '@/lib/email';
 import { revalidatePath } from 'next/cache';
 import { getUserRegistrationsAction } from './user';
 
@@ -220,13 +220,13 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         if (isReactivation && existingReg) {
             console.log(`Reactivating cancelled registration ${existingReg._id}`);
             existingReg.status = finalStatus;
-            existingReg.slotId = slotId;
+            existingReg.slotId = slotId as any;
             existingReg.fullName = fullName;
             existingReg.rollNumber = rollNumber;
             existingReg.email = email;
             existingReg.branch = branch;
-            existingReg.semester = semester;
-            existingReg.teamId = teamId;
+            existingReg.semester = semester || "";
+            existingReg.teamId = teamId as any;
             existingReg.paymentMethod = paymentMethod;
             existingReg.etamaxId = etamaxId;
             existingReg.createdAt = new Date(); // Reset timestamp
@@ -276,24 +276,11 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 
         // 6. Send Email Receipt (Only if Confirmed/Online)
         if (paymentMethod !== 'OFFLINE' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            // ... email logic kept same or simplified ...
-            // For brevity in replacement, re-using existing logic but wrapping safely
-            try {
-                const transporter = nodemailer.createTransport({
-                    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
-                    port: Number(process.env.EMAIL_PORT) || 465,
-                    secure: true, // true for 465, false for other ports
-                    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-                });
-                await transporter.sendMail({
-                    from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
-                    to: email,
-                    subject: `Registration Confirmed: ${event.name}`,
-                    html: `<p>Registration ID: ${etamaxId}</p><p>Status: Confirmed</p>`
-                });
-            } catch (e) {
-                console.error("Email failed", e);
-            }
+            await sendEmail({
+                to: email,
+                subject: `Registration Confirmed: ${event.name}`,
+                html: `<p>Registration ID: ${etamaxId}</p><p>Status: Confirmed</p>`
+            });
         }
 
         revalidatePath('/events');
@@ -499,44 +486,29 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
             if (process.env.EMAIL_USER && updatedReg.email) {
                 console.log(`Sending approval email to: ${updatedReg.email}`);
 
-                try {
-                    const transporter = nodemailer.createTransport({
-                        host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
-                        port: Number(process.env.EMAIL_PORT) || 465,
-                        secure: true,
-                        auth: {
-                            user: process.env.EMAIL_USER,
-                            pass: process.env.EMAIL_PASS,
-                        },
-                    });
-
-                    await transporter.sendMail({
-                        from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
-                        to: updatedReg.email,
-                        subject: `Registration Update: ${(updatedReg.eventId as any).name}`,
-                        html: `
-                            <div style="font-family: Arial, sans-serif; color: #333;">
-                                <h1>Registration Status Updated</h1>
-                                <p>Hi ${updatedReg.fullName},</p>
-                                <p>Your registration status for <strong>${(updatedReg.eventId as any).name}</strong> has been updated to <strong>${newStatus}</strong>.</p>
-                                <hr />
-                                <p><strong>Event Details:</strong></p>
-                                <ul>
-                                    <li><strong>Event:</strong> ${(updatedReg.eventId as any).name}</li>
-                                    <li><strong>Venue:</strong> ${(updatedReg.slotId as any).venue}</li>
-                                    <li><strong>Day:</strong> Day ${(updatedReg.slotId as any).dayNumber}</li>
-                                    <li><strong>Time:</strong> ${(updatedReg.slotId as any).startTime} - ${(updatedReg.slotId as any).endTime}</li>
-                                </ul>
-                                <p><strong>Current Status:</strong> ${newStatus}</p>
-                                <p>Please show this email at the entry if Confirmed.</p>
-                                <br />
-                                <p>Best regards,<br/>Etamax Team</p>
-                            </div>
-                        `,
-                    });
-                } catch (emailError) {
-                    console.error("Failed to send update email:", emailError);
-                }
+                await sendEmail({
+                    to: updatedReg.email,
+                    subject: `Registration Update: ${(updatedReg.eventId as any).name}`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; color: #333;">
+                            <h1>Registration Status Updated</h1>
+                            <p>Hi ${updatedReg.fullName},</p>
+                            <p>Your registration status for <strong>${(updatedReg.eventId as any).name}</strong> has been updated to <strong>${newStatus}</strong>.</p>
+                            <hr />
+                            <p><strong>Event Details:</strong></p>
+                            <ul>
+                                <li><strong>Event:</strong> ${(updatedReg.eventId as any).name}</li>
+                                <li><strong>Venue:</strong> ${(updatedReg.slotId as any).venue}</li>
+                                <li><strong>Day:</strong> Day ${(updatedReg.slotId as any).dayNumber}</li>
+                                <li><strong>Time:</strong> ${(updatedReg.slotId as any).startTime} - ${(updatedReg.slotId as any).endTime}</li>
+                            </ul>
+                            <p><strong>Current Status:</strong> ${newStatus}</p>
+                            <p>Please show this email at the entry if Confirmed.</p>
+                            <br />
+                            <p>Best regards,<br/>Etamax Team</p>
+                        </div>
+                    `,
+                });
             }
         }
 
@@ -589,7 +561,7 @@ export async function cancelRegistrationAction(regId: string) {
                     console.log(`Leader ${reg.userId} cancelling. Dissolving team ${team._id}...`);
 
                     // 1. Mark Team as Cancelled
-                    team.status = 'CANCELLED'; // Or EXPIRED? CANCELLED seems best.
+                    team.status = 'CANCELLED' as any; // Or EXPIRED? CANCELLED seems best.
                     await team.save();
 
                     // 2. Decrement TEAMS count from slot

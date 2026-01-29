@@ -107,6 +107,7 @@ export async function simulateMockPaymentAction(orderId: string) {
     // We imported Payment, Event at top. Team is missing in imports.
 
     if (teamId) {
+        const team = await Team.findById(teamId);
         if (team) {
             // "Leader pays for everyone" logic:
             // Mark ALL members as PAID

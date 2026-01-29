@@ -3,7 +3,7 @@
  */
 const dotenv = require('dotenv');
 // Try to load from .env in the parent directory
-dotenv.config({ path: require('path').resolve(__dirname, '../.env') });
+dotenv.config({ path: require('path').resolve(__dirname, '../.env.local') });
 const nodemailer = require('nodemailer');
 
 async function main() {
@@ -29,9 +29,9 @@ async function main() {
     try {
         const info = await transporter.sendMail({
             from: process.env.EMAIL_USER,
-            to: "deyon2705@gmail.com", // Specific test recipient
+            to: "etamax2026@gmail.com", // Specific test recipient
             subject: "Test Email from Etamax Debugger",
-            text: "If you are reading this, the email configuration is working! Sent to deyon2705.",
+            text: "If you are reading this, the email configuration is working! Sent to etamax2026.",
         });
 
         console.log("✅ Email sent successfully!");

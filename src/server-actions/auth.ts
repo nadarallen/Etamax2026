@@ -6,6 +6,7 @@ import { setSessionCookie, clearSession, Role, signToken } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { sendEmail } from '@/lib/email';
 
 // Validation Schemas
 const RegisterSchema = z.object({
@@ -81,36 +82,27 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         // Email Credentials
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             console.log("Attempting to send email from:", process.env.EMAIL_USER);
-            try {
-                const transporter = (await import('nodemailer')).createTransport({
-                    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
-                    port: Number(process.env.EMAIL_PORT) || 465,
-                    secure: true,
-                    auth: {
-                        user: process.env.EMAIL_USER,
-                        pass: process.env.EMAIL_PASS?.replace(/\s+/g, '') // Robustly strip spaces
-                    },
-                });
 
-                const info = await transporter.sendMail({
-                    from: '"Etamax 2026" <' + process.env.EMAIL_USER + '>',
-                    to: email,
-                    subject: 'Welcome to Etamax 2026 - Your Account Credentials',
-                    html: `
-                        <div style="font-family: sans-serif; line-height: 1.5;">
-                            <h2>Welcome to Etamax 2026</h2>
-                            <p>Your account has been created.</p>
-                            <p><strong>Email:</strong> ${email}<br>
-                            <strong>Password:</strong> ${generatedPassword}</p>
-                            <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/login">Click here to Login</a></p>
-                        </div>
-                    `
-                });
-                console.log("Email sent successfully! Message ID:", info.messageId);
-            } catch (emailError) {
-                console.error("CRITICAL: Failed to send credential email:", emailError);
-                // Optionally return specific error or just proceed (User created but no email)
-            }
+            const emailHtml = `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #4CAF50; text-align: center;">Greetings from Etamax 2026!</h2>
+                    <p style="font-size: 16px;">Welcome to the Etamax family. Your account has been successfully created.</p>
+                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+                        <p style="margin: 5px 0;"><strong>Password:</strong> ${generatedPassword}</p>
+                    </div>
+                    <p style="font-size: 14px; color: #666;">Please use these credentials to login.</p>
+                    <div style="text-align: center; margin-top: 30px;">
+                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login Now</a>
+                    </div>
+                </div>
+            `;
+
+            await sendEmail({
+                to: email,
+                subject: 'Greetings from Etamax 2026 - Your Account Credentials',
+                html: emailHtml,
+            });
         } else {
             console.warn("WARNING: EMAIL_USER or EMAIL_PASS is missing in env variables.");
         }
@@ -122,10 +114,6 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             role: newUser.role as unknown as Role,
             name: newUser.name,
         };
-
-        // Check if ENV is loaded (Debug)
-        console.log("DEBUG: EMAIL_USER:", process.env.EMAIL_USER);
-        console.log("DEBUG: EMAIL_PASS Length:", process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0);
 
         // DO NOT Auto-Login. 
         // User must check email for password.

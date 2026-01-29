@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { confirmDeskPaymentAction, cancelDeskPaymentAction, searchDeskRegistrationsAction } from '@/server-actions/desk'; // searchDeskRegistrationsAction unused in code but might be needed? No, using dynamic import.
 import { Search, CheckCircle, AlertCircle, RefreshCw, X, ShieldCheck, Trash2 } from 'lucide-react';
 import Link from 'next/link';

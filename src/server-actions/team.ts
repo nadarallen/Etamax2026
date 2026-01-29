@@ -160,7 +160,7 @@ export async function deleteTeamAction(teamId: string) {
         }
 
         // 1. Mark Team as Cancelled
-        team.status = 'CANCELLED';
+        team.status = 'CANCELLED' as any;
         await team.save();
 
         // 2. Decrement TEAMS count from slot

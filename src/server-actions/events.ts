@@ -107,6 +107,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
         console.log("Event Created:", newEvent._id);
 
         // We do revalidate, and the client will handle the redirect
+        // @ts-ignore
         revalidateTag('events'); // Clear cache
         revalidatePath('/events');
         return { success: true, eventId: newEvent._id.toString() };
@@ -264,6 +265,7 @@ export async function deleteEventAction(eventId: string): Promise<EventState> {
         const Registration = (await import('@/models/Registration')).default;
         await Registration.deleteMany({ eventId });
 
+        // @ts-ignore
         revalidateTag('events'); // Clear cache
         revalidatePath('/events');
         revalidatePath('/admin');
@@ -334,6 +336,7 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
 
         await Event.findByIdAndUpdate(dbId, updates);
 
+        // @ts-ignore
         revalidateTag('events'); // Clear cache
         revalidatePath('/admin');
         revalidatePath('/events');

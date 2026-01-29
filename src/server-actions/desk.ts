@@ -380,7 +380,7 @@ export async function approveBatchRegistrationsAction(regIds: string[]) {
 
         results.forEach(res => {
             if (res.success) successCount++;
-            else errors.push(res.error);
+            else if ('error' in res) errors.push(res.error);
         });
 
         return {
