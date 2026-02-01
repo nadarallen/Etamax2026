@@ -100,7 +100,7 @@ export default function EventsPage() {
                     <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 border-b border-white/5 pb-8">
                         <div className="space-y-2">
                             <div className="inline-block px-3 py-1 rounded-full bg-galaxy-purple/20 border border-galaxy-purple/30 text-white text-xs font-bold tracking-widest uppercase mb-2 animate-pulse">
-                                Etamax 2026
+                                ETAMAX 2026 | NAKSHATRA
                             </div>
                             <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
                                 EVENTS<span className="text-galaxy-purple">.</span>
@@ -137,6 +137,24 @@ export default function EventsPage() {
 
                 {/* Day Accordions / Planet Timeline */}
                 <div className="flex flex-col relative min-h-[500px]">
+                    {/* Disclaimer checks */}
+                    {criteria.met && (
+                        <div className="mb-8 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center gap-4 backdrop-blur-sm relative z-20">
+                            <div className="p-3 bg-green-500/20 rounded-full animate-pulse">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-green-400 font-bold text-lg">You're all set!</h3>
+                                <p className="text-green-200/80 text-sm md:text-base">
+                                    All registration criteria fulfilled. <Link href="/profile" className="text-white underline hover:text-green-300 font-bold decoration-auto underline-offset-4">Click My Profile for online payment</Link>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {[1, 2, 3].map(day => {
                         const dayEvents = getEventsForDay(day);
                         const isExpanded = expandedDay === day;
