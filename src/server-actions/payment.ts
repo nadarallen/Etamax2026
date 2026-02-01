@@ -32,6 +32,9 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
             receipt: randomUUID(),
             notes: {
                 userId: session.user.id,
+                studentName: (session.user as any).name || (session.user as any).user_metadata?.name || "Unknown",
+                eventName: event.name.substring(0, 40), // Razorpay note limits
+                clubName: event.club || (event as any).category || "Etamax",
                 eventId: eventId,
                 slotId: slotId,
                 teamId: teamId || '',

@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
             return new NextResponse('Total amount is 0', { status: 400 });
         }
 
+        // 2.5 Collect Metadata for Report
+        const eventNames = registrations.map((r: any) => r.eventId?.name).filter(Boolean).join(', ');
+        const clubNames = registrations.map((r: any) => r.eventId?.club || r.eventId?.category).filter(Boolean).join(', ');
+        const studentName = (session.user as any).name || (session.user as any).user_metadata?.name || "Unknown";
+
         // 3. Create Razorpay Order
         const options = {
             amount: Math.round(totalAmount * 100), // in paisa
@@ -64,7 +69,10 @@ export async function POST(req: NextRequest) {
             receipt: `rcpt_${nanoid(10)}`,
             notes: {
                 userId: session.user.id,
-                regIds: JSON.stringify(registrationIds), // Store IDs in notes (limit 256 chars usually, be careful)
+                studentName: studentName.substring(0, 40),
+                eventName: eventNames.substring(0, 40), // Truncate to avoid error
+                clubName: clubNames.substring(0, 40),
+                regIds: JSON.stringify(registrationIds),
                 count: registrationIds.length
             }
         };
