@@ -19,9 +19,13 @@ fi
 echo "🐳 Rebuilding and restarting containers..."
 docker compose up -d --build
 
-# 3. Clean up unused images
-echo "🧹 Cleaning up unused docker images..."
+# 4. Prune unused images
+echo "🧹 Cleaning up..."
 docker image prune -f
+
+# 5. Create Super Admin (Idempotent: skips if exists)
+echo "👑 Seeding Super Admin..."
+docker compose exec app node scripts/seed-admin.js
 
 echo "✅ Deployment successfully completed!"
 echo "🌍 App should be live at your VPS IP address."

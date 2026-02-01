@@ -24,9 +24,9 @@ export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {
     if (!transporter) {
         console.log("Initializing Transporter with explicit Gmail settings...");
         transporter = nodemailer.createTransport({
-            host: 'smtp.hostinger.com',
-            port: 465,
-            secure: true,
+            host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+            port: Number(process.env.EMAIL_PORT) || 465,
+            secure: process.env.EMAIL_SECURE === 'true' || true,
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS,
