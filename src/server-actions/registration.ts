@@ -274,12 +274,19 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: 'Slot became full just now. Please try another slot.' };
         }
 
-        // 6. Send Email Receipt (Only if Confirmed/Online)
-        if (paymentMethod !== 'OFFLINE' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        // 6. Send Email Receipt (Only for FREE events)
+        if (paymentMethod === 'FREE' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
             await sendEmail({
                 to: email,
                 subject: `Registration Confirmed: ${event.name}`,
-                html: `<p>Registration ID: ${etamaxId}</p><p>Status: Confirmed</p>`
+                html: `
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2>Registration Confirmed</h2>
+                        <p>Registration ID: ${etamaxId}</p>
+                        <p>Event: ${event.name}</p>
+                        ${(event as any).whatsappLink ? `<p><strong>Join WhatsApp Group:</strong> <a href="${(event as any).whatsappLink}">Click Here</a></p>` : ''}
+                    </div>
+                `
             });
         }
 
@@ -502,6 +509,7 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
                                 <li><strong>Day:</strong> Day ${(updatedReg.slotId as any).dayNumber}</li>
                                 <li><strong>Time:</strong> ${(updatedReg.slotId as any).startTime} - ${(updatedReg.slotId as any).endTime}</li>
                             </ul>
+                            ${(updatedReg.eventId as any).whatsappLink ? `<p><strong>Join WhatsApp Group:</strong> <a href="${(updatedReg.eventId as any).whatsappLink}">Click Here</a></p>` : ''}
                             <p><strong>Current Status:</strong> ${newStatus}</p>
                             <p>Please show this email at the entry if Confirmed.</p>
                             <br />

@@ -154,9 +154,14 @@ export default function ReceiptPage() {
                     <div className="text-xs text-gray-500">
                         * This document is computer generated and valid only with ID card.
                     </div>
-                    <div className="text-center">
-                        <div className="h-10 w-32 border-b border-black mb-1 mx-auto"></div>
-                        <span className="text-sm font-bold">Authorized Signatory</span>
+                    <div className="text-center relative">
+                        <img
+                            src="/planets/logo.jpeg"
+                            alt="Stamp"
+                            className="absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-32 object-contain opacity-50 -rotate-12 pointer-events-none"
+                        />
+                        <div className="h-10 w-32 border-b border-black mb-1 mx-auto relative z-10"></div>
+                        <span className="text-sm font-bold relative z-10">Authorized Signatory</span>
                     </div>
                 </div>
             </div>

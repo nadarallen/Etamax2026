@@ -21,9 +21,8 @@ export default function AboutUsModal({ isOpen, onClose }) {
                 <div className="w-full md:w-1/3 bg-galaxy-purple/10 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r border-white/10 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-galaxy-purple/30 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none"></div>
                     <div className="relative z-10 text-center">
-                        <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                            <img src="/logo.png" alt="Logo" className="w-12 h-12 opacity-80" onError={(e) => e.target.style.display = 'none'} />
-                            <span className="text-2xl font-black text-white">E.</span>
+                        <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] overflow-hidden">
+                            <img src="/planets/logo.jpeg" alt="Council Logo" className="w-full h-full object-cover" />
                         </div>
                         <h3 className="text-2xl font-black text-white tracking-tighter">ETAMAX <span className="text-galaxy-purple">2026</span></h3>
                         <p className="text-gray-400 text-xs mt-2 font-medium tracking-wider uppercase">FCRIT Vashi</p>
