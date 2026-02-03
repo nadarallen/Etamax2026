@@ -38,8 +38,10 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - etamax-network
 
@@ -51,6 +53,13 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    command: [ "mongod", "--wiredTigerCacheSizeGB", "0.5" ]
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     networks:
       - etamax-network
 

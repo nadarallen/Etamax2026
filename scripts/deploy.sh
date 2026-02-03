@@ -25,7 +25,9 @@ docker image prune -f
 
 # 5. Create Super Admin (Idempotent: skips if exists)
 echo "👑 Seeding Super Admin..."
-docker compose exec app node scripts/seed-admin.js
+# Wait a few seconds for app to fully start handling requests
+sleep 10
+docker compose exec app wget -qO- http://localhost:3000/api/admin/seed || echo "⚠️ Seeding trigger failed, check logs"
 
 echo "✅ Deployment successfully completed!"
 echo "🌍 App should be live at your VPS IP address."

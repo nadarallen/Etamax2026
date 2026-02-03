@@ -18,6 +18,7 @@ const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     role: { type: String, default: 'STUDENT' },
     passwordHash: { type: String, select: false },
+    generatedPassword: { type: String, select: false } // Added to ensure it saves
 }, { timestamps: true });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
@@ -28,24 +29,25 @@ async function seedAdmin() {
         await mongoose.connect(MONGODB_URI);
         console.log('✅ Connected.');
 
-        const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
-        if (existingAdmin) {
-            console.log(`⚠️ Admin "${ADMIN_EMAIL}" already exists. Skipping.`);
-            process.exit(0);
-        }
-
-        console.log(`🔨 Creating Super Admin: ${ADMIN_EMAIL}`);
         const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-        await User.create({
-            name: 'Super Admin',
-            email: ADMIN_EMAIL,
-            role: 'SUPER_ADMIN',
-            passwordHash: passwordHash,
-            generatedPassword: ADMIN_PASSWORD // Optional: store plain for reference if schema allows, but relying on hash is safer
-        });
+        // Upsert: Update if exists, Create if not
+        const result = await User.findOneAndUpdate(
+            { email: ADMIN_EMAIL },
+            {
+                $set: {
+                    name: 'Super Admin',
+                    email: ADMIN_EMAIL,
+                    role: 'SUPER_ADMIN',
+                    passwordHash: passwordHash,
+                    generatedPassword: ADMIN_PASSWORD
+                }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
 
-        console.log('✅ Super Admin created successfully!');
+        console.log(`✅ Super Admin configured: ${result.email}`);
+        console.log(`🔑 Password set from .env: ${ADMIN_PASSWORD}`);
         process.exit(0);
 
     } catch (error) {
