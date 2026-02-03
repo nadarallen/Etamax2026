@@ -51,7 +51,7 @@ export default function AboutUsModal({ isOpen, onClose }) {
                             </p>
                             <div className="flex items-center gap-2 text-sm text-gray-400 mt-2">
                                 <MapPin size={14} className="text-galaxy-purple" />
-                                <span>Agne, Vashi, Navi Mumbai - 400703</span>
+                                <span>Agnel Charities, F.C.R.I.T, Vashi, Navi Mumbai - 400703</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
                                 <Globe size={14} className="text-galaxy-purple" />

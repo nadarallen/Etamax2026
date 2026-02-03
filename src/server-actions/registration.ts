@@ -274,20 +274,108 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             return { error: 'Slot became full just now. Please try another slot.' };
         }
 
-        // 6. Send Email Receipt (Only for FREE events)
+        // 6. Send Email Receipt (Only for FREE events or Team Joins that are 'FREE')
         if (paymentMethod === 'FREE' && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await sendEmail({
-                to: email,
-                subject: `Registration Confirmed: ${event.name}`,
-                html: `
-                    <div style="font-family: Arial, sans-serif; color: #333;">
-                        <h2>Registration Confirmed</h2>
-                        <p>Registration ID: ${etamaxId}</p>
-                        <p>Event: ${event.name}</p>
-                        ${(event as any).whatsappLink ? `<p><strong>Join WhatsApp Group:</strong> <a href="${(event as any).whatsappLink}">Click Here</a></p>` : ''}
-                    </div>
-                `
-            });
+
+            // --- Master Receipt Logic ---
+            const { checkCriteria } = await import('@/lib/criteria');
+            const { met: criteriaMet, pending } = await checkCriteria(session.user.id);
+
+            console.log(`Free Reg Criteria Check for ${session.user.id}: ${criteriaMet ? 'MET' : 'PENDING'}`, pending);
+
+            if (criteriaMet) {
+                const Registration = (await import('@/models/Registration')).default;
+                const allConfirmedRegs = await Registration.find({
+                    userId: session.user.id,
+                    status: 'CONFIRMED'
+                })
+                    .populate('eventId')
+                    .populate('slotId')
+                    .populate('teamId');
+
+                let totalCost = 0;
+                const eventRows = allConfirmedRegs.map((reg: any) => {
+                    const evt = reg.eventId;
+                    const slt = reg.slotId;
+                    const price = evt?.price || 0;
+                    totalCost += price;
+
+                    let dateStr = 'TBD';
+                    if (slt?.dayNumber) {
+                        const dayMap: { [key: number]: string } = {
+                            1: 'Feb 12',
+                            2: 'Feb 13',
+                            3: 'Feb 14'
+                        };
+                        dateStr = dayMap[slt.dayNumber] || `Day ${slt.dayNumber}`;
+                    }
+
+                    // Criteria is MET here, so show link
+                    const waLink = evt?.whatsappLink
+                        ? `<a href="${evt.whatsappLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`
+                        : '<span style="color: #999;">-</span>';
+
+                    return `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 10px;">${evt?.name || 'Unknown'}</td>
+                        <td style="padding: 10px;">${dateStr} <br/> <small>${slt?.startTime} - ${slt?.endTime}</small></td>
+                        <td style="padding: 10px;">${waLink}</td>
+                        <td style="padding: 10px; text-align: right;">₹${price}</td>
+                    </tr>
+                    `;
+                }).join('');
+
+                const criteriaMessage = `<div style="margin-top: 20px; padding: 15px; background-color: #f0fff4; border: 1px solid #b2f5ea; border-radius: 6px;">
+                        <p style="margin: 0; font-size: 14px; color: #2e7d32;">
+                            <strong>✅ Congratulations!</strong> You have fulfilled all participation criteria. Please join the WhatsApp groups above.
+                        </p>
+                       </div>`;
+
+
+                await sendEmail({
+                    to: email,
+                    subject: `🎉 All Criteria Met! here is your Master Receipt ✅`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                            <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+                                <h1 style="margin: 0; font-size: 24px;">All Set! 🎉</h1>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p style="font-size: 16px;">Hello <strong>${fullName}</strong>,</p>
+                                <p style="font-size: 16px;">Your registration for <strong>${event.name}</strong> is confirmed.</p>
+                                <p style="font-size: 16px;">Since you have fulfilled all criteria, here is your updated master receipt:</p>
+
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                                    <thead>
+                                        <tr style="background-color: #f8f9fa; text-align: left;">
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Event</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Date/Time</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">WhatsApp</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${eventRows}
+                                        <tr style="font-weight: bold; background-color: #f8f9fa;">
+                                            <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
+                                            <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                ${criteriaMessage}
+                                <br />
+                                <p style="font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px;">
+                                    <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
+                                </p>
+                                <p>Best regards,<br/>Etamax Team</p>
+                            </div>
+                        </div>
+                    `
+                });
+            } else {
+                console.log(`Criteria Not Met for Free Reg ${session.user.id}. Suppressing email.`);
+            }
         }
 
         revalidatePath('/events');
@@ -493,31 +581,108 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
             if (process.env.EMAIL_USER && updatedReg.email) {
                 console.log(`Sending approval email to: ${updatedReg.email}`);
 
+                // --- Master Receipt Logic (Unified with Webhook) ---
+                const { checkCriteria } = await import('@/lib/criteria');
+                const { met: criteriaMet, pending } = await checkCriteria(updatedReg.userId.toString());
+
+                console.log(`Criteria Check for ${updatedReg.userId}: ${criteriaMet ? 'MET' : 'PENDING'}`, pending);
+
+                if (!criteriaMet) {
+                    console.log(`Criteria Not Met for ${updatedReg.email}. Suppressing email.`);
+                    return { success: true, newStatus };
+                }
+
+                // If criteria met, proceed to send Master Receipt
+                const Registration = (await import('@/models/Registration')).default;
+                const allConfirmedRegs = await Registration.find({
+                    userId: updatedReg.userId,
+                    status: 'CONFIRMED'
+                })
+                    .populate('eventId')
+                    .populate('slotId')
+                    .populate('teamId');
+
+                let totalCost = 0;
+                const eventRows = allConfirmedRegs.map((reg: any) => {
+                    const evt = reg.eventId;
+                    const slt = reg.slotId;
+                    const price = evt?.price || 0;
+                    totalCost += price;
+
+                    let dateStr = 'TBD';
+                    if (slt?.dayNumber) {
+                        const dayMap: { [key: number]: string } = {
+                            1: 'Feb 12',
+                            2: 'Feb 13',
+                            3: 'Feb 14'
+                        };
+                        dateStr = dayMap[slt.dayNumber] || `Day ${slt.dayNumber}`;
+                    }
+
+                    // Criteria met, so show link
+                    const waLink = evt?.whatsappLink
+                        ? `<a href="${evt.whatsappLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`
+                        : '<span style="color: #999;">-</span>';
+
+                    return `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 10px;">${evt?.name || 'Unknown'}</td>
+                        <td style="padding: 10px;">${dateStr} <br/> <small>${slt?.startTime} - ${slt?.endTime}</small></td>
+                        <td style="padding: 10px;">${waLink}</td>
+                        <td style="padding: 10px; text-align: right;">₹${price}</td>
+                    </tr>
+                    `;
+                }).join('');
+
+                const criteriaMessage = `<div style="margin-top: 20px; padding: 15px; background-color: #f0fff4; border: 1px solid #b2f5ea; border-radius: 6px;">
+                        <p style="margin: 0; font-size: 14px; color: #2e7d32;">
+                            <strong>✅ Congratulations!</strong> You have fulfilled all participation criteria. Please join the WhatsApp groups above.
+                        </p>
+                       </div>`;
+
                 await sendEmail({
                     to: updatedReg.email,
-                    subject: `Registration Update: ${(updatedReg.eventId as any).name}`,
+                    subject: `🎉 All Criteria Met! here is your Master Receipt ✅`,
                     html: `
-                        <div style="font-family: Arial, sans-serif; color: #333;">
-                            <h1>Registration Status Updated</h1>
-                            <p>Hi ${updatedReg.fullName},</p>
-                            <p>Your registration status for <strong>${(updatedReg.eventId as any).name}</strong> has been updated to <strong>${newStatus}</strong>.</p>
-                            <hr />
-                            <p><strong>Event Details:</strong></p>
-                            <ul>
-                                <li><strong>Event:</strong> ${(updatedReg.eventId as any).name}</li>
-                                <li><strong>Venue:</strong> ${(updatedReg.slotId as any).venue}</li>
-                                <li><strong>Day:</strong> Day ${(updatedReg.slotId as any).dayNumber}</li>
-                                <li><strong>Time:</strong> ${(updatedReg.slotId as any).startTime} - ${(updatedReg.slotId as any).endTime}</li>
-                            </ul>
-                            ${(updatedReg.eventId as any).whatsappLink ? `<p><strong>Join WhatsApp Group:</strong> <a href="${(updatedReg.eventId as any).whatsappLink}">Click Here</a></p>` : ''}
-                            <p><strong>Current Status:</strong> ${newStatus}</p>
-                            <p>Please show this email at the entry if Confirmed.</p>
-                            <br />
-                            <p>Best regards,<br/>Etamax Team</p>
+                        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                            <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
+                                <h1 style="margin: 0; font-size: 24px;">All Set! 🎉</h1>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p style="font-size: 16px;">Hello <strong>${updatedReg.fullName}</strong>,</p>
+                                <p style="font-size: 16px;">Your registration status has been updated to <strong>CONFIRMED</strong>.</p>
+                                <p style="font-size: 16px;">Here is your updated list of confirmed events:</p>
+                                
+                                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                                    <thead>
+                                        <tr style="background-color: #f8f9fa; text-align: left;">
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Event</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">Date/Time</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd;">WhatsApp</th>
+                                            <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${eventRows}
+                                        <tr style="font-weight: bold; background-color: #f8f9fa;">
+                                            <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
+                                            <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                ${criteriaMessage}
+                                <br />
+                                <p style="font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px;">
+                                    <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
+                                </p>
+                                <p>Best regards,<br/>Etamax Team</p>
+                            </div>
                         </div>
                     `,
                 });
             }
+
         }
 
         return { success: true, newStatus };
