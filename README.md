@@ -32,44 +32,54 @@ Welcome to the official repository for **Etamax 2026**, the annual cultural and 
 - **Icons**: [Lucide React](https://lucide.dev/).
 - **Utilities**: `jspdf`, `jspdf-autotable`, `framer-motion`, `zod`.
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Run with Docker)
 
-Follow these steps to set up the project locally:
+This project uses **Docker** for a consistent and easy setup. You do not need Node.js installed on your machine, only Docker Desktop.
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/abhishekkulbainur/Etamax2026.git
-cd Etamax2026
-```
+### 1. Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
 
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Environment Variables
-Create a `.env.local` file in the root directory and add the following:
-
+### 2. Setup Environment
+Create a `.env` file in the root directory (or rename `.env.example`).
+**Critical Variables to Set:**
 ```env
-# Database
-MONGODB_URI=mongodb+srv://<your-db-url>
+# Database (Internal Docker)
+MONGODB_URI=mongodb://mongo:27017/etamax_prod
 
-# Authentication
-JWT_SECRET=your_super_secret_key
+# Secrets
+NEXTAUTH_SECRET=secure_random_string
+JWT_SECRET=secure_random_string
 
-# Razorpay (Payments)
+# Admin Config (For Seeding)
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=change_this_password
+
+# Redis
+UPSTASH_REDIS_REST_URL=http://redis-http:80
+UPSTASH_REDIS_REST_TOKEN=change_this_token
+
+# Payment (Razorpay)
 RAZORPAY_KEY_ID=your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
-
-# Admin Access
-ADMIN_SECRET=your_admin_creation_secret
+NEXT_PUBLIC_RAZORPAY_KEY_ID=your_key_id
 ```
 
-### 4. Run Development Server
-```bash
-npm run dev
+### 3. Run Application
+Open your terminal in the project folder and run:
+```powershell
+docker compose up --build --scale app=1
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+*Wait for the logs to say "Ready in xms".*
+
+### 4. Create Super Admin
+Once the app is running, open this link in your browser to create the Admin account automatically:
+👉 **[http://localhost/api/admin/seed](http://localhost/api/admin/seed)**
+
+You should see: `{"success": true, ...}`.
+
+### 5. Access the App
+- **Website**: [http://localhost](http://localhost)
+- **Admin Login**: [http://localhost/login](http://localhost/login) (Use credentials from `.env`)
 
 ## 📂 Project Structure
 
