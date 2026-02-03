@@ -35,8 +35,11 @@ export function HyperspaceBackgroundDemo() {
                     <h2 className="text-6xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 tracking-tighter drop-shadow-2xl">
                         ETAMAX
                     </h2>
-                    <h2 className="text-4xl md:text-7xl font-bold text-white/20 tracking-[0.2em] -mt-2 md:-mt-4">
+                    <h2 className="text-4xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 tracking-[0.2em] -mt-2 md:-mt-4 relative z-10 drop-shadow-lg">
                         2026
+                    </h2>
+                    <h2 className="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-t from-purple-500 to-indigo-300 tracking-[0.3em] mt-4 drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+                        NAKSHATRA
                     </h2>
                 </motion.div>
             </div>

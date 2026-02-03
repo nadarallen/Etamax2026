@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
                                         <p style="margin: 5px 0;"><strong>⏰ Time:</strong> ${slotDetails?.startTime} - ${slotDetails?.endTime}</p>
                                         <p style="margin: 5px 0;"><strong>📍 Venue:</strong> ${slotDetails?.venue}</p>
                                         <p style="margin: 5px 0;"><strong>🆔 Registration ID:</strong> ${etamaxId}</p>
+                                        ${eventDetails?.whatsappLink ? `<p style="margin: 5px 0;"><strong>📱 WhatsApp Group:</strong> <a href="${eventDetails.whatsappLink}" style="color: #28a745; text-decoration: none;">Join Here</a></p>` : ''}
                                     </div>
 
                                     <p style="font-size: 16px;"><strong>Payment Status:</strong> <span style="color: #28a745; font-weight: bold;">SUCCESS ✅</span></p>
