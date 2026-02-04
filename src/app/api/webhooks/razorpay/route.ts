@@ -110,25 +110,69 @@ export async function POST(req: NextRequest) {
             // Send Success Email
             if (user.email) {
                 try {
-                    // Fetch Event and Slot Details for Email
-                    const eventDetails = await Event.findById(eventId);
-                    const Slot = (await import('@/models/Slot')).default;
-                    const slotDetails = await Slot.findById(slotId);
+                    // --- Master Receipt Logic ---
+                    const { checkCriteria } = await import('@/lib/criteria');
+                    const { met: criteriaMet, pending } = await checkCriteria(user._id.toString());
 
-                    let formattedDate = 'TBD';
-                    if (slotDetails && slotDetails.dayNumber) {
-                        const dayMap: { [key: number]: string } = {
-                            1: 'February 12, 2026',
-                            2: 'February 13, 2026',
-                            3: 'February 14, 2026'
-                        };
-                        formattedDate = dayMap[slotDetails.dayNumber] || `Day ${slotDetails.dayNumber}`;
+                    console.log(`Webhook Criteria Check for ${user._id}: ${criteriaMet ? 'MET' : 'PENDING'}`, pending);
+
+                    if (!criteriaMet) {
+                        console.log(`Criteria Not Met for ${user.email}. Suppressing email.`);
+                        // Still mark as 'sent' on registration? 
+                        // Actually, if we suppress, we probably want to send it LATER when criteria IS met.
+                        // But our logic only checks on current trigger. 
+                        // However, if we mark it as 'emailSent=true' here, we might lose tracking.
+                        // But since the webhook is the *event* of payment, and the user said "no mail", we just skip.
+                        // When they pay for the LAST event, this webhook triggers again, finds criteriaMet=true, and sends email with ALL events.
+                        // So we don't need to track 'pending' email state, just always recalculate on trigger.
+
+                        return NextResponse.json({ status: "ok" });
                     }
+
+                    // Fetch ALL confirmed registrations for this user to send a consolidated receipt
+                    const allConfirmedRegs = await Registration.find({
+                        userId: user._id,
+                        status: 'CONFIRMED'
+                    })
+                        .populate('eventId')
+                        .populate('slotId')
+                        .populate('teamId');
+
+                    let totalCost = 0;
+                    const eventRows = allConfirmedRegs.map((reg: any) => {
+                        const evt = reg.eventId;
+                        const slt = reg.slotId;
+                        const price = evt?.price || 0;
+                        totalCost += price;
+
+                        let dateStr = 'TBD';
+                        if (slt?.dayNumber) {
+                            const dayMap: { [key: number]: string } = {
+                                1: 'Feb 12',
+                                2: 'Feb 13',
+                                3: 'Feb 14'
+                            };
+                            dateStr = dayMap[slt.dayNumber] || `Day ${slt.dayNumber}`;
+                        }
+
+                        // Criteria met, so show link
+                        const waLink = evt?.whatsappLink
+                            ? `<a href="${evt.whatsappLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`
+                            : '<span style="color: #999;">-</span>';
+
+                        return `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;">${evt?.name || 'Unknown'}</td>
+                            <td style="padding: 10px;">${dateStr} <br/> <small>${slt?.startTime} - ${slt?.endTime}</small></td>
+                            <td style="padding: 10px;">${waLink}</td>
+                            <td style="padding: 10px; text-align: right;">₹${price}</td>
+                        </tr>
+                        `;
+                    }).join('');
 
                     const nodemailer = (await import('nodemailer')).default;
 
                     // Email Rotation Logic
-                    // We check for EMAIL_USER, EMAIL_USER_2, EMAIL_USER_3, EMAIL_USER_4
                     const accounts = [];
                     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) accounts.push({ user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS });
                     if (process.env.EMAIL_USER_2 && process.env.EMAIL_PASS_2) accounts.push({ user: process.env.EMAIL_USER_2, pass: process.env.EMAIL_PASS_2 });
@@ -148,38 +192,57 @@ export async function POST(req: NextRequest) {
                         auth: { user: selectedAccount.user, pass: selectedAccount.pass },
                     });
 
+                    const criteriaMessage = `<div style="margin-top: 20px; padding: 15px; background-color: #f0fff4; border: 1px solid #b2f5ea; border-radius: 6px;">
+                            <p style="margin: 0; font-size: 14px; color: #2e7d32;">
+                                <strong>✅ Congratulations!</strong> You have fulfilled all participation criteria. Please join the WhatsApp groups above.
+                            </p>
+                        </div>`;
+
                     await transporter.sendMail({
                         from: '"Etamax 2026" <' + selectedAccount.user + '>',
                         to: user.email,
-                        subject: `Registration Successful for ${eventDetails?.name || 'Etamax Event'} ✅`,
+                        subject: `🎉 All Criteria Met! here is your Master Receipt ✅`,
                         html: `
                             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                                 <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
-                                    <h1 style="margin: 0; font-size: 24px;">Registration Confirmed!</h1>
+                                    <h1 style="margin: 0; font-size: 24px;">All Set! 🎉</h1>
                                 </div>
                                 <div style="padding: 20px;">
                                     <p style="font-size: 16px;">Hello <strong>${user.name}</strong>,</p>
-                                    <p style="font-size: 16px;">Your registration for <strong>${eventDetails?.name}</strong> has been confirmed successfully ✅</p>
+                                    <p style="font-size: 16px;">Your payment was successful. Here is your updated list of confirmed events:</p>
                                     
-                                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                                        <p style="margin: 5px 0;"><strong>📌 Event:</strong> ${eventDetails?.name}</p>
-                                        <p style="margin: 5px 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
-                                        <p style="margin: 5px 0;"><strong>⏰ Time:</strong> ${slotDetails?.startTime} - ${slotDetails?.endTime}</p>
-                                        <p style="margin: 5px 0;"><strong>📍 Venue:</strong> ${slotDetails?.venue}</p>
-                                        <p style="margin: 5px 0;"><strong>🆔 Registration ID:</strong> ${etamaxId}</p>
-                                        ${eventDetails?.whatsappLink ? `<p style="margin: 5px 0;"><strong>📱 WhatsApp Group:</strong> <a href="${eventDetails.whatsappLink}" style="color: #28a745; text-decoration: none;">Join Here</a></p>` : ''}
-                                    </div>
+                                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                                        <thead>
+                                            <tr style="background-color: #f8f9fa; text-align: left;">
+                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Event</th>
+                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Date/Time</th>
+                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">WhatsApp</th>
+                                                <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${eventRows}
+                                            <tr style="font-weight: bold; background-color: #f8f9fa;">
+                                                <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
+                                                <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
 
-                                    <p style="font-size: 16px;"><strong>Payment Status:</strong> <span style="color: #28a745; font-weight: bold;">SUCCESS ✅</span></p>
-                                    <p style="font-size: 14px; color: #555;">Please save this email or your QR code (available on your dashboard) for entry.</p>
+                                    ${criteriaMessage}
                                     
                                     <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
                                     
-                                    <p style="font-size: 14px; color: #777;">Thank you for registering!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>
+                                    <p style="font-size: 12px; color: #999; text-align: center;">
+                                        <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
+                                    </p>
+
+                                    <p style="font-size: 14px; color: #777;">Thank you for your participation!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>
                                 </div>
                             </div>
                         `
                     });
+
 
                     // Update Email Sent Status
                     registration.emailSent = true;

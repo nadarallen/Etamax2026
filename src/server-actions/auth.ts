@@ -57,6 +57,12 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
             if (!rollNumber || rollNumber.trim() === '') return { error: 'Roll Number is required.' };
             if (!branch || branch.trim() === '') return { error: 'Branch is required.' };
             if (!semester || semester.trim() === '') return { error: 'Semester is required.' };
+
+            // Check if Roll Number already exists
+            const existingRoll = await User.findOne({ rollNumber });
+            if (existingRoll) {
+                return { error: 'This Roll Number is already registered. Please login or use a different one.' };
+            }
         }
 
         // Generate Random Password

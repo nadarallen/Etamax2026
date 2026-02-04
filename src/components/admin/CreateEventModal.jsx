@@ -57,6 +57,12 @@ export default function CreateEventModal({ onClose }) {
                     <input type="number" name="price" required min="0" className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple focus:outline-none" placeholder="0" />
                 </div>
 
+                <div className="col-span-2">
+                     <label className="block text-sm text-gray-400 mb-1 ml-1">WhatsApp Group Link (Optional)</label>
+                     <input type="url" name="whatsappLink" className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple focus:outline-none" placeholder="https://chat.whatsapp.com/..." />
+                </div>
+
+
                 {/* capacity field matching 'maxMembers' in DB */}
                 <div>
                     <label className="block text-sm text-gray-400 mb-1 ml-1">
