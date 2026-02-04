@@ -31,6 +31,7 @@ const SlotSchema = z.object({
     endTime: z.string().min(1, 'End time required'),
     venue: z.string().min(1, 'Venue required'),
     maxCapacity: z.coerce.number().min(1),
+    whatsappLink: z.string().optional(), // Added
 });
 
 export type EventState = {

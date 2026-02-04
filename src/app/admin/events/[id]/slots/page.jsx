@@ -3,7 +3,8 @@
 import { useRef, useEffect, useState, use, useTransition } from 'react';
 import { addSlotAction, getSlotsAction, deleteSlotAction, updateSlotAction } from '@/server-actions/events';
 import { useRouter } from 'next/navigation';
-import { Trash2, Clock, MapPin, Edit2, Plus, Save, X } from 'lucide-react';
+import { Trash2, Clock, MapPin, Edit2, Plus, Save, X, Link as LinkIcon } from 'lucide-react';
+
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 
@@ -28,7 +29,8 @@ export default function ManageSlotsPage({ params }) {
         maxCapacity: "30",
         startTime: "",
         endTime: "",
-        venue: ""
+        venue: "",
+        whatsappLink: ""
     });
 
     // We wrapper the action to handle both add and update based on editingSlot
@@ -48,7 +50,7 @@ export default function ManageSlotsPage({ params }) {
             } else {
                 res = await addSlotAction(eventId, formDataObj);
                 if (res.success) {
-                    setFormData(prev => ({ ...prev, startTime: "", endTime: "", venue: "" }));
+                    setFormData(prev => ({ ...prev, startTime: "", endTime: "", venue: "", whatsappLink: "" }));
                 }
             }
             setActionState(res);
@@ -79,7 +81,8 @@ export default function ManageSlotsPage({ params }) {
             maxCapacity: String(slot.maxCapacity),
             startTime: slot.startTime,
             endTime: slot.endTime,
-            venue: slot.venue
+            venue: slot.venue,
+            whatsappLink: slot.whatsappLink || ""
         });
     };
 
@@ -90,7 +93,8 @@ export default function ManageSlotsPage({ params }) {
             maxCapacity: "30",
             startTime: "",
             endTime: "",
-            venue: ""
+            venue: "",
+            whatsappLink: ""
         });
     };
 
@@ -223,6 +227,18 @@ export default function ManageSlotsPage({ params }) {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">WhatsApp Link (Optional)</label>
+                                <input
+                                    name="whatsappLink"
+                                    type="url"
+                                    placeholder="https://chat.whatsapp.com/..."
+                                    value={formData.whatsappLink || ''}
+                                    onChange={handleChange}
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                />
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={isPending}
@@ -249,6 +265,11 @@ export default function ManageSlotsPage({ params }) {
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-gray-300">
                                         <span>Cap: {slot.maxCapacity}</span>
+                                        {slot.whatsappLink && (
+                                            <a href={slot.whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-green-400 hover:underline">
+                                                <LinkIcon size={12} /> WhatsApp
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
