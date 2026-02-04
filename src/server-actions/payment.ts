@@ -21,6 +21,11 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
         const event = await Event.findById(eventId);
         if (!event) return { error: "Event not found" };
 
+        // Fetch User for Roll No
+        const User = (await import('@/models/User')).default;
+        const userDoc = await User.findById(session.user.id);
+        const rollNo = userDoc?.rollNumber || "N/A";
+
         const amount = event.price * 100; // Paise
         const currency = 'INR';
 
@@ -33,11 +38,14 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
             notes: {
                 userId: session.user.id,
                 studentName: (session.user as any).name || (session.user as any).user_metadata?.name || "Unknown",
+                rollNo: rollNo.substring(0, 20), // ADDED ROLL NO
                 eventName: event.name.substring(0, 40), // Razorpay note limits
                 clubName: event.club || (event as any).category || "Etamax",
                 eventId: eventId,
                 slotId: slotId,
                 teamId: teamId || '',
+                // Single event split
+                [`Club_${(event.club || (event as any).category || "General").replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}`]: event.price
             }
         };
 

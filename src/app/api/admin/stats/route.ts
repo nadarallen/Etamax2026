@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         // Calculate Total Revenue
         // In a real app, this should be an aggregation on Payment model or Registration joined with Event
         // For now, simpler aggregation on Registration -> Event Price
+        // Calculate Total Revenue AND Club-wise Split
         const revenueAgg = await Registration.aggregate([
             { $match: { status: 'CONFIRMED' } },
             {
@@ -32,19 +33,27 @@ export async function GET(req: NextRequest) {
             { $unwind: '$event' },
             {
                 $group: {
-                    _id: null,
-                    totalRevenue: { $sum: '$event.price' }
+                    _id: { $ifNull: ["$event.club", "$event.category"] }, // Group by Club, fallback to Category
+                    revenue: { $sum: '$event.price' }
                 }
-            }
+            },
+            { $sort: { revenue: -1 } } // Sort highest revenue first
         ]);
 
-        const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+        // Transform into cleaner array
+        const clubStats = revenueAgg.map(item => ({
+            club: item._id || "Unknown",
+            revenue: item.revenue
+        }));
+
+        const totalRevenue = clubStats.reduce((acc, curr) => acc + curr.revenue, 0);
 
         return NextResponse.json({
             stats: {
                 totalEvents,
                 totalRegistrations,
-                totalRevenue
+                totalRevenue,
+                clubStats // New Field
             }
         });
     } catch (error) {

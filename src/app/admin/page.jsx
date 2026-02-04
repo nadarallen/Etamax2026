@@ -53,6 +53,30 @@ function AdminContent() {
 
             {/* ... Header and Stats ... */}
 
+            {/* Revenue Components */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
+                    <h3 className="text-xl font-bold text-white mb-4">Revenue Breakdown</h3>
+                    {stats.clubStats && stats.clubStats.length > 0 ? (
+                        <div className="space-y-3">
+                            {stats.clubStats.map((club, idx) => (
+                                <div key={idx} className="flex justify-between items-center pb-2 border-b border-white/5 last:border-0">
+                                    <span className="text-gray-300 font-medium">{club.club}</span>
+                                    <span className="text-green-400 font-mono font-bold">₹{club.revenue.toLocaleString()}</span>
+                                </div>
+                            ))}
+                            <div className="flex justify-between items-center pt-2 mt-2 border-t border-white/20">
+                                <span className="text-white font-bold">Total</span>
+                                <span className="text-green-400 font-mono font-bold text-lg">₹{stats.totalRevenue?.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-500 text-sm">No revenue data available.</p>
+                    )}
+                </div>
+                {/* Quick Actions / Other Stats placeholders could go here */}
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
                 <div className="w-full md:w-auto">
                     <h2 className="text-xl font-bold text-white mb-4 md:mb-0">All Events</h2>

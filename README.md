@@ -77,6 +77,14 @@ Once the app is running, open this link in your browser to create the Admin acco
 
 You should see: `{"success": true, ...}`.
 
+#### 🚨 Emergency Manual Seeding
+If the automatic seeding fails or you cannot access the API, you can run the seed script directly inside the container:
+```powershell
+docker exec etamax2026-app-1 node scripts/seed-admin.js
+```
+*This uses the credentials defined in your `.env` file.*
+
+
 ### 5. Access the App
 - **Website**: [http://localhost](http://localhost)
 - **Admin Login**: [http://localhost/login](http://localhost/login) (Use credentials from `.env`)
