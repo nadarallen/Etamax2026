@@ -85,7 +85,18 @@ docker exec etamax2026-app-1 node scripts/seed-admin.js
 *This uses the credentials defined in your `.env` file.*
 
 
-### 5. Access the App
+### 5. Database Cleanup (Post-Testing)
+To clear all test data (Users, Registrations, Teams) while keeping the Admin and Events:
+**Docker:**
+```powershell
+docker exec etamax2026-app-1 node scripts/cleanup-db.js
+```
+**Local:**
+```powershell
+node scripts/cleanup-db.js
+```
+
+### 6. Access the App
 - **Website**: [http://localhost](http://localhost)
 - **Admin Login**: [http://localhost/login](http://localhost/login) (Use credentials from `.env`)
 
