@@ -21,6 +21,10 @@ const SlotSchema = new mongoose.Schema({
         type: String,
         required: true
     },   // e.g. "01:00 PM"
+    whatsappLink: {
+        type: String,
+        required: false
+    }, // Slot-specific WhatsApp Group
     venue: {
         type: String,
         required: true
