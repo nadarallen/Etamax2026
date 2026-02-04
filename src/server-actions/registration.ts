@@ -157,7 +157,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                     members: [{
                         userId: session.user.id,
                         status: STATUS_JOINED,
-                        paymentStatus: paymentMethod === 'OFFLINE' ? STATUS_PENDING : STATUS_PAID,
+                        // Fix: ONLINE/OFFLINE = PENDING, FREE = PAID
+                        paymentStatus: paymentMethod === 'FREE' ? STATUS_PAID : STATUS_PENDING,
                         joinedAt: new Date()
                     }],
                     status: 'OPEN',
@@ -208,7 +209,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                 finalStatus = RegStatus.PENDING;
             }
         } else {
-            finalStatus = paymentMethod === 'OFFLINE' ? RegStatus.PENDING : RegStatus.CONFIRMED;
+            // Fix: Both ONLINE and OFFLINE should start as PENDING. Only FREE is Confirmed.
+            finalStatus = paymentMethod === 'FREE' ? RegStatus.CONFIRMED : RegStatus.PENDING;
         }
 
         const { customAlphabet } = await import('nanoid');

@@ -13,31 +13,29 @@ export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
 
-        const totalEvents = await Event.countDocuments({});
-        const totalRegistrations = await Registration.countDocuments({ status: 'CONFIRMED' });
-
-        // Calculate Total Revenue
-        // In a real app, this should be an aggregation on Payment model or Registration joined with Event
-        // For now, simpler aggregation on Registration -> Event Price
-        // Calculate Total Revenue AND Club-wise Split
-        const revenueAgg = await Registration.aggregate([
-            { $match: { status: 'CONFIRMED' } },
-            {
-                $lookup: {
-                    from: 'events',
-                    localField: 'eventId',
-                    foreignField: '_id',
-                    as: 'event'
-                }
-            },
-            { $unwind: '$event' },
-            {
-                $group: {
-                    _id: { $ifNull: ["$event.club", "$event.category"] }, // Group by Club, fallback to Category
-                    revenue: { $sum: '$event.price' }
-                }
-            },
-            { $sort: { revenue: -1 } } // Sort highest revenue first
+        // Run queries in parallel for performance optimization
+        const [totalEvents, totalRegistrations, revenueAgg] = await Promise.all([
+            Event.countDocuments({}),
+            Registration.countDocuments({ status: 'CONFIRMED' }),
+            Registration.aggregate([
+                { $match: { status: 'CONFIRMED' } },
+                {
+                    $lookup: {
+                        from: 'events',
+                        localField: 'eventId',
+                        foreignField: '_id',
+                        as: 'event'
+                    }
+                },
+                { $unwind: '$event' },
+                {
+                    $group: {
+                        _id: { $ifNull: ["$event.club", "$event.category"] }, // Group by Club, fallback to Category
+                        revenue: { $sum: '$event.price' }
+                    }
+                },
+                { $sort: { revenue: -1 } } // Sort highest revenue first
+            ])
         ]);
 
         // Transform into cleaner array
