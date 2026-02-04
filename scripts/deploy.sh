@@ -10,7 +10,7 @@ echo "🚀 Starting deployment for Etamax2026..."
 # 1. Pull latest changes
 if [ -d ".git" ]; then
     echo "⬇️ Pulling latest changes from git..."
-    git pull origin main
+    git pull origin master
 else
     echo "⚠️ .git directory not found. Skipping git pull."
 fi
