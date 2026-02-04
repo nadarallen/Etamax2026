@@ -29,22 +29,28 @@ async function seedAdmin() {
         await mongoose.connect(MONGODB_URI);
         console.log('✅ Connected.');
 
-        const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+        // Check if Admin exists
+        const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
 
-        // Upsert: Update if exists, Create if not
-        const result = await User.findOneAndUpdate(
-            { email: ADMIN_EMAIL },
-            {
-                $set: {
-                    name: 'Super Admin',
-                    email: ADMIN_EMAIL,
-                    role: 'SUPER_ADMIN',
-                    passwordHash: passwordHash,
-                    generatedPassword: ADMIN_PASSWORD
-                }
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        if (existingAdmin) {
+            console.log(`ℹ️ Admin ${ADMIN_EMAIL} already exists. Skipping password reset.`);
+            // Ensure role is correct though
+            if (existingAdmin.role !== 'SUPER_ADMIN') {
+                existingAdmin.role = 'SUPER_ADMIN';
+                await existingAdmin.save();
+                console.log('✅ Updated role to SUPER_ADMIN.');
+            }
+        } else {
+            const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+            await User.create({
+                name: 'Super Admin',
+                email: ADMIN_EMAIL,
+                role: 'SUPER_ADMIN',
+                passwordHash: passwordHash,
+                generatedPassword: ADMIN_PASSWORD
+            });
+            console.log(`✅ Super Admin created: ${ADMIN_EMAIL}`);
+        }
 
         console.log(`✅ Super Admin configured: ${result.email}`);
         console.log(`🔑 Password set from .env: ${ADMIN_PASSWORD}`);
