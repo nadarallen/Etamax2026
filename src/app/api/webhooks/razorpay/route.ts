@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
                     registration.emailSent = true;
                     await registration.save();
 
-                    console.log(`Success email sent to ${user.email} for ${eventDetails?.name} via ${selectedAccount.user}`);
+                    console.log(`Success email sent to ${user.email} for confirmed events via ${selectedAccount.user}`);
                 } catch (emailErr) {
                     console.error("Failed to send success email:", emailErr);
                 }
