@@ -121,11 +121,7 @@ export default function EditEventPage({ params }) {
                                 <label className="text-white">Published (Visible to users)</label>
                             </div>
 
-                            {/* WhatsApp Link - Added */}
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1 ml-1">WhatsApp Group Link</label>
-                                <input name="whatsappLink" type="url" defaultValue={eventData.whatsappLink} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple" placeholder="https://chat.whatsapp.com/..." />
-                            </div>
+
                         </div>
                     </div>
 

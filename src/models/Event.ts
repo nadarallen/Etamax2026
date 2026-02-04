@@ -14,7 +14,7 @@ export interface IEvent extends Document {
     createdAt: Date;
     updatedAt: Date;
     minTeamSize?: number;
-    whatsappLink?: string; // Optional WhatsApp Group Link
+
 }
 
 const EventSchema: Schema = new Schema(
@@ -29,7 +29,7 @@ const EventSchema: Schema = new Schema(
         prizePool: { type: String, required: false },
         description: { type: String, required: false },
         isPublished: { type: Boolean, default: true, index: true },
-        whatsappLink: { type: String, required: false }, // New Field
+
         minTeamSize: { type: Number, default: 1 }, // Added
         maxTeamSize: { type: Number, default: 4 }, // Added
         // schedule removed, using Slot model instead

@@ -623,8 +623,8 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
                     }
 
                     // Criteria met, so show link
-                    // PRIORITIZE SLOT LINK -> EVENT LINK
-                    const finalWaLink = slt?.whatsappLink || evt?.whatsappLink;
+                    // ONLY SLOT LINK
+                    const finalWaLink = slt?.whatsappLink;
 
                     const waLink = finalWaLink
                         ? `<a href="${finalWaLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`

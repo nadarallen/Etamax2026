@@ -20,7 +20,7 @@ const EventSchema = z.object({
     price: z.coerce.number().min(0),
     prizePool: z.string().optional(),
     description: z.string().optional(),
-    whatsappLink: z.string().optional(), // Added
+
     minTeamSize: z.coerce.number().min(1).default(1),
     maxTeamSize: z.coerce.number().min(1).default(4),
 });
@@ -64,7 +64,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
         }
 
         const {
-            name, type, club, category, maxMembers, price, prizePool, description, whatsappLink,
+            name, type, club, category, maxMembers, price, prizePool, description,
             minTeamSize, maxTeamSize
         } = parsed.data;
 
@@ -99,7 +99,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
             price,
             prizePool,
             description,
-            whatsappLink, // Added
+
             minTeamSize,
             maxTeamSize,
             isPublished: true
@@ -330,7 +330,7 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
             prizePool: formData.get('prizePool'),
             description: formData.get('description'),
             isPublished: formData.get('isPublished') === 'on',
-            whatsappLink: formData.get('whatsappLink'), // Added
+
             minTeamSize: Number(formData.get('minTeamSize')) || 1,
             maxTeamSize: Number(formData.get('maxTeamSize')) || 4,
         };
