@@ -53,6 +53,10 @@ export default function ProfilePage() {
         days.has(2) &&
         days.has(3);
 
+    // Validate bypass code against environment variable
+    const VALID_BYPASS_CODE = process.env.NEXT_PUBLIC_PAYMENT_BYPASS_CODE || 'BYPASS2026';
+    const isBypassValid = bypassCode && bypassCode.trim() === VALID_BYPASS_CODE;
+
     // Check if there are actually pending payments
     const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING' || r.paymentStatus === 'PENDING');
 
@@ -137,7 +141,7 @@ export default function ProfilePage() {
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-2">Complete Registration</h2>
-                            {(isEligible || bypassCode) ? (
+                            {(isEligible || isBypassValid) ? (
                                 <div>
                                     <p className="text-gray-300 mb-2">
                                         You have fulfilled all participation criteria!
@@ -168,10 +172,10 @@ export default function ProfilePage() {
 
                         <div className="flex flex-col gap-3 w-full md:w-auto">
                             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                                {(isEligible || bypassCode) ? (
+                                {(isEligible || isBypassValid) ? (
                                     <>
                                         <Link
-                                            href={bypassCode ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
+                                            href={isBypassValid ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
                                             className="w-full md:w-auto"
                                         >
                                             <button className="w-full cursor-pointer bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-95 flex flex-col items-center leading-none py-2 gap-1">
