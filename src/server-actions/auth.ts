@@ -99,7 +99,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
                     </div>
                     <p style="font-size: 14px; color: #666;">Please use these credentials to login.</p>
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login Now</a>
+                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/login?email=${encodeURIComponent(email)}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login Now</a>
                     </div>
                 </div>
             `;

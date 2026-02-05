@@ -57,6 +57,7 @@ function LoginForm() {
                                 type="email"
                                 name="email"
                                 required
+                                defaultValue={searchParams.get('email') || ''}
                                 className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
                                 placeholder="name@example.com"
                                 suppressHydrationWarning
