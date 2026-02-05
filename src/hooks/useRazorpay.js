@@ -79,7 +79,43 @@ export default function useRazorpay() {
             }
             const order = await res.json();
 
-            // 3. Open Razorpay
+            // Check if we're in mock mode (order ID starts with 'mock_order_')
+            const isMockMode = order.id && order.id.startsWith('mock_order_');
+
+            if (isMockMode) {
+                // MOCK MODE: Show testing UI
+                setIsProcessing(false);
+
+                const shouldSimulateSuccess = confirm(
+                    '🧪 MOCK PAYMENT MODE 🧪\n\n' +
+                    'Click OK to SIMULATE SUCCESS ✅\n' +
+                    'Click CANCEL to SIMULATE FAILURE ❌\n\n' +
+                    `Order ID: ${order.id}\n` +
+                    `Amount: ₹${order.amount / 100}`
+                );
+
+                // Import and call the mock simulation
+                const { simulateMockPaymentAction } = await import('@/server-actions/payment');
+
+                try {
+                    const result = await simulateMockPaymentAction(order.id, shouldSimulateSuccess);
+
+                    if (result.success !== false) {
+                        // Success simulation
+                        if (onSuccess) onSuccess({ orderId: order.id, mock: true });
+                    } else {
+                        // Failure simulation
+                        throw new Error(result.message || 'Payment failed (simulated)');
+                    }
+                } catch (err) {
+                    if (onError) onError(err);
+                    else alert(err.message || 'Mock payment failed');
+                }
+
+                return;
+            }
+
+            // 3. Open Razorpay (Real Mode)
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
                 amount: order.amount,

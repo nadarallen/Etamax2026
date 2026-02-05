@@ -108,7 +108,7 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
 
 // Prompt 20 (Simulated): Mock Webhook Trigger
 // In real dev, we might use the actual webhook route, but for pure simulation without ngrok:
-export async function simulateMockPaymentAction(orderId: string) {
+export async function simulateMockPaymentAction(orderId: string, shouldSucceed: boolean = true) {
     const session = await getSession();
     if (!session || !session.user.id) return { error: "Unauthorized" };
 
@@ -116,15 +116,80 @@ export async function simulateMockPaymentAction(orderId: string) {
     const payment = await Payment.findOne({ gatewayOrderId: orderId });
     if (!payment) return { error: "Payment not found" };
 
-    // Reuse the Webhook Logic Structure
-    // (In a real app, refactor `fulfillPayment` to a shared service to avoid duplication)
-    // Copied logic for demo speed:
+    const { userId, eventId, slotId, teamId } = payment.metadata as any;
 
+    // Simulate payment failure
+    if (!shouldSucceed) {
+        payment.status = PaymentStatus.FAILED;
+        payment.gatewayPaymentId = `mock_fail_${randomUUID()}`;
+        await payment.save();
+
+        console.log(`Mock Payment Failed: ${orderId}`);
+
+        // CLEANUP: Delete registrations and revert changes (same as webhook)
+        const Team = (await import('@/models/Team')).default;
+        const { TeamStatus, PaymentStatus: TeamPayStatus } = await import('@/models/Team');
+        const Registration = (await import('@/models/Registration')).default;
+
+        try {
+            if (teamId) {
+                // Team event failure - clean up all members
+                const team = await Team.findById(teamId);
+                if (team) {
+                    console.log(`Cleaning up team ${teamId} after mock payment failure`);
+
+                    // Delete all team member registrations created by this payment
+                    const deletedRegs = await Registration.deleteMany({
+                        teamId: teamId,
+                        paymentId: payment._id
+                    });
+                    console.log(`Deleted ${deletedRegs.deletedCount} team registrations`);
+
+                    // Revert team status to OPEN (unpaid state)
+                    team.status = TeamStatus.OPEN;
+
+                    // Mark all team members as PENDING (unpaid)
+                    team.members.forEach((m: any) => {
+                        m.paymentStatus = TeamPayStatus.PENDING;
+                    });
+                    await team.save();
+
+                    // Release slot capacity for entire team
+                    const Slot = (await import('@/models/Slot')).default;
+                    await Slot.findByIdAndUpdate(slotId, {
+                        $inc: { registeredCount: -team.members.length }
+                    });
+                    console.log(`Released slot capacity for ${team.members.length} team members`);
+                }
+            } else {
+                // Solo event failure - clean up user's registration
+                console.log(`Cleaning up solo registration for user ${userId} after mock payment failure`);
+
+                const deletedRegs = await Registration.deleteMany({
+                    userId: userId,
+                    eventId: eventId,
+                    paymentId: payment._id
+                });
+                console.log(`Deleted ${deletedRegs.deletedCount} solo registration(s)`);
+
+                // Release slot capacity
+                const Slot = (await import('@/models/Slot')).default;
+                await Slot.findByIdAndUpdate(slotId, {
+                    $inc: { registeredCount: -1 }
+                });
+                console.log(`Released slot capacity for solo event`);
+            }
+        } catch (cleanupErr) {
+            console.error('Error during mock payment failure cleanup:', cleanupErr);
+        }
+
+        return { success: false, message: "Payment failed (simulated)" };
+    }
+
+    // Simulate payment success (existing logic)
     payment.status = PaymentStatus.SUCCESS;
     payment.gatewayPaymentId = `mock_pay_${randomUUID()}`;
     await payment.save();
-
-    const { userId, eventId, slotId, teamId } = payment.metadata as any;
 
     // Importing Team/Event inside function to avoid circular deps if any (though usually fine)
     const Team = (await import('@/models/Team')).default;
