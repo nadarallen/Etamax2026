@@ -199,16 +199,32 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             }
         }
 
-        // Determine Status
-        let finalStatus = RegStatus.CONFIRMED;
+        // NEW LOGIC: Skip registration creation for team members joining unpaid teams
+        // They will get registrations created when the leader pays (via webhook)
         if (parsed.data.teamAction === 'JOIN') {
             const teamDoc = await Team.findById(teamId);
             if (teamDoc) {
                 const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
-                finalStatus = (leader?.paymentStatus === STATUS_PAID) ? RegStatus.CONFIRMED : RegStatus.PENDING;
-            } else {
-                finalStatus = RegStatus.PENDING;
+                const isLeaderPaid = leader?.paymentStatus === STATUS_PAID;
+
+                // If leader hasn't paid, don't create registration - just return success
+                if (!isLeaderPaid) {
+                    revalidatePath('/profile');
+                    return {
+                        success: true,
+                        message: `Successfully joined team "${teamDoc.name}". Your registration will be confirmed once the team leader completes payment.`,
+                        teamCode: teamDoc.code,
+                        skipRegistration: true // Flag for UI
+                    };
+                }
             }
+        }
+
+        // Determine Status (only for cases where we're creating a registration)
+        let finalStatus = RegStatus.CONFIRMED;
+        if (parsed.data.teamAction === 'JOIN') {
+            // If we reach here, leader has already paid
+            finalStatus = RegStatus.CONFIRMED;
         } else {
             // Fix: Both ONLINE and OFFLINE should start as PENDING. Only FREE is Confirmed.
             finalStatus = paymentMethod === 'FREE' ? RegStatus.CONFIRMED : RegStatus.PENDING;

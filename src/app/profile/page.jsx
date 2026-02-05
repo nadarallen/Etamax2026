@@ -45,13 +45,21 @@ export default function ProfilePage() {
     const categories = new Set(activeRegs.map(r => r.event?.category?.toLowerCase()).filter(Boolean));
     const days = new Set(activeRegs.map(r => r.slot?.dayNumber).filter(Boolean));
 
+    // Check for team participation (required for eligibility)
+    const hasTeamEvent = activeRegs.some(r =>
+        r.event?.type === 'group' &&
+        r.team &&
+        r.team.memberCount >= 1
+    );
+
     const isEligible =
         categories.has('technical') &&
         categories.has('cultural') &&
         categories.has('seminar') &&
         days.has(1) &&
         days.has(2) &&
-        days.has(3);
+        days.has(3) &&
+        hasTeamEvent; // Team participation is now required
 
     // Validate bypass code against environment variable
     const VALID_BYPASS_CODE = process.env.NEXT_PUBLIC_PAYMENT_BYPASS_CODE || 'BYPASS2026';
@@ -59,6 +67,21 @@ export default function ProfilePage() {
 
     // Check if there are actually pending payments
     const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING' || r.paymentStatus === 'PENDING');
+
+    // Helper function to calculate price for a registration
+    // Team leaders pay full price, team members pay 0
+    const getRegistrationPrice = (reg) => {
+        if (!reg.event?.price) return 0;
+
+        // If it's a team event, only the leader pays
+        if (reg.team && reg.team.leaderId) {
+            const isLeader = reg.team.leaderId.toString() === user?._id?.toString();
+            return isLeader ? reg.event.price : 0;
+        }
+
+        // Solo events - user pays full price
+        return reg.event.price;
+    };
 
     useEffect(() => {
         async function fetchData() {
@@ -155,7 +178,7 @@ export default function ProfilePage() {
                                                 {(() => {
                                                     const amt = activeRegs
                                                         .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
-                                                        .reduce((sum, r) => sum + (r.event?.price || 0), 0);
+                                                        .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
                                                     return amt === 0 ? 'FREE' : `₹${amt}`;
                                                 })()}
                                             </span>
@@ -183,7 +206,7 @@ export default function ProfilePage() {
                                                 {(() => {
                                                     const amt = activeRegs
                                                         .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
-                                                        .reduce((sum, r) => sum + (r.event?.price || 0), 0);
+                                                        .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
                                                     if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
                                                 })()}
                                             </button>

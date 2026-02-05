@@ -11,7 +11,30 @@ export default function CriteriaProgress({ registrations }) {
     const activeRegs = registrations.filter(r => r.status !== 'CANCELLED');
     const categories = new Set(activeRegs.map(r => r.event?.category?.toLowerCase()));
     const days = new Set(activeRegs.map(r => r.slot?.dayNumber));
-    const hasTeamEvent = activeRegs.some(r => r.event?.type !== 'solo'); // Check for non-solo events
+
+    // Check for team events with actual teams that have members
+    // A team event is valid only if:
+    // 1. Event type is 'group' (not solo)
+    // 2. User has a team (teamId exists)
+    // 3. Team has at least 1 member (including the user)
+    // 4. Team leader has paid (all members marked as PAID)
+    const teamEventReg = activeRegs.find(r =>
+        r.event?.type === 'group' &&
+        r.team &&
+        r.team.memberCount >= 1
+    );
+
+    const hasTeamEvent = !!teamEventReg;
+
+    // Check if team leader has paid (team status is CONFIRMED)
+    const isTeamPaid = teamEventReg?.team?.status === 'CONFIRMED' || teamEventReg?.status === 'CONFIRMED';
+
+    // Get team payment description
+    const getTeamDesc = () => {
+        if (!hasTeamEvent) return 'Join 1 Team Event';
+        if (isTeamPaid) return 'Team Leader Paid ✓';
+        return 'Waiting for Leader Payment';
+    };
 
     /* ... criteria definition ... */
     const criteria = [
@@ -19,8 +42,8 @@ export default function CriteriaProgress({ registrations }) {
         { id: 'technical', label: 'Technical', icon: <Cpu size={18} />, desc: 'Register for 1 Tech event' },
         { id: 'cultural', label: 'Cultural', icon: <Music size={18} />, desc: 'Register for 1 Cultural event' },
         { id: 'seminar', label: 'Seminar', icon: <Mic2 size={18} />, desc: 'Attend 1 Seminar' },
-        // Team Requirement
-        { id: 'team_participation', label: 'Team Player', icon: <Users size={18} />, desc: 'Join 1 Team Event' },
+        // Team Requirement - Dynamic description based on payment status
+        { id: 'team_participation', label: 'Team Player', icon: <Users size={18} />, desc: getTeamDesc() },
         // Days
         { id: 'Day 1', label: 'Day 1', icon: <Calendar size={18} />, desc: 'Event on Day 1' },
         { id: 'Day 2', label: 'Day 2', icon: <Calendar size={18} />, desc: 'Event on Day 2' },
@@ -28,7 +51,7 @@ export default function CriteriaProgress({ registrations }) {
     ];
 
     const filledCriteria = criteria.map(c => {
-        if (c.id === 'team_participation') return hasTeamEvent;
+        if (c.id === 'team_participation') return hasTeamEvent && isTeamPaid;
         if (c.id.startsWith('Day')) {
             const d = parseInt(c.id.split(' ')[1]);
             return days.has(d);
@@ -91,7 +114,7 @@ export default function CriteriaProgress({ registrations }) {
                             {criteria.map((item) => {
                                 let isDone = false;
                                 if (item.id === 'team_participation') {
-                                    isDone = hasTeamEvent;
+                                    isDone = hasTeamEvent && isTeamPaid; // Require both team AND payment
                                 } else if (item.id.startsWith('Day')) {
                                     const d = parseInt(item.id.split(' ')[1]);
                                     isDone = days.has(d);

@@ -151,49 +151,44 @@ export async function simulateMockPaymentAction(orderId: string) {
             // If team size is sufficient, confirm the team
             if (team.members.length >= minSize) {
                 team.status = TeamStatus.CONFIRMED;
-
-                // Update Slot Capacity (Only once for the team? Or per member?)
-                // Usually capacity is per-team for team events, or per-person?
-                // Logic above: `inc: { registeredCount: team.members.length }`
-                // If the slot counts *people*, we increment by length.
-                // If it counts *teams*, we increment by 1.
-                // Looking at delete logic: `inc: { teamsCount: -1 }`.
-                // It seems we track both?
-                // Let's stick to updating registeredCount (people) logic if that was original intent,
-                // but `teamsCount` is likely what we care about for 'duo'/'group' limits?
                 const Slot = (await import('@/models/Slot')).default;
-
-                // We should probably increment teamsCount logic if not done already.
-                // But previous code was `registeredCount: team.members.length`.
-                // I will keep `registeredCount` update for analytics, but `teamsCount` is important for capacity.
-                // Let's assume registration handles the initial `teamsCount` increment?
-                // Usually `registerForEventAction` increments counts when creating the team placeholder.
-                // If this is just CONFIRMING, do we increment now?
-                // If status was PENDING, maybe we didn't count it against cap?
-                // Let's check `getSlotsAction` to see what counts against cap.
-                // Original code: `await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });`
-                // This implies we ONLY count them when confirmed?
-                // Valid point. I will preserve existing logic but ensuring all members are paid.
-
                 await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
             }
             await team.save();
+
+            // Create registration records for ALL team members
+            const User = (await import('@/models/User')).default;
+            for (const member of team.members) {
+                const memberUser = await User.findById(member.userId);
+                if (!memberUser) continue;
+
+                await Registration.create({
+                    userId: memberUser._id,
+                    eventId,
+                    teamId,
+                    slotId,
+                    paymentId: payment._id,
+                    status: 'CONFIRMED',
+                    qrCodeHash: randomUUID(),
+                });
+            }
         }
     } else {
         // Update Slot Capacity
         const Slot = (await import('@/models/Slot')).default;
         await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
-    }
 
-    await Registration.create({
-        userId,
-        eventId,
-        teamId,
-        slotId,
-        paymentId: payment._id,
-        status: 'CONFIRMED',
-        qrCodeHash: randomUUID(),
-    });
+        // Create solo registration
+        await Registration.create({
+            userId,
+            eventId,
+            teamId,
+            slotId,
+            paymentId: payment._id,
+            status: 'CONFIRMED',
+            qrCodeHash: randomUUID(),
+        });
+    }
 
     return { success: true };
 }

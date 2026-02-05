@@ -58,54 +58,86 @@ export async function POST(req: NextRequest) {
 
             // Update Team Member Status if Team Event
             if (teamId) {
-                const team = await Team.findById(teamId);
+                const team = await Team.findById(teamId).populate('members.userId');
                 if (team) {
-                    const member = team.members.find((m: any) => m.userId.toString() === user._id.toString());
-                    if (member) {
-                        member.paymentStatus = TeamPaymentStatus.PAID;
-                        await team.save();
-                    }
+                    // Leader pays for everyone - mark ALL members as PAID
+                    team.members.forEach((m: any) => {
+                        m.paymentStatus = TeamPaymentStatus.PAID;
+                    });
 
-                    // Check if all paid
-                    const allPaid = team.members.every((m: any) => m.paymentStatus === TeamPaymentStatus.PAID);
                     const event = await Event.findById(eventId);
+                    const minSize = event?.minTeamSize || 2;
 
-                    if (allPaid && event && event.minTeamSize && team.members.length >= event.minTeamSize) {
+                    // If team size is sufficient, confirm the team
+                    if (team.members.length >= minSize) {
                         team.status = TeamStatus.CONFIRMED;
                         const Slot = (await import('@/models/Slot')).default;
                         await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
-                        await team.save();
                     }
+
+                    await team.save();
+
+                    // Generate Etamax IDs for all team members
+                    const { customAlphabet } = await import('nanoid');
+                    const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+
+                    // Create registration records for ALL team members
+                    for (const member of team.members) {
+                        const memberUser = await User.findById(member.userId);
+                        if (!memberUser) continue;
+
+                        const etamaxId = `ETAMAX-${nanoid()}`;
+
+                        await Registration.create({
+                            userId: memberUser._id,
+                            eventId,
+                            teamId,
+                            slotId,
+                            paymentId: payment._id,
+                            status: 'CONFIRMED',
+                            qrCodeHash: crypto.randomBytes(16).toString('hex'),
+                            etamaxId: etamaxId,
+                            fullName: memberUser.name,
+                            rollNumber: memberUser.rollNumber || 'N/A',
+                            email: memberUser.email,
+                            branch: memberUser.branch || 'N/A',
+                            semester: memberUser.semester || 'N/A',
+                            emailSent: false,
+                        });
+                    }
+
+                    // Send emails to all team members after all registrations are created
+                    // (Email sending logic will be handled below after the solo event block)
                 }
             } else {
                 // Solo Event: Directly Consume Slot
                 const Slot = (await import('@/models/Slot')).default;
                 await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
+
+                // Generate Etamax ID for solo registration
+                const { customAlphabet } = await import('nanoid');
+                const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+                const etamaxId = `ETAMAX-${nanoid()}`;
+
+                // Create Registration Record (Receipt Proof)
+                await Registration.create({
+                    userId: user._id,
+                    eventId,
+                    teamId,
+                    slotId,
+                    paymentId: payment._id,
+                    status: 'CONFIRMED',
+                    qrCodeHash: crypto.randomBytes(16).toString('hex'),
+                    etamaxId: etamaxId,
+                    // Profile Snapshot
+                    fullName: user.name,
+                    rollNumber: user.rollNumber || 'N/A',
+                    email: user.email,
+                    branch: user.branch || 'N/A',
+                    semester: user.semester || 'N/A',
+                    emailSent: false, // Default
+                });
             }
-
-            // Generate Etamax ID
-            const { customAlphabet } = await import('nanoid');
-            const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
-            const etamaxId = `ETAMAX-${nanoid()}`;
-
-            // Create Registration Record (Receipt Proof)
-            const registration = await Registration.create({
-                userId: user._id,
-                eventId,
-                teamId,
-                slotId,
-                paymentId: payment._id,
-                status: 'CONFIRMED',
-                qrCodeHash: crypto.randomBytes(16).toString('hex'),
-                etamaxId: etamaxId,
-                // Profile Snapshot
-                fullName: user.name,
-                rollNumber: user.rollNumber || 'N/A',
-                email: user.email,
-                branch: user.branch || 'N/A',
-                semester: user.semester || 'N/A',
-                emailSent: false, // Default
-            });
 
             // Send Success Email
             if (user.email) {
@@ -247,9 +279,16 @@ export async function POST(req: NextRequest) {
                     });
 
 
-                    // Update Email Sent Status
-                    registration.emailSent = true;
-                    await registration.save();
+                    // Update Email Sent Status for all registrations
+                    await Registration.updateMany(
+                        {
+                            userId: user._id,
+                            eventId,
+                            status: 'CONFIRMED',
+                            emailSent: false
+                        },
+                        { emailSent: true }
+                    );
 
                     console.log(`Success email sent to ${user.email} for confirmed events via ${selectedAccount.user}`);
                 } catch (emailErr) {

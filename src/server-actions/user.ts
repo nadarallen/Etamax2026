@@ -94,3 +94,69 @@ export async function getUserRegistrationsAction() {
         return { error: 'Failed to fetch registrations' };
     }
 }
+
+// Fetch team memberships where user hasn't received a registration yet (waiting for leader payment)
+export async function getPendingTeamMembershipsAction() {
+    const session = await getSession();
+    if (!session || !session.user?.id) return { error: 'Not authenticated' };
+
+    try {
+        await connectToDatabase();
+        const TeamModel = (await import('@/models/Team')).default;
+        const EventModel = (await import('@/models/Event')).default;
+        const SlotModel = (await import('@/models/Slot')).default;
+        const Registration = (await import('@/models/Registration')).default;
+
+        // Find teams where user is a member
+        const teams = await TeamModel.find({
+            'members.userId': session.user.id,
+            status: { $ne: 'CONFIRMED' } // Team not yet confirmed (leader hasn't paid)
+        })
+            .populate('eventId')
+            .populate('slotId')
+            .lean();
+
+        // Filter out teams where user already has a registration
+        const pendingMemberships = [];
+        for (const team of teams) {
+            const hasRegistration = await Registration.exists({
+                userId: session.user.id,
+                teamId: team._id
+            });
+
+            if (!hasRegistration && team.eventId) {
+                const event = team.eventId as any;
+                const slot = team.slotId as any;
+
+                pendingMemberships.push({
+                    _id: team._id.toString(),
+                    name: team.name,
+                    code: team.code,
+                    status: team.status,
+                    event: {
+                        _id: event._id.toString(),
+                        name: event.name,
+                        category: event.category,
+                        type: event.type,
+                        price: event.price,
+                    },
+                    slot: slot ? {
+                        _id: slot._id.toString(),
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        venue: slot.venue || 'TBD',
+                        dayNumber: slot.dayNumber,
+                    } : null,
+                    memberCount: team.members.length,
+                    leaderId: team.leaderId.toString(),
+                    isLeader: team.leaderId.toString() === session.user.id,
+                });
+            }
+        }
+
+        return { pendingMemberships };
+    } catch (error) {
+        console.error('Error fetching pending team memberships:', error);
+        return { error: 'Failed to fetch pending memberships' };
+    }
+}
