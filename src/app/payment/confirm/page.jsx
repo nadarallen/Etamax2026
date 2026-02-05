@@ -84,17 +84,22 @@ function PaymentConfirmContent() {
     const categories = new Set(activeRegs.map(r => r.event?.category?.toLowerCase()).filter(Boolean));
     const days = new Set(activeRegs.map(r => r.slot?.dayNumber).filter(Boolean));
 
-    // Check for team participation (required for eligibility)
+    // Check for team participation (for criteria tracking)
     const hasTeamEvent = activeRegs.some(r =>
         r.event?.type === 'group' &&
         r.team &&
         r.team.memberCount >= 1
     );
 
+    // Check if user has any group events registered (regardless of team status)
+    const hasGroupEventRegistration = activeRegs.some(r => r.event?.type === 'group');
+
     // Validate bypass code against environment variable
     const VALID_BYPASS_CODE = process.env.NEXT_PUBLIC_PAYMENT_BYPASS_CODE || 'BYPASS2026';
     const isBypassValid = bypassCode && bypassCode.trim() === VALID_BYPASS_CODE;
 
+    // Eligibility: Must have technical, cultural, seminar, and all 3 days
+    // Team requirement: Only if user has registered for a group event, they must be in a team
     const isEligible =
         (categories.has('technical') &&
             categories.has('cultural') &&
@@ -102,7 +107,7 @@ function PaymentConfirmContent() {
             days.has(1) &&
             days.has(2) &&
             days.has(3) &&
-            hasTeamEvent) || isBypassValid; // Team participation is now required
+            (!hasGroupEventRegistration || hasTeamEvent)) || isBypassValid; // If has group event, must have team
 
     // Helper function to calculate price for a registration
     // Team leaders pay full price, team members pay 0

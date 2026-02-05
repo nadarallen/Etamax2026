@@ -311,6 +311,60 @@ export async function POST(req: NextRequest) {
                 console.log(`Payment Failed: ${order_id}`);
 
                 const user = payment.userId as any;
+                const { eventId, slotId, teamId } = payment.metadata as any;
+
+                // CLEANUP: Delete registrations and revert changes
+                try {
+                    if (teamId) {
+                        // Team event failure - clean up all members
+                        const team = await Team.findById(teamId);
+                        if (team) {
+                            console.log(`Cleaning up team ${teamId} after payment failure`);
+
+                            // Delete all team member registrations created by this payment
+                            const deletedRegs = await Registration.deleteMany({
+                                teamId: teamId,
+                                paymentId: payment._id
+                            });
+                            console.log(`Deleted ${deletedRegs.deletedCount} team registrations`);
+
+                            // Revert team status to OPEN (unpaid state)
+                            team.status = TeamStatus.OPEN;
+
+                            // Mark all team members as PENDING (unpaid)
+                            team.members.forEach((m: any) => {
+                                m.paymentStatus = TeamPaymentStatus.PENDING;
+                            });
+                            await team.save();
+
+                            // Release slot capacity for entire team
+                            const Slot = (await import('@/models/Slot')).default;
+                            await Slot.findByIdAndUpdate(slotId, {
+                                $inc: { registeredCount: -team.members.length }
+                            });
+                            console.log(`Released slot capacity for ${team.members.length} team members`);
+                        }
+                    } else {
+                        // Solo event failure - clean up user's registration
+                        console.log(`Cleaning up solo registration for user ${user._id} after payment failure`);
+
+                        const deletedRegs = await Registration.deleteMany({
+                            userId: user._id,
+                            eventId: eventId,
+                            paymentId: payment._id
+                        });
+                        console.log(`Deleted ${deletedRegs.deletedCount} solo registration(s)`);
+
+                        // Release slot capacity
+                        const Slot = (await import('@/models/Slot')).default;
+                        await Slot.findByIdAndUpdate(slotId, {
+                            $inc: { registeredCount: -1 }
+                        });
+                        console.log(`Released slot capacity for solo event`);
+                    }
+                } catch (cleanupErr) {
+                    console.error('Error during payment failure cleanup:', cleanupErr);
+                }
 
                 // Send Failure Email
                 if (process.env.EMAIL_USER && process.env.EMAIL_PASS && user?.email) {
