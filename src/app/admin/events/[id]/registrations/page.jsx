@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { getEventRegistrationsAction } from '@/server-actions/events';
+import { getEventRegistrationsAction, getSlotsAction } from '@/server-actions/events';
 import { updateRegistrationStatusAction } from '@/server-actions/registration';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, RefreshCw, Search, Mail, User, Calendar, Filter, Crown } from 'lucide-react';
@@ -17,6 +17,10 @@ export default function EventRegistrationsPage({ params }) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [refreshing, setRefreshing] = useState(false);
+
+    // Slots for Export
+    const [slots, setSlots] = useState([]);
+    const [selectedSlot, setSelectedSlot] = useState('ALL');
 
     // Pagination State
     const [page, setPage] = useState(1);
@@ -36,59 +40,98 @@ export default function EventRegistrationsPage({ params }) {
 
     useEffect(() => {
         fetchData();
+        // Fetch Slots
+        async function loadSlots() {
+            const data = await getSlotsAction(id);
+            setSlots(data);
+        }
+        loadSlots();
+
         // Optional: Auto-refresh every 30 seconds
         const interval = setInterval(() => fetchData(), 30000);
         return () => clearInterval(interval);
     }, [id, page, statusFilter]);
 
     const downloadExport = async (format) => {
-        // Fetch ALL registrations (limit = 0)
-        let allRegs = registrations;
-        if (pagination && (pagination.total > registrations.length || statusFilter !== 'ALL')) {
-            const res = await getEventRegistrationsAction(id, 1, 0, statusFilter); // Limit 0 = fetch all, pass status
-            if (res.success) {
-                allRegs = res.registrations;
+        setLoading(true);
+        try {
+            // Fetch ALL registrations (limit = 0)
+            let allRegs = registrations;
+            if (pagination && (pagination.total > registrations.length || statusFilter !== 'ALL' || selectedSlot !== 'ALL')) {
+                // Always fetch fresh all data if filtered or paginated
+                const res = await getEventRegistrationsAction(id, 1, 0, statusFilter);
+                if (res.success) {
+                    allRegs = res.registrations;
+                }
             }
-        }
 
-        const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment'];
-        const data = allRegs.map(reg => [
-            reg.etamaxId || 'N/A',
-            reg.fullName,
-            reg.rollNumber,
-            reg.email,
-            reg.branch,
-            reg.semester,
-            reg.slotId ? `D${reg.slotId.dayNumber} ${reg.slotId.startTime}-${reg.slotId.endTime}` : 'Deleted',
-            reg.slotId?.venue || 'N/A',
-            reg.status,
-            reg.paymentMethod || 'Online'
-        ]);
+            // FILTER BY SLOT
+            if (selectedSlot !== 'ALL') {
+                allRegs = allRegs.filter(r => r.slotId?._id === selectedSlot);
+            }
 
-        if (format === 'csv') {
-            const csvContent = [
-                headers.join(','),
-                ...data.map(e => e.join(','))
-            ].join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `registrations-${id}.csv`;
-            link.click();
-        }
-        else if (format === 'pdf') {
-            doc.text("Event Registrations", 14, 15);
-            doc.setFontSize(10);
-            doc.text(`Total: ${allRegs.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
+            const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment', 'Signature'];
+            const data = allRegs.map(reg => [
+                reg.etamaxId || 'N/A',
+                reg.fullName,
+                reg.rollNumber,
+                reg.email,
+                reg.branch,
+                reg.semester,
+                reg.slotId ? `D${reg.slotId.dayNumber} ${reg.slotId.startTime}` : 'Deleted',
+                reg.slotId?.venue || 'N/A',
+                reg.status,
+                reg.paymentMethod || 'Online',
+                '' // Signature
+            ]);
 
-            doc.autoTable({
-                startY: 25,
-                head: [headers],
-                body: data,
-                styles: { fontSize: 8 },
-                headStyles: { fillColor: [41, 128, 185] },
-            });
-            doc.save(`registrations-${id}.pdf`);
+            const filename = `attendance-${id}-${selectedSlot !== 'ALL' ? 'slot-' + selectedSlot : 'all'}`;
+
+            if (format === 'csv') {
+                const csvContent = [
+                    headers.join(','),
+                    ...data.map(e => e.join(','))
+                ].join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${filename}.csv`;
+                link.click();
+            }
+            else if (format === 'pdf') {
+                const jsPDF = (await import('jspdf')).default;
+                const autoTable = (await import('jspdf-autotable')).default;
+
+                const doc = new jsPDF();
+                doc.text("Event Attendance Sheet", 14, 15);
+                doc.setFontSize(10);
+                doc.text(`Total: ${allRegs.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
+
+                if (selectedSlot !== 'ALL') {
+                    const s = slots.find(s => s._id === selectedSlot);
+                    if (s) doc.text(`Slot: Day ${s.dayNumber} [${s.startTime} - ${s.endTime}] @ ${s.venue}`, 14, 28);
+                } else {
+                    doc.text("Slot: ALL SLOTS", 14, 28);
+                }
+
+                autoTable(doc, {
+                    startY: 35,
+                    head: [headers],
+                    body: data,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [41, 128, 185] },
+                    columnStyles: {
+                        10: { minCellWidth: 30 } // Signature column width
+                    }
+                });
+                doc.save(`${filename}.pdf`);
+            }
+        } catch (error) {
+            console.error("Export failed", error);
+            alert("Export failed: " + error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -133,7 +176,21 @@ export default function EventRegistrationsPage({ params }) {
                     </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                    {/* Slot Filter Dropdown */}
+                    <select
+                        value={selectedSlot}
+                        onChange={(e) => setSelectedSlot(e.target.value)}
+                        className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors"
+                    >
+                        <option value="ALL">Export All Slots</option>
+                        {slots.map(s => (
+                            <option key={s._id} value={s._id}>
+                                Day {s.dayNumber}: {s.startTime} ({s.venue})
+                            </option>
+                        ))}
+                    </select>
+
                     <button
                         onClick={fetchData}
                         disabled={refreshing}
@@ -143,10 +200,16 @@ export default function EventRegistrationsPage({ params }) {
                         {refreshing ? 'Refreshing...' : 'Refresh'}
                     </button>
                     <button
+                        onClick={() => downloadExport('pdf')}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
+                    >
+                        <Download size={16} /> PDF
+                    </button>
+                    <button
                         onClick={() => downloadExport('csv')}
                         className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg hover:bg-green-500/20 transition-colors"
                     >
-                        <Download size={16} /> Export CSV
+                        <Download size={16} /> CSV
                     </button>
                 </div>
             </div>

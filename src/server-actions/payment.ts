@@ -5,7 +5,7 @@ import connectToDatabase from '@/lib/db';
 import Payment, { PaymentStatus, PaymentMethod } from '@/models/Payment';
 import Event from '@/models/Event';
 import Team, { TeamStatus, PaymentStatus as TeamPaymentStatus } from '@/models/Team';
-import Registration from '@/models/Registration';
+import Registration, { RegStatus } from '@/models/Registration';
 import { getSession } from '@/lib/auth';
 import { randomUUID } from 'crypto';
 
@@ -196,4 +196,43 @@ export async function simulateMockPaymentAction(orderId: string) {
     });
 
     return { success: true };
+}
+
+// Prompt 31: Handle Payment Failure (Cleanup)
+export async function handlePaymentFailure(registrationIds: string[]) {
+    const session = await getSession();
+    if (!session || !session.user.id) return { error: "Unauthorized" };
+
+    try {
+        await connectToDatabase();
+
+        // Use top-level imports or dynamic if preferred, but for Enum we need the value.
+        // Since we imported Registration at top, let's use it.
+        const Slot = (await import('@/models/Slot')).default;
+
+        const registrations = await Registration.find({
+            _id: { $in: registrationIds },
+            userId: session.user.id,
+            status: { $ne: RegStatus.CONFIRMED }
+        }).populate('slotId');
+
+        if (registrations.length === 0) {
+            return { success: true, message: "No pending registrations found to cancel." };
+        }
+
+        for (const reg of registrations) {
+            if (reg.slotId) {
+                await Slot.findByIdAndUpdate(reg.slotId._id, { $inc: { registeredCount: -1 } });
+            }
+
+            reg.status = RegStatus.CANCELLED;
+            await reg.save();
+        }
+
+        return { success: true, cancelledCount: registrations.length };
+
+    } catch (error) {
+        console.error("Payment Failure Cleanup Error:", error);
+        return { error: "Cleanup failed" };
+    }
 }

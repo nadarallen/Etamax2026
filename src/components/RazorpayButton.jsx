@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { loadRazorpay } from '@/utils/razorpay';
 import { Loader2, CreditCard } from 'lucide-react';
+import { handlePaymentFailure } from '@/server-actions/payment';
 
 export default function RazorpayButton({ amount, onSuccess, userDetails, eventDetails, className }) {
     const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +44,28 @@ export default function RazorpayButton({ amount, onSuccess, userDetails, eventDe
             name: 'ETAMAX 2026',
             description: `Payment for ${eventDetails.name}`,
             order_id: order.id,
+            modal: {
+                ondismiss: async () => {
+                    // Payment Dismissed - Cleanup Logic
+                    console.log("Payment Dismissed by User. Cleaning up...");
+
+                    let regIds = [];
+                    try {
+                        if (order.notes && order.notes.regIds) {
+                            regIds = JSON.parse(order.notes.regIds);
+                        }
+                    } catch (e) { console.error("Could not parse regIds from notes", e); }
+
+                    if (regIds.length > 0) {
+                        const res = await handlePaymentFailure(regIds);
+                        if (res.success) {
+                            alert("Payment Cancelled. Slot booking released.");
+                            // Optional: Refresh page or update UI state?
+                            window.location.reload();
+                        }
+                    }
+                }
+            },
             handler: async function (response) {
                 // Verify Payment
                 const verifyRes = await fetch('/api/payments/razorpay/verify', {

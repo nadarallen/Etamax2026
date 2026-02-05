@@ -86,6 +86,9 @@ export default function ProfilePage() {
         return <div className="min-h-screen pt-24 text-center text-white">Loading profile...</div>;
     }
 
+    // Safety check: If not loading but user is missing (e.g. during redirect), return null/nothing
+    if (!user) return null;
+
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-5xl mx-auto">
             <Link href="/events" className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors">
