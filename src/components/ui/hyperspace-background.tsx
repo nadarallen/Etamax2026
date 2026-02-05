@@ -59,8 +59,18 @@ export function HyperspaceBackground({
     const resizeCanvas = () => {
       const container = canvas.parentElement
       if (container) {
-        canvas.width = container.offsetWidth
-        canvas.height = container.offsetHeight
+        // Prevent resize on mobile scroll (address bar toggle) OR keyboard open
+        // If width hasn't changed, we assume it's just a vertical UI shift (keyboard/address bar)
+        // resizing height clears the canvas and causes a flash, which is distracting during typing.
+        const newWidth = container.offsetWidth
+        const newHeight = container.offsetHeight
+
+        if (canvas.width === newWidth) {
+          return;
+        }
+
+        canvas.width = newWidth
+        canvas.height = newHeight
       }
     }
 
@@ -104,7 +114,7 @@ export function HyperspaceBackground({
         const travelled =
           Math.random() > 0.5
             ? Math.random() * Math.max(canvas.width, canvas.height) +
-              Math.random() * (canvas.width * 0.24)
+            Math.random() * (canvas.width * 0.24)
             : Math.random() * (canvas.width * 0.25)
 
         this.state = {

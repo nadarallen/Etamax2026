@@ -61,21 +61,21 @@ export default function AboutUsModal({ isOpen, onClose }) {
                         <h4 className="text-sm font-bold text-galaxy-accent uppercase tracking-wider mb-3 px-1 mt-6">Meet the Team</h4>
                         <div className="grid grid-cols-2 gap-2">
                             {[
-                                { name: "Allen Salmo", link: "https://www.instagram.com/allensalmo?igsh=emkydWFiemVxbG55", highlight: true },
-                                { name: "Akshat Sawant", link: "https://www.instagram.com/curlyoffroader?igsh=cTllazRnYXVid3o0" },
-                                { name: "Ronit Sinkar", link: "https://www.instagram.com/ronitsinkar._?igsh=d2xlanNxamN0ODh3" },
-                                { name: "Vishal Gangaji", link: "https://www.instagram.com/vishal_gangaji?igsh=NHd5bm1weTlkdHpr" },
-                                { name: "Shloka Karbhajan", link: "https://www.instagram.com/shloka_karbhajan?igsh=MTE2YnJ1aGo2N252dw==" },
-                                { name: "Ivan Thomas", link: "https://www.instagram.com/__.ivann45.__?igsh=MWdubWM0dmtnaG03NA==" },
-                                { name: "Prachi Pawar", link: "https://www.instagram.com/_.prachi._.11._?igsh=MWtyN3JjeWV0NW95NA==" },
-                                { name: "Arya Nikam", link: "https://www.instagram.com/arya_2317?igsh=MmRoOXlyMW1pZWVo" },
-                                { name: "Aakash Bhoyar", link: "https://www.instagram.com/aakashh.ig?igsh=MWdsZWw5Z2s2a3Zobg==" },
-                                { name: "Mrunmayee Tamse", link: "https://www.instagram.com/mrunmayee_072?igsh=MTFyOHBmdGQ3NzA4aA==" },
-                                { name: "Aman Chauhan", link: "https://www.instagram.com/thakuraman0003?igsh=cjg2OHpxZmd6ZWF1" },
-                                { name: "Sejal Pawar", link: "https://www.instagram.com/sej_1005?igsh=eWE1Y2V6bzJhbHYz" },
-                                { name: "Arpita Pawar", link: "https://www.instagram.com/arpitawhatever?igsh=MXRyd29oMm53cm1scw==" },
-                                { name: "Shreenidha Panagaden", link: "https://www.instagram.com/shreenidha_05?igsh=MTV5eWttejQ5eTYwaQ==" },
-                                { name: "Joel Joseph", link: "https://www.instagram.com/iamcherian14?igsh=MTZ5NjZ1Ym9vZ3Bydw==" }
+                                { name: "Akshat Sawant", link: "https://www.instagram.com/curlyoffroader" },
+                                { name: "Ronit Sinkar", link: "https://www.instagram.com/ronitsinkar._" },
+                                { name: "Vishal Gangaji", link: "https://www.instagram.com/vishal_gangaji" },
+                                { name: "Allen Salmo", link: "https://www.instagram.com/allensalmo" },
+                                { name: "Shloka Karbhajan", link: "https://www.instagram.com/shloka_karbhajan" },
+                                { name: "Ivan Thomas", link: "https://www.instagram.com/__.ivann45.__" },
+                                { name: "Prachi Pawar", link: "https://www.instagram.com/_.prachi._.11._" },
+                                { name: "Arya Nikam", link: "https://www.instagram.com/arya_2317" },
+                                { name: "Aakash Bhoyar", link: "https://www.instagram.com/aakashh.ig" },
+                                { name: "Mrunmayee Tamse", link: "https://www.instagram.com/mrunmayee_072" },
+                                { name: "Aman Chauhan", link: "https://www.instagram.com/thakuraman0003" },
+                                { name: "Sejal Pawar", link: "https://www.instagram.com/sej_1005" },
+                                { name: "Arpita Pawar", link: "https://www.instagram.com/arpitawhatever" },
+                                { name: "Shreenidha Panagaden", link: "https://www.instagram.com/shreenidha_05" },
+                                { name: "Joel Joseph", link: "https://www.instagram.com/iamcherian14" }
                             ].map((member, idx) => (
                                 <a
                                     key={idx}
