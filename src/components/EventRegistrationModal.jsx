@@ -445,6 +445,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                     </select>
                                 </div>
                             </div>
+
+
                         </div>
 
                         {regState?.error && (

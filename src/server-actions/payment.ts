@@ -157,9 +157,9 @@ export async function simulateMockPaymentAction(orderId: string, shouldSucceed: 
                     // Release slot capacity for entire team
                     const Slot = (await import('@/models/Slot')).default;
                     await Slot.findByIdAndUpdate(slotId, {
-                        $inc: { registeredCount: -team.members.length }
+                        $inc: { teamsCount: -1 }
                     });
-                    console.log(`Released slot capacity for ${team.members.length} team members`);
+                    console.log(`Released slot capacity for 1 team`);
                 }
             } else {
                 // Solo event failure - clean up user's registration
@@ -217,7 +217,8 @@ export async function simulateMockPaymentAction(orderId: string, shouldSucceed: 
             if (team.members.length >= minSize) {
                 team.status = TeamStatus.CONFIRMED;
                 const Slot = (await import('@/models/Slot')).default;
-                await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
+                // For team events, increment teamsCount (not registeredCount)
+                await Slot.findByIdAndUpdate(slotId, { $inc: { teamsCount: 1 } });
             }
             await team.save();
 

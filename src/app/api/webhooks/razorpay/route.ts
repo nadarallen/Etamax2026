@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
                     if (team.members.length >= minSize) {
                         team.status = TeamStatus.CONFIRMED;
                         const Slot = (await import('@/models/Slot')).default;
-                        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
+                        // For team events, increment teamsCount (not registeredCount)
+                        await Slot.findByIdAndUpdate(slotId, { $inc: { teamsCount: 1 } });
                     }
 
                     await team.save();
@@ -142,26 +143,13 @@ export async function POST(req: NextRequest) {
             // Send Success Email
             if (user.email) {
                 try {
-                    // --- Master Receipt Logic ---
+                    // --- Check Criteria for Email Customization ---
                     const { checkCriteria } = await import('@/lib/criteria');
                     const { met: criteriaMet, pending } = await checkCriteria(user._id.toString());
 
                     console.log(`Webhook Criteria Check for ${user._id}: ${criteriaMet ? 'MET' : 'PENDING'}`, pending);
 
-                    if (!criteriaMet) {
-                        console.log(`Criteria Not Met for ${user.email}. Suppressing email.`);
-                        // Still mark as 'sent' on registration? 
-                        // Actually, if we suppress, we probably want to send it LATER when criteria IS met.
-                        // But our logic only checks on current trigger. 
-                        // However, if we mark it as 'emailSent=true' here, we might lose tracking.
-                        // But since the webhook is the *event* of payment, and the user said "no mail", we just skip.
-                        // When they pay for the LAST event, this webhook triggers again, finds criteriaMet=true, and sends email with ALL events.
-                        // So we don't need to track 'pending' email state, just always recalculate on trigger.
-
-                        return NextResponse.json({ status: "ok" });
-                    }
-
-                    // Fetch ALL confirmed registrations for this user to send a consolidated receipt
+                    // Fetch ALL confirmed registrations for this user
                     const allConfirmedRegs = await Registration.find({
                         userId: user._id,
                         status: 'CONFIRMED'
@@ -187,9 +175,8 @@ export async function POST(req: NextRequest) {
                             dateStr = dayMap[slt.dayNumber] || `Day ${slt.dayNumber}`;
                         }
 
-                        // Criteria met, so show link
-                        // ONLY SLOT LINK
-                        const finalWaLink = slt?.whatsappLink;
+                        // Show WhatsApp link ONLY if criteria are met
+                        const finalWaLink = criteriaMet ? slt?.whatsappLink : null;
 
                         const waLink = finalWaLink
                             ? `<a href="${finalWaLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`
@@ -222,75 +209,134 @@ export async function POST(req: NextRequest) {
                     // Pick random account to distribute load
                     const selectedAccount = accounts[Math.floor(Math.random() * accounts.length)];
 
-                    const transporter = nodemailer.createTransport({
-                        service: 'gmail',
-                        auth: { user: selectedAccount.user, pass: selectedAccount.pass },
-                    });
+                    // Detect if Gmail or Hostinger based on email domain
+                    const isGmail = selectedAccount.user.includes('@gmail.com');
 
-                    const criteriaMessage = `<div style="margin-top: 20px; padding: 15px; background-color: #f0fff4; border: 1px solid #b2f5ea; border-radius: 6px;">
+                    const transporter = nodemailer.createTransport(
+                        isGmail
+                            ? {
+                                service: 'gmail',
+                                auth: { user: selectedAccount.user, pass: selectedAccount.pass },
+                            }
+                            : {
+                                host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+                                port: Number(process.env.EMAIL_PORT) || 465,
+                                secure: process.env.EMAIL_SECURE === 'true' || true,
+                                auth: { user: selectedAccount.user, pass: selectedAccount.pass },
+                            }
+                    );
+
+                    // Customize message based on criteria status
+                    const criteriaMessage = criteriaMet
+                        ? `<div style="margin-top: 20px; padding: 15px; background-color: #f0fff4; border: 1px solid #b2f5ea; border-radius: 6px;">
                             <p style="margin: 0; font-size: 14px; color: #2e7d32;">
                                 <strong>✅ Congratulations!</strong> You have fulfilled all participation criteria. Please join the WhatsApp groups above.
                             </p>
+                        </div>`
+                        : `<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;">
+                            <p style="margin: 0; font-size: 14px; color: #856404;">
+                                <strong>⏳ Criteria Pending</strong><br/>
+                                To access WhatsApp groups, you need:<br/>
+                                ${pending.map((p: string) => `• ${p}`).join('<br/>')}
+                            </p>
                         </div>`;
 
-                    await transporter.sendMail({
-                        from: '"Etamax 2026" <' + selectedAccount.user + '>',
-                        to: user.email,
-                        subject: `🎉 All Criteria Met! here is your Master Receipt ✅`,
-                        html: `
-                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-                                <div style="background-color: #28a745; color: white; padding: 20px; text-align: center;">
-                                    <h1 style="margin: 0; font-size: 24px;">All Set! 🎉</h1>
-                                </div>
-                                <div style="padding: 20px;">
-                                    <p style="font-size: 16px;">Hello <strong>${user.name}</strong>,</p>
-                                    <p style="font-size: 16px;">Your payment was successful. Here is your updated list of confirmed events:</p>
-                                    
-                                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                                        <thead>
-                                            <tr style="background-color: #f8f9fa; text-align: left;">
-                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Event</th>
-                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">Date/Time</th>
-                                                <th style="padding: 10px; border-bottom: 2px solid #ddd;">WhatsApp</th>
-                                                <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${eventRows}
-                                            <tr style="font-weight: bold; background-color: #f8f9fa;">
-                                                <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
-                                                <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                    const emailSubject = criteriaMet
+                        ? `🎉 All Criteria Met! Here is your Master Receipt ✅`
+                        : `✅ Payment Confirmed - ${allConfirmedRegs.length} Event(s) Registered`;
 
-                                    ${criteriaMessage}
-                                    
-                                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-                                    
-                                    <p style="font-size: 12px; color: #999; text-align: center;">
-                                        <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
-                                    </p>
+                    const headerColor = criteriaMet ? '#28a745' : '#6d28d9';
+                    const headerText = criteriaMet ? 'All Set! 🎉' : 'Payment Successful! ✅';
 
-                                    <p style="font-size: 14px; color: #777;">Thank you for your participation!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>
-                                </div>
-                            </div>
-                        `
-                    });
+                    let emailSent = false;
+                    let lastError = null;
 
+                    for (const account of accounts) {
+                        try {
+                            console.log(`Attempting to send email via ${account.user}...`);
+
+                            const isGmail = account.user.includes('@gmail.com');
+                            const transporter = nodemailer.createTransport(
+                                isGmail
+                                    ? { service: 'gmail', auth: { user: account.user, pass: account.pass } }
+                                    : {
+                                        host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+                                        port: Number(process.env.EMAIL_PORT) || 465,
+                                        secure: process.env.EMAIL_SECURE === 'true' || true,
+                                        auth: { user: account.user, pass: account.pass },
+                                    }
+                            );
+
+                            await transporter.sendMail({
+                                from: '"Etamax 2026" <' + account.user + '>',
+                                to: user.email,
+                                subject: emailSubject,
+                                html: `
+                                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                        <div style="background-color: ${headerColor}; color: white; padding: 20px; text-align: center;">
+                                            <h1 style="margin: 0; font-size: 24px;">${headerText}</h1>
+                                        </div>
+                                        <div style="padding: 20px;">
+                                            <p style="font-size: 16px;">Hello <strong>${user.name}</strong>,</p>
+                                            <p style="font-size: 16px;">Your payment was successful. Here is your updated list of confirmed events:</p>
+                                            
+                                            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                                                <thead>
+                                                    <tr style="background-color: #f8f9fa; text-align: left;">
+                                                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">Event</th>
+                                                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">Date/Time</th>
+                                                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">WhatsApp</th>
+                                                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${eventRows}
+                                                    <tr style="font-weight: bold; background-color: #f8f9fa;">
+                                                        <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
+                                                        <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+
+                                            ${criteriaMessage}
+                                            
+                                            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                                            
+                                            <p style="font-size: 12px; color: #999; text-align: center;">
+                                                <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
+                                            </p>
+
+                                            <p style="font-size: 14px; color: #777;">Thank you for your participation!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>
+                                        </div>
+                                    </div>
+                                `
+                            });
+
+                            console.log(`✅ Email sent successfully via ${account.user}`);
+                            emailSent = true;
+                            break;
+                        } catch (err) {
+                            console.error(`❌ Failed to send via ${account.user}:`, err);
+                            lastError = err;
+                        }
+                    }
+
+                    if (!emailSent) {
+                        console.error("All email accounts failed. Last error:", lastError);
+                    }
 
                     // Update Email Sent Status for all registrations
-                    await Registration.updateMany(
-                        {
-                            userId: user._id,
-                            eventId,
-                            status: 'CONFIRMED',
-                            emailSent: false
-                        },
-                        { emailSent: true }
-                    );
-
-                    console.log(`Success email sent to ${user.email} for confirmed events via ${selectedAccount.user}`);
+                    if (emailSent) {
+                        await Registration.updateMany(
+                            {
+                                userId: user._id,
+                                eventId,
+                                status: 'CONFIRMED',
+                                emailSent: false
+                            },
+                            { emailSent: true }
+                        );
+                    }
                 } catch (emailErr) {
                     console.error("Failed to send success email:", emailErr);
                 }
@@ -340,9 +386,9 @@ export async function POST(req: NextRequest) {
                             // Release slot capacity for entire team
                             const Slot = (await import('@/models/Slot')).default;
                             await Slot.findByIdAndUpdate(slotId, {
-                                $inc: { registeredCount: -team.members.length }
+                                $inc: { teamsCount: -1 }
                             });
-                            console.log(`Released slot capacity for ${team.members.length} team members`);
+                            console.log(`Released slot capacity for 1 team`);
                         }
                     } else {
                         // Solo event failure - clean up user's registration

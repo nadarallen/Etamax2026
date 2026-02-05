@@ -121,7 +121,7 @@ export default function EventsPage() {
                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/10 hover:bg-galaxy-purple/20 text-white hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/20 flex-1 md:flex-none"
                             >
                                 <User size={18} />
-                                <span className="font-medium text-sm whitespace-nowrap text-white">My Profile</span>
+                                <span className="font-medium text-sm whitespace-nowrap text-white">Confirm Payment</span>
                             </Link>
                             <button
                                 onClick={async () => await logoutAction()}

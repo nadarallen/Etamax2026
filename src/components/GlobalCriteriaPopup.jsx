@@ -105,7 +105,7 @@ export default function GlobalCriteriaPopup() {
                             onClick={() => window.location.href = '/profile'}
                             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold transition-all shadow-lg shadow-green-500/25 active:scale-95 flex items-center justify-center gap-2 group"
                         >
-                            <span>Go to My Profile</span>
+                            <span>Go to Confirm Payment</span>
                             <Users size={18} className="group-hover:translate-x-1 transition-transform" />
                         </button>
 

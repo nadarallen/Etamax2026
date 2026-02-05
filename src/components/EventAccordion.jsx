@@ -45,17 +45,20 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay, onE
                             {(() => {
                                 const activeSlot = event.slots?.find(s => s.dayNumber === activeDay);
                                 if (activeSlot) {
-                                    const registered = activeSlot.registeredCount || 0;
+                                    // For team events (group/duo), use teamsCount; for solo, use registeredCount
+                                    const isTeamEvent = event.type === 'group' || event.type === 'duo';
+                                    const registered = isTeamEvent ? (activeSlot.teamsCount || 0) : (activeSlot.registeredCount || 0);
                                     const capacity = activeSlot.maxCapacity || 0;
                                     const percentFilled = capacity > 0 ? (registered / capacity) * 100 : 0;
                                     const isAlmostFull = percentFilled >= 80;
                                     const isFull = registered >= capacity;
+                                    const label = isTeamEvent ? 'teams' : 'seats';
 
                                     return (
                                         <>
                                             <span>•</span>
                                             <span className={`font-semibold ${isFull ? 'text-red-400' : isAlmostFull ? 'text-yellow-400' : 'text-green-400'}`}>
-                                                {registered}/{capacity} seats
+                                                {registered}/{capacity} {label}
                                             </span>
                                         </>
                                     );
@@ -98,27 +101,30 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay, onE
                                 {(() => {
                                     const activeSlot = event.slots?.find(s => s.dayNumber === activeDay);
                                     if (activeSlot) {
-                                        const registered = activeSlot.registeredCount || 0;
+                                        // For team events (group/duo), use teamsCount; for solo, use registeredCount
+                                        const isTeamEvent = event.type === 'group' || event.type === 'duo';
+                                        const registered = isTeamEvent ? (activeSlot.teamsCount || 0) : (activeSlot.registeredCount || 0);
                                         const capacity = activeSlot.maxCapacity || 0;
                                         const percentFilled = capacity > 0 ? (registered / capacity) * 100 : 0;
                                         const isAlmostFull = percentFilled >= 80;
                                         const isFull = registered >= capacity;
+                                        const label = isTeamEvent ? 'Teams' : 'Seats';
 
                                         return (
                                             <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-2 rounded-lg border border-white/5">
-                                                <span className="text-gray-400 font-medium">Seats:</span>
+                                                <span className="text-gray-400 font-medium">{label}:</span>
                                                 <div className="flex-1 bg-black/40 rounded-full h-2 overflow-hidden">
                                                     <div
                                                         className={`h-full transition-all duration-500 ${isFull ? 'bg-red-500' :
-                                                                isAlmostFull ? 'bg-yellow-500' :
-                                                                    'bg-green-500'
+                                                            isAlmostFull ? 'bg-yellow-500' :
+                                                                'bg-green-500'
                                                             }`}
                                                         style={{ width: `${Math.min(percentFilled, 100)}%` }}
                                                     />
                                                 </div>
                                                 <span className={`font-bold ${isFull ? 'text-red-400' :
-                                                        isAlmostFull ? 'text-yellow-400' :
-                                                            'text-green-400'
+                                                    isAlmostFull ? 'text-yellow-400' :
+                                                        'text-green-400'
                                                     }`}>
                                                     {registered}/{capacity}
                                                 </span>

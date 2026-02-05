@@ -12,7 +12,7 @@ import { sendEmail } from '@/lib/email';
 const RegisterSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
-
+    phone: z.string().min(1, 'Phone number is required').transform(val => val.replace(/\D/g, '')).refine(val => val.length === 10, 'Phone number must be exactly 10 digits'),
     rollNumber: z.string().optional(), // Optional in Zod, enforced logically
     branch: z.string().optional(),
     semester: z.string().optional(),
@@ -36,7 +36,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         return { error: (parsed.error as any).errors[0].message };
     }
 
-    const { name, email, rollNumber, branch, semester } = parsed.data;
+    const { name, email, phone, rollNumber, branch, semester } = parsed.data;
 
     try {
         await connectToDatabase();
@@ -77,6 +77,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         const newUser = await User.create({
             name,
             email,
+            phone,
             passwordHash,
             generatedPassword,
             role,

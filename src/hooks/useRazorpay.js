@@ -163,6 +163,10 @@ export default function useRazorpay() {
                 modal: {
                     ondismiss: () => {
                         setIsProcessing(false);
+                        // Notify user that payment was cancelled
+                        if (onError) {
+                            onError(new Error('Payment cancelled. You can retry from your profile page.'));
+                        }
                     }
                 }
             };
