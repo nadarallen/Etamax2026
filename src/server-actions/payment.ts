@@ -21,6 +21,18 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
         const event = await Event.findById(eventId);
         if (!event) return { error: "Event not found" };
 
+        // Checks for Team Event Payment Logic
+        if (teamId) {
+            const Team = (await import('@/models/Team')).default;
+            const team = await Team.findById(teamId);
+            if (!team) return { error: "Team not found" };
+
+            // Check if user is Leader
+            if (team.leaderId.toString() !== session.user.id) {
+                return { error: "Only the Team Leader can make payments for the team." };
+            }
+        }
+
         // Fetch User for Roll No
         const User = (await import('@/models/User')).default;
         const userDoc = await User.findById(session.user.id);

@@ -194,8 +194,67 @@ const getEventsCached = unstable_cache(
 
 export async function getEventsAction() {
     try {
-        const events = await getEventsCached();
-        return JSON.parse(JSON.stringify(events));
+        // Bypass Cache for Debugging
+        await connectToDatabase();
+        const Registration = (await import('@/models/Registration')).default;
+
+        // Copied logic from cached function to run fresh
+        const events = await Event.find({ isPublished: true }).sort({ createdAt: -1 }).lean();
+        const allSlots = await Slot.find({}).lean();
+
+        // ... (We need to replicate the aggregation logic or just move the inner function out)
+        // Better: Export the inner function as valid variable from this scope?
+        // Let's just redefine the internal function execution here to be safe and quick.
+
+        const regCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' } } },
+            { $group: { _id: "$slotId", count: { $sum: 1 } } }
+        ]);
+
+        const teamCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
+            { $group: { _id: "$eventId", teams: { $addToSet: "$teamId" } } },
+            { $project: { _id: 1, count: { $size: "$teams" } } }
+        ]);
+
+        const regCountMap = new Map(regCounts.map((r: any) => [r._id.toString(), r.count]));
+        const teamCountMap = new Map(teamCounts.map((r: any) => [r._id.toString(), r.count]));
+
+        const slotTeamCounts = await Registration.aggregate([
+            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
+            { $group: { _id: "$slotId", teams: { $addToSet: "$teamId" } } },
+            { $project: { _id: 1, count: { $size: "$teams" } } }
+        ]);
+        const slotTeamCountMap = new Map(slotTeamCounts.map((r: any) => [r._id.toString(), r.count]));
+
+        const eventsWithStats = events.map((ev: any) => {
+            const evSlots = allSlots.filter((s: any) => s.eventId.toString() === ev._id.toString());
+            const slotsWithCounts = evSlots.map((slot: any) => ({
+                ...slot,
+                registeredCount: regCountMap.get(slot._id.toString()) || 0,
+                teamsCount: slotTeamCountMap.get(slot._id.toString()) || 0
+            }));
+
+            const totalCapacity = slotsWithCounts.reduce((acc: number, s: any) => acc + s.maxCapacity, 0);
+            const totalRegistered = slotsWithCounts.reduce((acc: number, s: any) => acc + s.registeredCount, 0);
+            const totalTeams = teamCountMap.get(ev._id.toString()) || 0;
+            const activeDays = [...new Set(slotsWithCounts.map((s: any) => s.dayNumber))];
+
+            return {
+                ...ev,
+                stats: {
+                    totalCapacity,
+                    totalRegistered,
+                    totalTeams,
+                    slotsCount: slotsWithCounts.length
+                },
+                activeDays,
+                slots: slotsWithCounts
+            };
+        });
+
+        // const events = await getEventsCached();
+        return JSON.parse(JSON.stringify(eventsWithStats));
     } catch (error) {
         console.error('Fetch Events Error:', error);
         return [];
