@@ -16,6 +16,8 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [bypassCode, setBypassCode] = useState('');
+    const [isAdminOpen, setIsAdminOpen] = useState(false);
 
     const activeRegs = registrations.filter(r => r.status && r.status !== 'CANCELLED');
 
@@ -132,7 +134,7 @@ export default function ProfilePage() {
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-2">Complete Registration</h2>
-                            {isEligible ? (
+                            {(isEligible || bypassCode) ? (
                                 <div>
                                     <p className="text-gray-300 mb-2">
                                         You have fulfilled all participation criteria!
@@ -161,32 +163,61 @@ export default function ProfilePage() {
                             )}
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            {isEligible ? (
-                                <>
-                                    <Link href="/payment/confirm" className="w-full md:w-auto">
-                                        <button className="w-full cursor-pointer bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-95 flex flex-col items-center leading-none py-2 gap-1">
-                                            <span>Pay Online Now</span>
-                                            {(() => {
-                                                const amt = activeRegs
-                                                    .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
-                                                    .reduce((sum, r) => sum + (r.event?.price || 0), 0);
-                                                if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
-                                            })()}
+                        <div className="flex flex-col gap-3 w-full md:w-auto">
+                            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                                {(isEligible || bypassCode) ? (
+                                    <>
+                                        <Link
+                                            href={bypassCode ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
+                                            className="w-full md:w-auto"
+                                        >
+                                            <button className="w-full cursor-pointer bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-95 flex flex-col items-center leading-none py-2 gap-1">
+                                                <span>Pay Online Now</span>
+                                                {(() => {
+                                                    const amt = activeRegs
+                                                        .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
+                                                        .reduce((sum, r) => sum + (r.event?.price || 0), 0);
+                                                    if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
+                                                })()}
+                                            </button>
+                                        </Link>
+                                        <button
+                                            onClick={() => setShowOfflineModal(true)}
+                                            className="w-full md:w-auto cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/10 transition-all active:scale-95"
+                                        >
+                                            Pay Offline
                                         </button>
-                                    </Link>
-                                    <button
-                                        onClick={() => setShowOfflineModal(true)}
-                                        className="w-full md:w-auto cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/10 transition-all active:scale-95"
-                                    >
-                                        Pay Offline
+                                    </>
+                                ) : (
+                                    <button disabled className="w-full md:w-auto opacity-50 cursor-not-allowed bg-gray-600 text-gray-300 font-bold py-3 px-8 rounded-xl border border-white/5">
+                                        Payment Locked
                                     </button>
-                                </>
-                            ) : (
-                                <button disabled className="w-full md:w-auto opacity-50 cursor-not-allowed bg-gray-600 text-gray-300 font-bold py-3 px-8 rounded-xl border border-white/5">
-                                    Payment Locked
+                                )}
+                            </div>
+
+                            {/* Access Code Section */}
+                            <div className="w-full">
+                                <button
+                                    onClick={() => setIsAdminOpen(!isAdminOpen)}
+                                    className="text-sm text-blue-400 hover:text-blue-300 w-full text-right transition-colors flex items-center justify-end gap-1 underline decoration-blue-400/30 underline-offset-4"
+                                >
+                                    Have an Access Code?
                                 </button>
-                            )}
+                                {isAdminOpen && (
+                                    <div className="mt-2 bg-white/5 p-3 rounded-lg border border-white/10 animate-in fade-in slide-in-from-top-1">
+                                        <input
+                                            type="text"
+                                            value={bypassCode}
+                                            onChange={(e) => setBypassCode(e.target.value)}
+                                            placeholder="Enter Access Code"
+                                            className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-galaxy-purple outline-none"
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">
+                                            Enter your special code to unlock payment options.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -252,15 +283,17 @@ export default function ProfilePage() {
                                                     {reg.status}
                                                 </span>
                                                 {/* Cancel Button - Only for Pending (Before Payment) or Free Events */}
-                                                {(reg.status === 'PENDING' || reg.paymentMethod === 'FREE' || reg.event?.price === 0) && (
+                                                {/* Cancel Button */}
+                                                {(reg.status !== 'CONFIRMED' && reg.status !== 'PAID') || (reg.event?.price === 0 || reg.paymentMethod === 'FREE') ? (
                                                     <button
                                                         onClick={() => handleCancel(reg._id)}
-                                                        className="p-1.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all"
-                                                        title="Cancel Registration Request"
+                                                        disabled={processing}
+                                                        className="p-1.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                                                        title="Cancel Registration"
                                                     >
                                                         <Trash2 size={14} />
                                                     </button>
-                                                )}
+                                                ) : null}
                                             </div>
                                             {reg.paymentMethod && (
                                                 <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">

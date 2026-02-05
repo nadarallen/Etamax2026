@@ -6,9 +6,7 @@ import { getSession, Role } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
-import { revalidatePath, revalidateTag, unstable_cache } from 'next/cache';
-
-// --- Validation Schemas ---
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 const EventSchema = z.object({
     id: z.string().optional(),
@@ -122,15 +120,15 @@ export async function createEventAction(prevState: EventState, formData: FormDat
 // ... (other imports)
 
 // Optimized internal data fetcher
-const getEventsCached = unstable_cache(
-    async () => {
+
+
+export async function getEventsAction() {
+    try {
+        // Direct DB Fetch (No Cache)
         await connectToDatabase();
         const Registration = (await import('@/models/Registration')).default;
 
-        // 1. Fetch All Events
         const events = await Event.find({ isPublished: true }).sort({ createdAt: -1 }).lean();
-
-        // 2. Fetch All Slots
         const allSlots = await Slot.find({}).lean();
 
         // 3a. Aggregate All Registrations by Slot (Member Count)
@@ -146,80 +144,10 @@ const getEventsCached = unstable_cache(
             { $project: { _id: 1, count: { $size: "$teams" } } }
         ]);
 
-        // Create lookup map for efficiency
         const regCountMap = new Map(regCounts.map((r: any) => [r._id.toString(), r.count]));
         const teamCountMap = new Map(teamCounts.map((r: any) => [r._id.toString(), r.count]));
 
-        // 3c. Aggregate Unique Teams by Slot (Slot Team Count) - NEW
-        const slotTeamCounts = await Registration.aggregate([
-            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
-            { $group: { _id: "$slotId", teams: { $addToSet: "$teamId" } } },
-            { $project: { _id: 1, count: { $size: "$teams" } } }
-        ]);
-        const slotTeamCountMap = new Map(slotTeamCounts.map((r: any) => [r._id.toString(), r.count]));
-
-        // Process in memory
-        const eventsWithStats = events.map((ev: any) => {
-            const evSlots = allSlots.filter((s: any) => s.eventId.toString() === ev._id.toString());
-
-            const slotsWithCounts = evSlots.map((slot: any) => ({
-                ...slot,
-                registeredCount: regCountMap.get(slot._id.toString()) || 0,
-                teamsCount: slotTeamCountMap.get(slot._id.toString()) || 0 // Added
-            }));
-
-            const totalCapacity = slotsWithCounts.reduce((acc: number, s: any) => acc + s.maxCapacity, 0);
-            const totalRegistered = slotsWithCounts.reduce((acc: number, s: any) => acc + s.registeredCount, 0);
-            const totalTeams = teamCountMap.get(ev._id.toString()) || 0;
-            const activeDays = [...new Set(slotsWithCounts.map((s: any) => s.dayNumber))];
-
-            return {
-                ...ev,
-                stats: {
-                    totalCapacity,
-                    totalRegistered,
-                    totalTeams, // Added
-                    slotsCount: slotsWithCounts.length
-                },
-                activeDays,
-                slots: slotsWithCounts
-            };
-        });
-
-        return eventsWithStats;
-    },
-    ['events-list-public'], // Cache Key
-    { revalidate: 60, tags: ['events'] } // Revalidate every 60s or on demand
-);
-
-export async function getEventsAction() {
-    try {
-        // Bypass Cache for Debugging
-        await connectToDatabase();
-        const Registration = (await import('@/models/Registration')).default;
-
-        // Copied logic from cached function to run fresh
-        const events = await Event.find({ isPublished: true }).sort({ createdAt: -1 }).lean();
-        const allSlots = await Slot.find({}).lean();
-
-        // ... (We need to replicate the aggregation logic or just move the inner function out)
-        // Better: Export the inner function as valid variable from this scope?
-        // Let's just redefine the internal function execution here to be safe and quick.
-
-        const regCounts = await Registration.aggregate([
-            { $match: { status: { $ne: 'CANCELLED' } } },
-            { $group: { _id: "$slotId", count: { $sum: 1 } } }
-        ]);
-
-        const teamCounts = await Registration.aggregate([
-            { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
-            { $group: { _id: "$eventId", teams: { $addToSet: "$teamId" } } },
-            { $project: { _id: 1, count: { $size: "$teams" } } }
-        ]);
-
-        const regCountMap = new Map(regCounts.map((r: any) => [r._id.toString(), r.count]));
-        const teamCountMap = new Map(teamCounts.map((r: any) => [r._id.toString(), r.count]));
-
+        // 3c. Aggregate Unique Teams by Slot (Slot Team Count)
         const slotTeamCounts = await Registration.aggregate([
             { $match: { status: { $ne: 'CANCELLED' }, teamId: { $exists: true, $ne: null } } },
             { $group: { _id: "$slotId", teams: { $addToSet: "$teamId" } } },
@@ -253,7 +181,6 @@ export async function getEventsAction() {
             };
         });
 
-        // const events = await getEventsCached();
         return JSON.parse(JSON.stringify(eventsWithStats));
     } catch (error) {
         console.error('Fetch Events Error:', error);
@@ -261,7 +188,7 @@ export async function getEventsAction() {
     }
 }
 
-export async function getEventRegistrationsAction(eventId: string, page: number = 1, limit: number = 50) {
+export async function getEventRegistrationsAction(eventId: string, page: number = 1, limit: number = 50, statusFilter: string = 'ALL') {
     try {
         const session = await getSession();
         if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
@@ -276,20 +203,27 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
 
         const skip = (page - 1) * limit;
 
-        let query = Registration.find({ eventId })
+        let query: any = { eventId };
+
+        // Apply Status Filter
+        if (statusFilter && statusFilter !== 'ALL') {
+            query.status = statusFilter;
+        }
+
+        let dbQuery = Registration.find(query)
             .populate('slotId')
             .populate('teamId')
             .sort({ createdAt: -1 });
 
         // If limit is > 0, apply pagination
         if (limit > 0) {
-            query = query.skip(skip).limit(limit);
+            dbQuery = dbQuery.skip(skip).limit(limit);
         }
 
         // Parallel fetch: Data + Count
         const [registrations, total] = await Promise.all([
-            query.lean(),
-            Registration.countDocuments({ eventId })
+            dbQuery.lean(),
+            Registration.countDocuments(query)
         ]);
 
         return {

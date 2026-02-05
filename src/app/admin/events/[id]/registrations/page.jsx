@@ -25,7 +25,7 @@ export default function EventRegistrationsPage({ params }) {
     const fetchData = async (pageNumber = page) => {
         setRefreshing(true);
         // Pass page number to server action
-        const res = await getEventRegistrationsAction(id, pageNumber);
+        const res = await getEventRegistrationsAction(id, pageNumber, 50, statusFilter);
         if (res.success) {
             setRegistrations(res.registrations);
             setPagination(res.pagination);
@@ -39,13 +39,13 @@ export default function EventRegistrationsPage({ params }) {
         // Optional: Auto-refresh every 30 seconds
         const interval = setInterval(() => fetchData(), 30000);
         return () => clearInterval(interval);
-    }, [id, page]);
+    }, [id, page, statusFilter]);
 
     const downloadExport = async (format) => {
         // Fetch ALL registrations (limit = 0)
         let allRegs = registrations;
-        if (pagination && pagination.total > registrations.length) {
-            const res = await getEventRegistrationsAction(id, 1, 0); // Limit 0 = fetch all
+        if (pagination && (pagination.total > registrations.length || statusFilter !== 'ALL')) {
+            const res = await getEventRegistrationsAction(id, 1, 0, statusFilter); // Limit 0 = fetch all, pass status
             if (res.success) {
                 allRegs = res.registrations;
             }
@@ -170,7 +170,10 @@ export default function EventRegistrationsPage({ params }) {
                     <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" size={18} />
                     <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(e) => {
+                            setStatusFilter(e.target.value);
+                            setPage(1); // Reset to first page on filter change
+                        }}
                         className="w-full bg-white/10 border border-white/20 rounded-xl pl-12 pr-4 py-3 appearance-none focus:outline-none focus:border-purple-500 transition-colors text-white cursor-pointer"
                         style={{ backgroundImage: 'none' }} // Remove default arrow in some browsers if needed, but appearance-none handles it
                     >

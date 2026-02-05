@@ -38,6 +38,7 @@ export default function useRazorpay() {
         eventId,
         slotId,
         teamId,
+        bypassCode,
         eventDetails,
         userDetails,
         amount,
@@ -56,11 +57,13 @@ export default function useRazorpay() {
             // Decide payload based on mode
             const payload = registrationIds ? {
                 registrationIds,
-                amount
+                amount,
+                bypassCode // Add bypassCode for bulk payments
             } : {
                 eventId,
                 slotId,
                 teamId,
+                bypassCode, // Add bypassCode for single payments
                 amount
             };
 

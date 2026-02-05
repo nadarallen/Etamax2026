@@ -9,9 +9,10 @@ interface SendEmailOptions {
     subject: string;
     text?: string;
     html?: string;
+    attachments?: { filename: string; content: string | Buffer }[];
 }
 
-export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {
+export async function sendEmail({ to, subject, text, html, attachments }: SendEmailOptions) {
     console.log("Preparing to send email to:", to);
 
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -49,6 +50,7 @@ export async function sendEmail({ to, subject, text, html }: SendEmailOptions) {
             subject,
             text,
             html,
+            attachments,
         });
         console.log('✅ Email sent successfully! Message ID: %s', info.messageId);
         return { success: true, messageId: info.messageId };

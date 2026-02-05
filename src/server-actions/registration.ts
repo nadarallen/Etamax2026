@@ -24,6 +24,7 @@ const RegistrationSchema = z.object({
     teamAction: z.enum(['CREATE', 'JOIN', 'NONE']).optional(),
     teamName: z.string().optional(),
     teamCode: z.string().optional(),
+    bypassCode: z.string().optional(), // Added for admin bypass
 });
 
 // Constants for Enums

@@ -10,7 +10,7 @@ import { getSession } from '@/lib/auth';
 import { randomUUID } from 'crypto';
 
 // Prompt 17: Initiate Payment
-export async function initiatePaymentAction(eventId: string, slotId: string, teamId?: string) {
+export async function initiatePaymentAction(eventId: string, slotId: string, teamId?: string, bypassCode?: string) {
     const session = await getSession();
     if (!session || !session.user.id) return { error: "Unauthorized" };
 
@@ -20,6 +20,12 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
         // 1. Fetch Price
         const event = await Event.findById(eventId);
         if (!event) return { error: "Event not found" };
+
+        // Verify Bypass Code if provided (Security check)
+        const isBypassValid = bypassCode && process.env.PAYMENT_BYPASS_CODE && bypassCode === process.env.PAYMENT_BYPASS_CODE;
+        if (bypassCode && !isBypassValid) {
+            return { error: "Invalid Bypass Code" };
+        }
 
         // Checks for Team Event Payment Logic
         if (teamId) {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserRegistrationsAction, getUserProfileAction } from '@/server-actions/user';
 import { cancelRegistrationAction } from '@/server-actions/registration';
 import { CheckCircle2, AlertCircle, X, Trash2, ArrowLeft, CreditCard } from 'lucide-react';
@@ -10,8 +10,12 @@ import Script from 'next/script';
 import Link from 'next/link';
 import CriteriaProgress from '@/components/CriteriaProgress';
 
-export default function PaymentConfirmPage() {
+function PaymentConfirmContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    // Get bypass code from URL
+    const bypassCode = searchParams.get('bypass');
+
     const [pendingRegs, setPendingRegs] = useState([]);
     const [allRegs, setAllRegs] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -81,12 +85,12 @@ export default function PaymentConfirmPage() {
     const days = new Set(activeRegs.map(r => r.slot?.dayNumber).filter(Boolean));
 
     const isEligible =
-        categories.has('technical') &&
-        categories.has('cultural') &&
-        categories.has('seminar') &&
-        days.has(1) &&
-        days.has(2) &&
-        days.has(3);
+        (categories.has('technical') &&
+            categories.has('cultural') &&
+            categories.has('seminar') &&
+            days.has(1) &&
+            days.has(2) &&
+            days.has(3)) || (!!bypassCode); // Bypass if code exists
 
     const totalAmount = pendingRegs.reduce((sum, r) => sum + (r.event?.price || 0), 0);
 
@@ -97,6 +101,7 @@ export default function PaymentConfirmPage() {
             const regIds = pendingRegs.map(r => r._id);
             await processPayment({
                 registrationIds: regIds, // Special Bulk Mode
+                bypassCode, // Pass code to hook
                 eventDetails: { name: `Bulk Payment (${pendingRegs.length} events)` }, // Dummy for display
                 userDetails: user,
                 amount: totalAmount, // Will be verified on server
@@ -244,5 +249,13 @@ export default function PaymentConfirmPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function PaymentConfirmPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen pt-24 text-center text-white">Loading payment confirmation...</div>}>
+            <PaymentConfirmContent />
+        </Suspense>
     );
 }
