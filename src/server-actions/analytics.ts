@@ -70,6 +70,11 @@ export async function getStudentAnalyticsAction() {
             const criteriaMet = hasTechnical && hasCultural && hasSeminar;
             const criteriaCount = [hasTechnical, hasCultural, hasSeminar].filter(Boolean).length;
 
+            // Calculate payment status
+            const hasConfirmed = doc.registrations.some((r: any) => r.status === 'CONFIRMED');
+            const hasPending = doc.registrations.some((r: any) => r.status === 'PENDING');
+            const paymentStatus = hasConfirmed ? 'CONFIRMED' : hasPending ? 'PENDING' : 'NONE';
+
             return {
                 id: doc.id,
                 name: doc.name,
@@ -78,6 +83,7 @@ export async function getStudentAnalyticsAction() {
                 branch: doc.branch,
                 semester: doc.semester,
                 registrations: doc.registrations,
+                paymentStatus, // NEW: Payment status field
                 criteria: {
                     met: criteriaMet,
                     count: criteriaCount,

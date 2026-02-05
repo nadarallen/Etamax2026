@@ -43,18 +43,19 @@ export default function StudentAnalyticsView() {
 
     // CSV Download Logic
     const downloadCSV = () => {
-        const headers = ['Roll Number', 'Name', 'Email', 'Branch', 'Semester', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
+        const headers = ['Roll Number', 'Name', 'Email', 'Branch', 'Semester', 'Payment Status', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
         const rows = filteredStudents.map(s => [
             s.rollNumber,
             s.name,
             s.email,
             s.branch,
             s.semester,
+            s.paymentStatus,
             s.criteria.met ? 'Yes' : 'No',
             s.criteria.details.Technical ? 'Yes' : 'No',
             s.criteria.details.Cultural ? 'Yes' : 'No',
             s.criteria.details.Seminar ? 'Yes' : 'No',
-            s.registrations.map(r => `${r.eventName} (${r.category})`).join('; ')
+            s.registrations.map(r => `${r.eventName} (${r.category}) [${r.status}]`).join('; ')
         ]);
 
         const csvContent = [
@@ -118,6 +119,7 @@ export default function StudentAnalyticsView() {
                             <tr>
                                 <th className="p-4">Student Details</th>
                                 <th className="p-4">Context</th>
+                                <th className="p-4 text-center">Payment</th>
                                 <th className="p-4 text-center">Criteria Status</th>
                                 <th className="p-4 text-center">Technical</th>
                                 <th className="p-4 text-center">Cultural</th>
@@ -128,7 +130,7 @@ export default function StudentAnalyticsView() {
                         <tbody className="divide-y divide-white/5">
                             {filteredStudents.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-gray-500">No students found.</td>
+                                    <td colSpan="8" className="p-8 text-center text-gray-500">No students found.</td>
                                 </tr>
                             ) : (
                                 filteredStudents.map(student => (
@@ -143,8 +145,23 @@ export default function StudentAnalyticsView() {
                                             <div className="text-xs text-gray-500">Sem {student.semester}</div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            {student.criteria.met ? (
+                                            {student.paymentStatus === 'CONFIRMED' ? (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                                                    ✓ Paid
+                                                </span>
+                                            ) : student.paymentStatus === 'PENDING' ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+                                                    Pending
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/10 text-gray-500 border border-gray-500/20">
+                                                    No Reg
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            {student.criteria.met ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
                                                     Eligible
                                                 </span>
                                             ) : (
