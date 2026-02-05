@@ -283,17 +283,25 @@ export default function ProfilePage() {
                                                     {reg.status}
                                                 </span>
                                                 {/* Cancel Button - Only for Pending (Before Payment) or Free Events */}
-                                                {/* Cancel Button */}
-                                                {(reg.status !== 'CONFIRMED' && reg.status !== 'PAID') || (reg.event?.price === 0 || reg.paymentMethod === 'FREE') ? (
-                                                    <button
-                                                        onClick={() => handleCancel(reg._id)}
-                                                        disabled={processing}
-                                                        className="p-1.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20"
-                                                        title="Cancel Registration"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                ) : null}
+                                                {/* Cancel Button - Hide if Paid/Confirmed (unless it's a free event) */}
+                                                {(() => {
+                                                    const isPaidStatus = reg.status === 'CONFIRMED' || reg.status === 'PAID';
+                                                    const isFree = reg.event?.price === 0 || reg.paymentMethod === 'FREE';
+                                                    // Show if: (Not Paid/Confirmed) OR (Is Free)
+                                                    // This means: Hide if (Paid/Confirmed AND Not Free)
+                                                    if (isPaidStatus && !isFree) return null;
+
+                                                    return (
+                                                        <button
+                                                            onClick={() => handleCancel(reg._id)}
+                                                            disabled={processing}
+                                                            className="p-1.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                                                            title="Cancel Registration"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                             {reg.paymentMethod && (
                                                 <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">

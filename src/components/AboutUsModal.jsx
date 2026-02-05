@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Mail, MapPin, Globe } from 'lucide-react';
+import { X, Mail, MapPin, Globe, Instagram } from 'lucide-react';
 
 export default function AboutUsModal({ isOpen, onClose }) {
     if (!isOpen) return null;
@@ -80,6 +80,52 @@ export default function AboutUsModal({ isOpen, onClose }) {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Team Members */}
+                    <div>
+                        <h4 className="text-sm font-bold text-galaxy-accent uppercase tracking-wider mb-3 px-1 mt-6">Meet the Team</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { name: "Allen Salmo", link: "https://www.instagram.com/allensalmo?igsh=emkydWFiemVxbG55", highlight: true },
+                                { name: "Akshat Sawant", link: "https://www.instagram.com/curlyoffroader?igsh=cTllazRnYXVid3o0" },
+                                { name: "Ronit Sinkar", link: "https://www.instagram.com/ronitsinkar._?igsh=d2xlanNxamN0ODh3" },
+                                { name: "Vishal Gangaji", link: "https://www.instagram.com/vishal_gangaji?igsh=NHd5bm1weTlkdHpr" },
+                                { name: "Shloka Karbhajan", link: "https://www.instagram.com/shloka_karbhajan?igsh=MTE2YnJ1aGo2N252dw==" },
+                                { name: "Ivan Thomas", link: "https://www.instagram.com/__.ivann45.__?igsh=MWdubWM0dmtnaG03NA==" },
+                                { name: "Prachi Pawar", link: "https://www.instagram.com/_.prachi._.11._?igsh=MWtyN3JjeWV0NW95NA==" },
+                                { name: "Arya Nikam", link: "https://www.instagram.com/arya_2317?igsh=MmRoOXlyMW1pZWVo" },
+                                { name: "Aakash Bhoyar", link: "https://www.instagram.com/aakashh.ig?igsh=MWdsZWw5Z2s2a3Zobg==" },
+                                { name: "Mrunmayee Tamse", link: "https://www.instagram.com/mrunmayee_072?igsh=MTFyOHBmdGQ3NzA4aA==" },
+                                { name: "Aman Chauhan", link: "https://www.instagram.com/thakuraman0003?igsh=cjg2OHpxZmd6ZWF1" },
+                                { name: "Sejal Pawar", link: "https://www.instagram.com/sej_1005?igsh=eWE1Y2V6bzJhbHYz" },
+                                { name: "Arpita Pawar", link: "https://www.instagram.com/arpitawhatever?igsh=MXRyd29oMm53cm1scw==" },
+                                { name: "Shreenidha Panagaden", link: "https://www.instagram.com/shreenidha_05?igsh=MTV5eWttejQ5eTYwaQ==" },
+                                { name: "Joel Joseph", link: "https://www.instagram.com/iamcherian14?igsh=MTZ5NjZ1Ym9vZ3Bydw==" }
+                            ].map((member, idx) => (
+                                <a
+                                    key={idx}
+                                    href={member.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`flex items-center gap-2 p-2 rounded-lg border transition-all group ${member.highlight ? 'bg-galaxy-purple/20 border-galaxy-purple/50 shadow-[0_0_10px_rgba(124,58,237,0.3)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-galaxy-purple/30'}`}
+                                >
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-500 flex items-center justify-center text-white shrink-0">
+                                        <Instagram size={12} />
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white truncate">
+                                            {member.name}
+                                        </span>
+                                        {member.highlight && (
+                                            <span className="text-[10px] text-green-400 font-bold animate-pulse leading-none mt-0.5">
+                                                Please Follow!
+                                            </span>
+                                        )}
+                                    </div>
+                                </a>
+                            ))}
                         </div>
                     </div>
 

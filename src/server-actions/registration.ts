@@ -622,6 +622,23 @@ export async function cancelRegistrationAction(regId: string) {
             return { error: 'Already cancelled.' };
         }
 
+        // Security Fix: Prevent cancelling CONFIRMED paid events
+        if (!isAdmin) {
+            // Check if CONFIRMED
+            if (reg.status === RegStatus.CONFIRMED) {
+                const Event = (await import('@/models/Event')).default;
+                const event = await Event.findById(reg.eventId);
+
+                // If event implies payment (Price > 0)
+                // Note: We use event.price to determine if it was a paid event.
+                // Free events (Price 0) can still be cancelled if confirmed, unless we want to block that too.
+                // The user request specified "paid user".
+                if (event && event.price > 0) {
+                    return { error: 'Cannot cancel a confirmed paid registration. Please contact support.' };
+                }
+            }
+        }
+
         // Logic: Mark Cancelled
         reg.status = RegStatus.CANCELLED;
         await reg.save();
