@@ -42,6 +42,26 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay, onE
                             <span className="uppercase tracking-wider font-semibold text-galaxy-accent">{event.type}</span>
                             <span>•</span>
                             <span>{event.price > 0 ? `₹${event.price}` : <span className="text-green-400 font-bold">Free</span>}</span>
+                            {(() => {
+                                const activeSlot = event.slots?.find(s => s.dayNumber === activeDay);
+                                if (activeSlot) {
+                                    const registered = activeSlot.registeredCount || 0;
+                                    const capacity = activeSlot.maxCapacity || 0;
+                                    const percentFilled = capacity > 0 ? (registered / capacity) * 100 : 0;
+                                    const isAlmostFull = percentFilled >= 80;
+                                    const isFull = registered >= capacity;
+
+                                    return (
+                                        <>
+                                            <span>•</span>
+                                            <span className={`font-semibold ${isFull ? 'text-red-400' : isAlmostFull ? 'text-yellow-400' : 'text-green-400'}`}>
+                                                {registered}/{capacity} seats
+                                            </span>
+                                        </>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </p>
                     </div>
                 </div>
@@ -73,6 +93,40 @@ export default function EventAccordion({ event, isOpen, onToggle, activeDay, onE
                                     <MapPin size={16} className="text-galaxy-purple" />
                                     <span>Venue: {event.slots?.find(s => s.dayNumber === activeDay)?.venue || 'TBD'}</span>
                                 </div>
+
+                                {/* Seat Availability Progress Bar */}
+                                {(() => {
+                                    const activeSlot = event.slots?.find(s => s.dayNumber === activeDay);
+                                    if (activeSlot) {
+                                        const registered = activeSlot.registeredCount || 0;
+                                        const capacity = activeSlot.maxCapacity || 0;
+                                        const percentFilled = capacity > 0 ? (registered / capacity) * 100 : 0;
+                                        const isAlmostFull = percentFilled >= 80;
+                                        const isFull = registered >= capacity;
+
+                                        return (
+                                            <div className="flex items-center gap-2 text-sm bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                                                <span className="text-gray-400 font-medium">Seats:</span>
+                                                <div className="flex-1 bg-black/40 rounded-full h-2 overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${isFull ? 'bg-red-500' :
+                                                                isAlmostFull ? 'bg-yellow-500' :
+                                                                    'bg-green-500'
+                                                            }`}
+                                                        style={{ width: `${Math.min(percentFilled, 100)}%` }}
+                                                    />
+                                                </div>
+                                                <span className={`font-bold ${isFull ? 'text-red-400' :
+                                                        isAlmostFull ? 'text-yellow-400' :
+                                                            'text-green-400'
+                                                    }`}>
+                                                    {registered}/{capacity}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
                         </div>
 
