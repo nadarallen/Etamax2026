@@ -5,13 +5,7 @@ import { X, Mail, MapPin, Globe, Instagram } from 'lucide-react';
 export default function AboutUsModal({ isOpen, onClose }) {
     if (!isOpen) return null;
 
-    const councilEmails = [
-        { role: 'General Secretary', email: 'gs.etamax@fcrit.ac.in', name: 'Student Council' },
-        { role: 'Cultural Secretary', email: 'cultural.etamax@fcrit.ac.in', name: 'Cultural Team' },
-        { role: 'Technical Secretary', email: 'technical.etamax@fcrit.ac.in', name: 'Technical Team' },
-        { role: 'Sports Secretary', email: 'sports.etamax@fcrit.ac.in', name: 'Sports Team' },
-        { role: 'Documentation Head', email: 'doc.etamax@fcrit.ac.in', name: 'Documentation Team' },
-    ];
+
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -59,28 +53,7 @@ export default function AboutUsModal({ isOpen, onClose }) {
                             </div>
                         </div>
 
-                        {/* Contact Emails */}
-                        <div>
-                            <h4 className="text-sm font-bold text-galaxy-accent uppercase tracking-wider mb-3 px-1">Contact Council</h4>
-                            <div className="grid gap-2">
-                                {councilEmails.map((item, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-galaxy-purple/20 flex items-center justify-center text-galaxy-purple group-hover:scale-110 transition-transform">
-                                                <Mail size={14} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-white">{item.role}</p>
-                                                {/* <p className="text-[10px] text-gray-500">{item.name}</p> */}
-                                            </div>
-                                        </div>
-                                        <a href={`mailto:${item.email}`} className="text-xs text-gray-400 hover:text-white transition-colors">
-                                            {item.email}
-                                        </a>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+
                     </div>
 
                     {/* Team Members */}
@@ -118,11 +91,7 @@ export default function AboutUsModal({ isOpen, onClose }) {
                                         <span className="text-xs font-medium text-gray-300 group-hover:text-white truncate">
                                             {member.name}
                                         </span>
-                                        {member.highlight && (
-                                            <span className="text-[10px] text-green-400 font-bold animate-pulse leading-none mt-0.5">
-                                                Please Follow!
-                                            </span>
-                                        )}
+
                                     </div>
                                 </a>
                             ))}
