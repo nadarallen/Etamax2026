@@ -303,7 +303,29 @@ export async function joinTeamDirectAction(eventId: string, teamCode: string) {
                 confirmed: true
             };
         } else {
-            // Leader hasn't paid yet - just add to team
+            // Leader hasn't paid yet - create PENDING registration
+            const { customAlphabet } = await import('nanoid');
+            const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+            const etamaxId = `ETAMAX-${nanoid()}`;
+
+            await Registration.create({
+                userId: user._id,
+                eventId: eventId,
+                teamId: team._id,
+                slotId: leaderReg.slotId, // Inherit leader's slot
+                paymentId: null, // No payment yet
+                status: RegStatus.PENDING, // Pending until leader pays
+                qrCodeHash: require('crypto').randomBytes(16).toString('hex'),
+                etamaxId: etamaxId,
+                fullName: user.name,
+                rollNumber: user.rollNumber || 'N/A',
+                email: user.email,
+                branch: user.branch || 'N/A',
+                semester: user.semester || 'N/A',
+                emailSent: false,
+                paymentMethod: 'FREE' // Member doesn't pay
+            });
+
             const { revalidatePath } = await import('next/cache');
             revalidatePath('/profile');
             return {
