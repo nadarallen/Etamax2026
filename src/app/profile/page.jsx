@@ -5,14 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserProfileAction, getUserRegistrationsAction } from '@/server-actions/user';
 import { cancelRegistrationAction } from '@/server-actions/registration';
 import Link from 'next/link';
-import { Calendar, MapPin, ExternalLink, User, ArrowLeft, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, ExternalLink, User, ArrowLeft, Trash2, Eye, EyeOff } from 'lucide-react';
 import CriteriaProgress from '@/components/CriteriaProgress';
 import TeamManager from '@/components/TeamManager';
 
 function ProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const bypassCode = searchParams.get('bypass') || '';
+    const bypassCodeParam = searchParams.get('bypass') || '';
+    const [bypassCode, setBypassCode] = useState(bypassCodeParam);
+    const [showBypass, setShowBypass] = useState(false);
 
     const [user, setUser] = useState(null);
     const [registrations, setRegistrations] = useState([]);
@@ -71,6 +73,18 @@ function ProfileContent() {
     // Validate bypass code against environment variable
     const VALID_BYPASS_CODE = process.env.NEXT_PUBLIC_PAYMENT_BYPASS_CODE || 'BYPASS2026';
     const isBypassValid = bypassCode && bypassCode.trim() === VALID_BYPASS_CODE;
+
+    // Check for blocking team payment conditions
+    // Block if: User is a MEMBER (not leader) AND Team status is NOT Paid/Confirmed
+    const hasUnpaidTeamDependency = activeRegs.some(r => {
+        if (r.event?.type !== 'group' || !r.team) return false;
+
+        const isLeader = r.team.leaderId === user?._id;
+        if (isLeader) return false; // Leaders are responsible for their own payment
+
+        const isTeamConfirmed = r.team.status === 'CONFIRMED' || r.team.status === 'PAID';
+        return !isTeamConfirmed;
+    });
 
     // Check if there are actually pending payments
     const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING' || r.paymentStatus === 'PENDING');
@@ -171,7 +185,7 @@ function ProfileContent() {
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div>
                             <h2 className="text-2xl font-bold text-white mb-2">Complete Registration</h2>
-                            {(isEligible || isBypassValid) ? (
+                            {(isEligible || isBypassValid) && !hasUnpaidTeamDependency ? (
                                 <div>
                                     <p className="text-gray-300 mb-2">
                                         You have fulfilled all participation criteria!
@@ -192,6 +206,16 @@ function ProfileContent() {
                                         </div>
                                     </div>
                                 </div>
+                            ) : hasUnpaidTeamDependency ? (
+                                <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+                                    <p className="text-red-400 text-sm font-semibold flex items-center gap-2 mb-1">
+                                        <span className="bg-red-500/20 p-1 rounded-full text-xs">⚠</span>
+                                        Payment Locked: Team Payment Pending
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        Your Team Leader must complete the payment for your team event(s) before you can proceed with your own payments.
+                                    </p>
+                                </div>
                             ) : (
                                 <p className="text-yellow-400 flex items-center gap-2">
                                     <span className="bg-yellow-500/20 p-1 rounded-full text-xs">⚠</span>
@@ -202,7 +226,7 @@ function ProfileContent() {
 
                         <div className="flex flex-col gap-3 w-full md:w-auto">
                             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                                {(isEligible || isBypassValid) ? (
+                                {(isEligible || isBypassValid) && !hasUnpaidTeamDependency ? (
                                     <>
                                         <Link
                                             href={isBypassValid ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
@@ -242,13 +266,22 @@ function ProfileContent() {
                                 </button>
                                 {isAdminOpen && (
                                     <div className="mt-2 bg-white/5 p-3 rounded-lg border border-white/10 animate-in fade-in slide-in-from-top-1">
-                                        <input
-                                            type="text"
-                                            value={bypassCode}
-                                            onChange={(e) => setBypassCode(e.target.value)}
-                                            placeholder="Enter Access Code"
-                                            className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-galaxy-purple outline-none"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showBypass ? "text" : "password"}
+                                                value={bypassCode}
+                                                onChange={(e) => setBypassCode(e.target.value)}
+                                                placeholder="Enter Access Code"
+                                                className="w-full bg-black/50 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-galaxy-purple outline-none pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowBypass(!showBypass)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                            >
+                                                {showBypass ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
                                         <p className="text-[10px] text-gray-400 mt-1">
                                             Enter your special code to unlock payment options.
                                         </p>

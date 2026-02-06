@@ -1,9 +1,10 @@
 'use client';
 
 import { useRef, useEffect, useState, use, useTransition } from 'react';
-import { addSlotAction, getSlotsAction, deleteSlotAction, updateSlotAction } from '@/server-actions/events';
+import { addSlotAction, getSlotsAction, deleteSlotAction, updateSlotAction, getEventByIdAction } from '@/server-actions/events';
 import { useRouter } from 'next/navigation';
 import { Trash2, Clock, MapPin, Edit2, Plus, Save, X, Link as LinkIcon } from 'lucide-react';
+import SlotExport from '@/components/admin/SlotExport';
 
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
@@ -18,6 +19,7 @@ export default function ManageSlotsPage({ params }) {
     const eventId = resolvedParams.id;
 
     const [slots, setSlots] = useState([]);
+    const [eventName, setEventName] = useState('Event');
     const [editingSlot, setEditingSlot] = useState(null);
     const { user, loading } = useAuth();
     // Fix: user object from useAuth/api has role at top level, not in user_metadata
@@ -61,6 +63,10 @@ export default function ManageSlotsPage({ params }) {
     const fetchSlots = async () => {
         const data = await getSlotsAction(eventId);
         setSlots(data);
+
+        // Fetch Event Name for Export
+        const event = await getEventByIdAction(eventId);
+        if (event) setEventName(event.name);
     };
 
     useEffect(() => {
@@ -273,6 +279,13 @@ export default function ManageSlotsPage({ params }) {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
+                                    <SlotExport
+                                        eventId={eventId}
+                                        slotId={slot._id}
+                                        eventName={eventName}
+                                        slotTime={`${slot.startTime} - ${slot.endTime}`}
+                                        dayNumber={slot.dayNumber}
+                                    />
                                     <button
                                         onClick={() => handleEdit(slot)}
                                         className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"

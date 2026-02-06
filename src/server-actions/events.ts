@@ -188,7 +188,7 @@ export async function getEventsAction() {
     }
 }
 
-export async function getEventRegistrationsAction(eventId: string, page: number = 1, limit: number = 50, statusFilter: string = 'ALL') {
+export async function getEventRegistrationsAction(eventId: string, page: number = 1, limit: number = 50, statusFilter: string = 'ALL', slotId: string = '') {
     try {
         const session = await getSession();
         if (!session || (session.role !== Role.SUPER_ADMIN && session.role !== Role.CLUB_ADMIN)) {
@@ -200,6 +200,7 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
         // Ensure Slot and Team are registered for populate to work
         (await import('@/models/Slot')).default;
         (await import('@/models/Team')).default;
+        (await import('@/models/User')).default;
 
         const skip = (page - 1) * limit;
 
@@ -210,9 +211,15 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
             query.status = statusFilter;
         }
 
+        // Apply Slot Filter
+        if (slotId) {
+            query.slotId = slotId;
+        }
+
         let dbQuery = Registration.find(query)
             .populate('slotId')
             .populate('teamId')
+            .populate('userId', 'phone') // Populate phone from User
             .sort({ createdAt: -1 });
 
         // If limit is > 0, apply pagination

@@ -27,7 +27,11 @@ export default function CriteriaProgress({ registrations }) {
     const hasTeamEvent = !!teamEventReg;
 
     // Check if team leader has paid (team status is CONFIRMED)
-    const isTeamPaid = teamEventReg?.team?.status === 'CONFIRMED' || teamEventReg?.status === 'CONFIRMED';
+    const isTeamPaid =
+        teamEventReg?.team?.status === 'CONFIRMED' ||
+        teamEventReg?.team?.status === 'PAID' ||
+        teamEventReg?.status === 'CONFIRMED' ||
+        teamEventReg?.status === 'PAID';
 
     // Get team payment description
     const getTeamDesc = () => {
@@ -36,14 +40,22 @@ export default function CriteriaProgress({ registrations }) {
         return 'Waiting for Leader Payment';
     };
 
+    // Check if user has any group events registered
+    const hasGroupEventRegistration = activeRegs.some(r => r.event?.type === 'group');
+
     /* ... criteria definition ... */
     const criteria = [
         // Categories
         { id: 'technical', label: 'Technical', icon: <Cpu size={18} />, desc: 'Register for 1 Tech event' },
         { id: 'cultural', label: 'Cultural', icon: <Music size={18} />, desc: 'Register for 1 Cultural event' },
         { id: 'seminar', label: 'Seminar', icon: <Mic2 size={18} />, desc: 'Attend 1 Seminar' },
-        // Team Requirement - Dynamic description based on payment status
-        { id: 'team_participation', label: 'Team Player', icon: <Users size={18} />, desc: getTeamDesc() },
+        // Team Requirement - Only show if PAID
+        ...(isTeamPaid ? [{
+            id: 'team_participation',
+            label: 'Team Player',
+            icon: <Users size={18} />,
+            desc: getTeamDesc()
+        }] : []),
         // Days
         { id: 'Day 1', label: 'Day 1', icon: <Calendar size={18} />, desc: 'Event on Day 1' },
         { id: 'Day 2', label: 'Day 2', icon: <Calendar size={18} />, desc: 'Event on Day 2' },

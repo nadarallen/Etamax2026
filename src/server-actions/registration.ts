@@ -84,21 +84,28 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         let currentCount = 0;
         const isTeamEvent = ['duo', 'group'].includes(event.type);
 
-        if (isTeamEvent) {
-            // For team events, count unique teams
+        // Skip capacity check if joining an existing team (team already holds a slot)
+        if (isTeamEvent && parsed.data.teamAction === 'JOIN') {
+            // No-op: Capacity is bound to the team leader's slot reservation
+        } else if (isTeamEvent) {
+            // For team CREATION, count unique teams
             const uniqueTeams = await Registration.distinct('teamId', {
                 slotId,
                 status: { $ne: RegStatus.CANCELLED },
                 teamId: { $exists: true, $ne: null }
             });
             currentCount = uniqueTeams.length;
+
+            if (currentCount >= (slot as any).maxCapacity) {
+                return { error: 'Slot is full (Team Limit Reached). Please choose another slot.' };
+            }
         } else {
             // For solo events, count registrations
             currentCount = await Registration.countDocuments({ slotId, status: { $ne: RegStatus.CANCELLED } });
-        }
 
-        if (currentCount >= (slot as any).maxCapacity) {
-            return { error: 'Slot is full. Please choose another slot.' };
+            if (currentCount >= (slot as any).maxCapacity) {
+                return { error: 'Slot is full. Please choose another slot.' };
+            }
         }
 
         // 3. Unique Roll Number Check
@@ -269,20 +276,49 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         }
 
         // 5. Reserve Slot Capacity (ATOMICALLY)
-        // Race Condition Fix: Check capacity AND increment in one DB operation
-        const slotUpdate = await Slot.findOneAndUpdate(
-            {
-                _id: slotId,
-                $expr: { $lt: ["$registeredCount", "$maxCapacity"] } // Atomic condition
-            },
-            {
-                $inc: {
-                    registeredCount: 1,
-                    teamsCount: isTeamEvent ? 1 : 0
-                }
-            },
-            { new: true }
-        );
+        let slotUpdate;
+
+        if (isTeamEvent) {
+            if (parsed.data.teamAction === 'CREATE') {
+                // creating team: Increment teamsCount AND registeredCount
+                // Check if teamsCount < maxCapacity
+                slotUpdate = await Slot.findOneAndUpdate(
+                    {
+                        _id: slotId,
+                        $expr: { $lt: ["$teamsCount", "$maxCapacity"] }
+                    },
+                    {
+                        $inc: {
+                            registeredCount: 1,
+                            teamsCount: 1
+                        }
+                    },
+                    { new: true }
+                );
+            } else {
+                // Joining team: Increment registeredCount ONLY
+                // NO Capacity check needed (assuming team size check was done earlier)
+                slotUpdate = await Slot.findOneAndUpdate(
+                    { _id: slotId },
+                    {
+                        $inc: { registeredCount: 1 }
+                    },
+                    { new: true }
+                );
+            }
+        } else {
+            // Solo Event
+            slotUpdate = await Slot.findOneAndUpdate(
+                {
+                    _id: slotId,
+                    $expr: { $lt: ["$registeredCount", "$maxCapacity"] }
+                },
+                {
+                    $inc: { registeredCount: 1 }
+                },
+                { new: true }
+            );
+        }
 
         if (!slotUpdate) {
             // Rollback Registration if slot reservation failed (Capacity full during race condition)

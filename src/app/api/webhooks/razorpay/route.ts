@@ -275,10 +275,30 @@ export async function POST(req: NextRequest) {
                                     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                                         <div style="background-color: ${headerColor}; color: white; padding: 20px; text-align: center;">
                                             <h1 style="margin: 0; font-size: 24px;">${headerText}</h1>
+                                            <p style="margin: 5px 0 0; opacity: 0.9;">Payment ID: ${payment_id}</p>
                                         </div>
                                         <div style="padding: 20px;">
                                             <p style="font-size: 16px;">Hello <strong>${user.name}</strong>,</p>
-                                            <p style="font-size: 16px;">Your payment was successful. Here is your updated list of confirmed events:</p>
+                                            
+                                            <!-- Student Details Box -->
+                                            <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                                                <table style="width: 100%; font-size: 14px;">
+                                                    <tr>
+                                                        <td style="color: #666; padding-bottom: 5px;">Roll Number:</td>
+                                                        <td style="font-weight: bold; padding-bottom: 5px;">${user.rollNumber || 'N/A'}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="color: #666; padding-bottom: 5px;">Branch/Sem:</td>
+                                                        <td style="font-weight: bold; padding-bottom: 5px;">${user.branch || '-'}${user.semester ? ` (Sem ${user.semester})` : ''}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="color: #666;">Transaction ID:</td>
+                                                        <td style="font-weight: bold;">${payment_id}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+
+                                            <p style="font-size: 16px;">Your payment was successful. Here is your Master Receipt for all confirmed events:</p>
                                             
                                             <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                                                 <thead>
@@ -292,7 +312,7 @@ export async function POST(req: NextRequest) {
                                                 <tbody>
                                                     ${eventRows}
                                                     <tr style="font-weight: bold; background-color: #f8f9fa;">
-                                                        <td colspan="3" style="padding: 10px; text-align: right;">Total Paid:</td>
+                                                        <td colspan="3" style="padding: 10px; text-align: right;">Total Paid Amount:</td>
                                                         <td style="padding: 10px; text-align: right;">₹${totalCost}</td>
                                                     </tr>
                                                 </tbody>
@@ -303,7 +323,7 @@ export async function POST(req: NextRequest) {
                                             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
                                             
                                             <p style="font-size: 12px; color: #999; text-align: center;">
-                                                <strong>Disclaimer:</strong> Please ensure your Roll Number is entered correctly. One Roll Number can only be registered with one Login ID. Duplicate registrations may be cancelled.
+                                                This is a computer-generated receipt. No signature required.
                                             </p>
 
                                             <p style="font-size: 14px; color: #777;">Thank you for your participation!<br/>Regards,<br/><strong>Etamax 2026 Team</strong></p>

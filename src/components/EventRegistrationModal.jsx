@@ -273,6 +273,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                 const isTeam = ['duo', 'group'].includes(event?.type?.toLowerCase()) || (event?.minTeamSize > 1);
                                                 const cap = s.maxCapacity || 9999;
                                                 const count = isTeam ? (s.teamsCount || 0) : (s.registeredCount || 0);
+
+                                                // FIXED: If joining a team, capacity doesn't matter for the slot itself
+                                                if (teamAction === 'JOIN' && isTeam) return false;
+
                                                 return count >= cap;
                                             });
 
@@ -307,9 +311,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                             const isFastFilling = !isFull && percentFull >= 80;
                                             const isSelected = selectedSlot?._id === slot._id;
 
+                                            // FIXED: Block only if CREATE or SOLO. Join ignores slot capacity.
+                                            const isBlocked = isFull && (teamAction !== 'JOIN' || !isTeam);
+
                                             // Determine Border/Text Color based on status
                                             let statusColorClass = 'border-white/10 text-gray-400 bg-white/5';
-                                            if (isFull) statusColorClass = 'border-red-500/30 text-red-400 cursor-not-allowed opacity-60 bg-red-500/5';
+                                            if (isBlocked) statusColorClass = 'border-red-500/30 text-red-400 cursor-not-allowed opacity-60 bg-red-500/5';
                                             else if (isFastFilling) statusColorClass = 'border-yellow-500/30 text-yellow-400 bg-yellow-500/5';
 
                                             if (isSelected) statusColorClass = 'border-galaxy-purple bg-galaxy-purple text-white shadow-[0_0_15px_rgba(124,58,237,0.5)] scale-[1.02] z-10';
@@ -320,7 +327,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                     className={`
                                                         relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all h-full
                                                         ${statusColorClass}
-                                                        ${!isFull && !isSelected ? 'cursor-pointer hover:border-white/30 hover:bg-white/10 active:scale-95' : ''}
+                                                        ${!isBlocked && !isSelected ? 'cursor-pointer hover:border-white/30 hover:bg-white/10 active:scale-95' : ''}
                                                     `}
                                                 >
                                                     <input
@@ -328,10 +335,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                         name="slotId"
                                                         value={slot._id}
                                                         checked={isSelected}
-                                                        disabled={isFull}
+                                                        disabled={isBlocked}
                                                         onChange={() => { }} /* Handled by onClick for toggle behavior */
                                                         onClick={() => {
-                                                            if (!isFull) {
+                                                            if (!isBlocked) {
                                                                 if (isSelected) {
                                                                     setSelectedSlot(null);
                                                                 } else {
@@ -344,7 +351,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                                     {isSelected && <div className="absolute top-2 right-2"><CheckCircle size={14} className="text-white" /></div>}
                                                     <div className="font-bold text-sm mb-1">{slot.startTime} - {slot.endTime}</div>
                                                     <div className={`text-[10px] uppercase font-bold tracking-wider mb-0 ${isSelected ? 'text-white/80' : 'opacity-80'}`}>
-                                                        {isFull ? 'SOLD OUT' : (isFastFilling ? 'FILLING FAST' : 'AVAILABLE')}
+                                                        {isBlocked ? 'SOLD OUT' : (isFull ? 'JOIN ONLY' : (isFastFilling ? 'FILLING FAST' : 'AVAILABLE'))}
                                                     </div>
                                                 </label>
                                             );
