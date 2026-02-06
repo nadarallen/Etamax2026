@@ -49,6 +49,7 @@ export async function getStudentAnalyticsAction() {
                     id: { $toString: '$_id' },
                     name: 1,
                     email: 1,
+                    phone: { $ifNull: ['$phone', 'N/A'] }, // Project Phone
                     rollNumber: { $ifNull: ['$rollNumber', 'N/A'] },
                     branch: { $ifNull: ['$branch', 'Unknown'] },
                     semester: { $ifNull: ['$semester', 'N/A'] },
@@ -79,6 +80,7 @@ export async function getStudentAnalyticsAction() {
                 id: doc.id,
                 name: doc.name,
                 email: doc.email,
+                phone: doc.phone, // Return Phone
                 rollNumber: doc.rollNumber,
                 branch: doc.branch,
                 semester: doc.semester,

@@ -74,8 +74,13 @@ export default function RegisterPage() {
                             type="text"
                             name="rollNumber"
                             required
+                            maxLength={7}
+                            minLength={7}
+                            pattern="\d{7}"
+                            title="Roll number must be exactly 7 digits"
                             className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
-                            placeholder="e.g. 123456"
+                            placeholder="e.g. 1234567"
+                            onInput={(e) => e.target.value = e.target.value.replace(/[^0-9]/g, '')}
                         />
                     </div>
 

@@ -74,17 +74,8 @@ function ProfileContent() {
     const VALID_BYPASS_CODE = process.env.NEXT_PUBLIC_PAYMENT_BYPASS_CODE || 'BYPASS2026';
     const isBypassValid = bypassCode && bypassCode.trim() === VALID_BYPASS_CODE;
 
-    // Check for blocking team payment conditions
-    // Block if: User is a MEMBER (not leader) AND Team status is NOT Paid/Confirmed
-    const hasUnpaidTeamDependency = activeRegs.some(r => {
-        if (r.event?.type !== 'group' || !r.team) return false;
-
-        const isLeader = r.team.leaderId === user?._id;
-        if (isLeader) return false; // Leaders are responsible for their own payment
-
-        const isTeamConfirmed = r.team.status === 'CONFIRMED' || r.team.status === 'PAID';
-        return !isTeamConfirmed;
-    });
+    // Check for blocking team payment conditions -> REMOVED to allow member payments
+    const hasUnpaidTeamDependency = false;
 
     // Check if there are actually pending payments
     const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING' || r.paymentStatus === 'PENDING');
@@ -94,10 +85,12 @@ function ProfileContent() {
     const getRegistrationPrice = (reg) => {
         if (!reg.event?.price) return 0;
 
-        // If it's a team event, only the leader pays
-        if (reg.team && reg.team.leaderId) {
-            const isLeader = reg.team.leaderId.toString() === user?._id?.toString();
-            return isLeader ? reg.event.price : 0;
+        // TEAM EVENT LOGIC: 
+        // If Leader, they pay. If Member, they wait for Leader (Price = 0 for them in this view)
+        // This allows members to pay for OTHER solo events without being blocked by the team event.
+        if (reg.team) {
+            const isLeader = reg.team.leaderId === user._id;
+            if (!isLeader) return 0; // Member doesn't pay here
         }
 
         // Solo events - user pays full price
@@ -198,23 +191,13 @@ function ProfileContent() {
                                             Total: <span className="text-white font-bold text-lg">
                                                 {(() => {
                                                     const amt = activeRegs
-                                                        .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
+                                                        .filter(r => r.status === 'PENDING')
                                                         .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
                                                     return amt === 0 ? 'FREE' : `₹${amt}`;
                                                 })()}
                                             </span>
                                         </div>
                                     </div>
-                                </div>
-                            ) : hasUnpaidTeamDependency ? (
-                                <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
-                                    <p className="text-red-400 text-sm font-semibold flex items-center gap-2 mb-1">
-                                        <span className="bg-red-500/20 p-1 rounded-full text-xs">⚠</span>
-                                        Payment Locked: Team Payment Pending
-                                    </p>
-                                    <p className="text-xs text-gray-400">
-                                        Your Team Leader must complete the payment for your team event(s) before you can proceed with your own payments.
-                                    </p>
                                 </div>
                             ) : (
                                 <p className="text-yellow-400 flex items-center gap-2">
@@ -236,7 +219,7 @@ function ProfileContent() {
                                                 <span>Pay Online Now</span>
                                                 {(() => {
                                                     const amt = activeRegs
-                                                        .filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID')
+                                                        .filter(r => r.status === 'PENDING')
                                                         .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
                                                     if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
                                                 })()}
@@ -356,7 +339,8 @@ function ProfileContent() {
                                                 {/* Cancel Button - Hide if Paid/Confirmed (unless it's a free event) */}
                                                 {(() => {
                                                     const isPaidStatus = reg.status === 'CONFIRMED' || reg.status === 'PAID';
-                                                    const isFree = reg.event?.price === 0 || reg.paymentMethod === 'FREE';
+                                                    // Fix: Ignore paymentMethod 'FREE' (used for team members) to correctly identify paid events. check only event price.
+                                                    const isFree = reg.event?.price === 0;
                                                     // Show if: (Not Paid/Confirmed) OR (Is Free)
                                                     // This means: Hide if (Paid/Confirmed AND Not Free)
                                                     if (isPaidStatus && !isFree) return null;

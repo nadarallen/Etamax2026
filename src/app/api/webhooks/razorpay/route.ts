@@ -60,10 +60,24 @@ export async function POST(req: NextRequest) {
             if (teamId) {
                 const team = await Team.findById(teamId).populate('members.userId');
                 if (team) {
-                    // Leader pays for everyone - mark ALL members as PAID
-                    team.members.forEach((m: any) => {
-                        m.paymentStatus = TeamPaymentStatus.PAID;
-                    });
+                    // LEADER PAYMENT: Covers everyone (Team Price)
+                    // SPLIT PAYMENT: Only covers the payer (Individual Price used?) 
+                    // To handle both: IF LEADER PAYS, we assume it's for the team -> Mark ALL as PAID.
+                    const isLeader = user._id.toString() === team.leaderId.toString();
+
+                    if (isLeader) {
+                        // Mark ALL members as PAID
+                        team.members.forEach((m: any) => {
+                            m.paymentStatus = TeamPaymentStatus.PAID;
+                        });
+                        team.status = TeamStatus.CONFIRMED;
+                    } else {
+                        // Member paying their own share
+                        const payerMember = team.members.find((m: any) => m.userId.toString() === user._id.toString());
+                        if (payerMember) {
+                            payerMember.paymentStatus = TeamPaymentStatus.PAID;
+                        }
+                    }
 
                     const event = await Event.findById(eventId);
                     const minSize = event?.minTeamSize || 2;
@@ -89,14 +103,24 @@ export async function POST(req: NextRequest) {
 
                         const etamaxId = `ETAMAX-${nanoid()}`;
 
+                        const isPayer = member.userId.toString() === user._id.toString();
+
+                        // IF Leader paid, EVERYONE is CONFIRMED.
+                        // IF Member paid, only they are CONFIRMED.
+                        let regStatus = 'PENDING';
+                        if (isLeader) regStatus = 'CONFIRMED';
+                        else if (isPayer) regStatus = 'CONFIRMED';
+
                         await Registration.create({
                             userId: memberUser._id,
                             eventId,
                             teamId,
                             slotId,
-                            paymentId: payment._id,
-                            status: 'CONFIRMED',
-                            qrCodeHash: crypto.randomBytes(16).toString('hex'),
+                            // Link payment to lead only? Or Everyone? 
+                            // If Leader paid, link paymentId to everyone so they have proof.
+                            paymentId: (isLeader || isPayer) ? payment._id : undefined,
+                            status: regStatus,
+                            qrCodeHash: (isLeader || isPayer) ? crypto.randomBytes(16).toString('hex') : undefined,
                             etamaxId: etamaxId,
                             fullName: memberUser.name,
                             rollNumber: memberUser.rollNumber || 'N/A',
@@ -175,8 +199,8 @@ export async function POST(req: NextRequest) {
                             dateStr = dayMap[slt.dayNumber] || `Day ${slt.dayNumber}`;
                         }
 
-                        // Show WhatsApp link ONLY if criteria are met
-                        const finalWaLink = criteriaMet ? slt?.whatsappLink : null;
+                        // Show WhatsApp link (Always show if available)
+                        const finalWaLink = slt?.whatsappLink;
 
                         const waLink = finalWaLink
                             ? `<a href="${finalWaLink}" style="color: #25D366; text-decoration: none; font-weight: bold;">Join Group</a>`

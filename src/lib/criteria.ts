@@ -12,12 +12,14 @@ export async function checkCriteria(userId: string) {
         const Registration = (await import('@/models/Registration')).default;
 
         // Fetch all CONFIRMED registrations for the user
+        // Fetch CONFIRMED registrations OR PENDING registrations (to check if Team is Confirmed)
         const registrations = await Registration.find({
             userId,
-            status: 'CONFIRMED'
+            status: { $in: ['CONFIRMED', 'PENDING'] }
         })
             .populate('eventId')
             .populate('slotId')
+            .populate({ path: 'teamId', select: 'status' }) // Check Team Status
             .lean();
 
         if (!registrations || registrations.length === 0) {
@@ -29,6 +31,11 @@ export async function checkCriteria(userId: string) {
         let hasTeamEvent = false;
 
         registrations.forEach((reg: any) => {
+            // Robust Check: Valid if Confirmed OR if Team is Confirmed
+            const isValid = reg.status === 'CONFIRMED' || (reg.teamId && reg.teamId.status === 'CONFIRMED');
+
+            if (!isValid) return; // Skip invalid/unpaid registrations
+
             const event = reg.eventId;
             const slot = reg.slotId;
 

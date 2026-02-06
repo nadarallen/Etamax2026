@@ -73,6 +73,23 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 
         await connectToDatabase();
 
+        // LOCK CHECK: Prevent new registrations ONLY if user has paid AND met all criteria
+        const paidRegistrations = await Registration.find({
+            userId: session.user.id,
+            status: 'CONFIRMED'
+        }).populate('eventId');
+
+        const hasPaidEvent = paidRegistrations.some((reg: any) => reg.eventId && reg.eventId.price > 0);
+
+        if (hasPaidEvent) {
+            const { checkCriteria } = await import('@/lib/criteria');
+            const { met: isEligible } = await checkCriteria(session.user.id);
+
+            if (isEligible) {
+                return { error: 'Registration Locked: You have completed payment and fulfilled all criteria. No further registrations are allowed.' };
+            }
+        }
+
         // 1. Verify Event and Slot
         const event = await Event.findById(eventId).lean();
         if (!event) return { error: 'Event not found' };
@@ -166,7 +183,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                         userId: session.user.id,
                         status: STATUS_JOINED,
                         // Fix: ONLINE/OFFLINE = PENDING, FREE = PAID
-                        paymentStatus: paymentMethod === 'FREE' ? STATUS_PAID : STATUS_PENDING,
+                        // Fix: Default to PENDING for paid events, regardless of initial form param
+                        paymentStatus: (event.price > 0) ? STATUS_PENDING : STATUS_PAID,
                         joinedAt: new Date()
                     }],
                     status: 'OPEN',
@@ -500,35 +518,76 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
         if (!updatedReg) return { error: 'Registration not found' };
 
         // CASCADE UPDATE for Team Leaders
+        // CASCADE UPDATE for Team Leaders
         if (updatedReg.teamId) {
-            // const Team = (await import('@/models/Team')).default; // Dynamic import if needed
+            const { default: Team, TeamStatus, PaymentStatus } = await import('@/models/Team');
             const team = await Team.findById(updatedReg.teamId);
 
-            if (team && team.leaderId.toString() === updatedReg.userId.toString()) {
-                console.log(`Leader ${updatedReg.fullName} updated to ${newStatus}. Cascading to members...`);
-
-                // 1. Update Team Members Payment Status
-                const newPaymentStatus = newStatus === RegStatus.CONFIRMED ? 'PAID' : 'PENDING';
-                const memberUserIds: string[] = [];
-
-                team.members.forEach((m: any) => {
-                    m.paymentStatus = newPaymentStatus;
-                    memberUserIds.push(m.userId);
-                });
-                if (newStatus === RegStatus.CONFIRMED) {
-                    team.status = TEAM_STATUS_CONFIRMED as any;
+            if (team) {
+                // SPLIT PAYMENT FIX: Update ONLY the specific member's payment status
+                const member = team.members.find((m: any) => m.userId.toString() === updatedReg.userId.toString());
+                if (member) {
+                    member.paymentStatus = newStatus === RegStatus.CONFIRMED ? PaymentStatus.PAID : PaymentStatus.PENDING;
                 }
-                await team.save();
 
-                // 2. Update Registration Status for all members (except leader, already done)
-                await Registration.updateMany(
-                    {
-                        teamId: team._id,
-                        userId: { $ne: updatedReg.userId } // Skip leader
-                    },
-                    { status: newStatus }
-                );
-                console.log(`Cascaded update to ${memberUserIds.length - 1} members.`);
+                // If Leader is confirmed, Confirm the TEAM ( Slot Reservation )
+                if (team.leaderId.toString() === updatedReg.userId.toString()) {
+                    if (newStatus === RegStatus.CONFIRMED) {
+                        team.status = TeamStatus.CONFIRMED;
+
+                        // CASCADE: For Offline/Admin confirmation, if Leader pays, we confirm the Whole Team
+                        // 1. Update All Members in Team Doc
+                        team.members.forEach((m: any) => {
+                            m.paymentStatus = PaymentStatus.PAID;
+                            m.status = 'JOINED'; // Ensure they are marked joined
+                        });
+
+                        // 2. Update All Registration Documents for this Team
+                        await Registration.updateMany(
+                            { teamId: team._id },
+                            { $set: { status: RegStatus.CONFIRMED, paymentMethod: 'OFFLINE_TEAM' } }
+                        );
+
+                        // 3. Ensure ALL members have a Registration (Create if missing)
+                        // This fixes the "Joined but not showing" issue for members who joined before payment
+                        const { customAlphabet } = await import('nanoid');
+                        const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+                        const User = (await import('@/models/User')).default;
+
+                        for (const m of team.members) {
+                            const exists = await Registration.exists({ userId: m.userId, eventId: team.eventId });
+                            if (!exists) {
+                                const userProfile = await User.findById(m.userId);
+                                if (userProfile) {
+                                    const etamaxId = `ETAMAX-${nanoid()}`;
+                                    await Registration.create({
+                                        userId: m.userId,
+                                        eventId: team.eventId,
+                                        teamId: team._id,
+                                        slotId: team.slotId, // Inherit Team Slot
+                                        paymentId: updatedReg.paymentId, // Link to Leader's Payment
+                                        status: RegStatus.CONFIRMED,
+                                        qrCodeHash: require('crypto').randomBytes(16).toString('hex'),
+                                        etamaxId: etamaxId,
+                                        fullName: userProfile.name,
+                                        rollNumber: userProfile.rollNumber || 'N/A',
+                                        email: userProfile.email,
+                                        branch: userProfile.branch || 'N/A',
+                                        semester: userProfile.semester || 'N/A',
+                                        emailSent: false,
+                                        paymentMethod: 'OFFLINE_TEAM_AUTO'
+                                    });
+                                    console.log(`Auto-created missing registration for member ${m.userId}`);
+                                }
+                            }
+                        }
+
+                        console.log(`Cascaded confirmation to all members of team ${team._id}`);
+                    }
+                }
+
+                await team.save();
+                console.log(`Updated team member ${updatedReg.userId} status to ${newStatus}`);
             }
         }
 
@@ -643,6 +702,11 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
             }
 
         }
+
+        // Force revalidation of the profile page so the Eligibility Tracker updates immediately
+        const { revalidatePath } = await import('next/cache');
+        revalidatePath('/profile');
+        revalidatePath('/admin/events'); // Also update admin view
 
         return { success: true, newStatus };
     } catch (error) {

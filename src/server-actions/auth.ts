@@ -55,6 +55,7 @@ export async function registerAction(prevState: AuthState, formData: FormData): 
         // Enforce Roll Number and Branch for Students
         if (role === Role.STUDENT) {
             if (!rollNumber || rollNumber.trim() === '') return { error: 'Roll Number is required.' };
+            if (!/^\d{7}$/.test(rollNumber)) return { error: 'Roll Number must be exactly 7 digits.' };
             if (!branch || branch.trim() === '') return { error: 'Branch is required.' };
             if (!semester || semester.trim() === '') return { error: 'Semester is required.' };
 

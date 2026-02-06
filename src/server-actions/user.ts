@@ -14,6 +14,7 @@ export async function getUserProfileAction() {
         if (!user) return null;
 
         return {
+            _id: user._id.toString(), // critical fix for frontend checks
             fullName: user.name,
             email: user.email,
             rollNumber: user.rollNumber,
@@ -58,35 +59,42 @@ export async function getUserRegistrationsAction() {
         }
 
         // Serialize serialization to avoid "plain object" errors
-        const serialized = registrations.map((reg: any) => ({
-            _id: reg._id.toString(),
-            status: reg.status,
-            paymentMethod: reg.paymentMethod, // Include paymentMethod
-            createdAt: reg.createdAt.toISOString(),
-            event: reg.eventId ? {
-                _id: reg.eventId._id.toString(),
-                name: reg.eventId.name,
-                category: reg.eventId.category,
-                price: reg.eventId.price,
-                type: reg.eventId.type,
-            } : null,
-            slot: (reg.slotId || reg.teamId?.slotId) ? {
-                _id: (reg.slotId || reg.teamId.slotId)._id.toString(),
-                startTime: (reg.slotId || reg.teamId.slotId).startTime,
-                venue: (reg.slotId || reg.teamId.slotId).venue || 'TBD',
-                dayNumber: (reg.slotId || reg.teamId.slotId).dayNumber,
-            } : null,
-            team: reg.teamId ? {
-                _id: reg.teamId._id.toString(),
-                name: reg.teamId.name,
-                code: reg.teamId.code,
-                leaderId: reg.teamId.leaderId.toString(),
-                memberCount: reg.teamId.members.length,
-                maxTeamSize: reg.eventId.maxTeamSize,
-                isFull: reg.teamId.members.length >= (reg.eventId.maxTeamSize || 1), // Assuming maxTeamSize might be missing for some
-            } : null,
-        }));
+        const serialized = registrations.map((reg: any) => {
+            // ROBUST OFF-LINE FIX: If the Team is Confirmed (Leader Paid), treat member as Confirmed
+            // This handles cases where individual member status update lagged or isn't required (Offline model)
+            const isTeamConfirmed = reg.teamId && reg.teamId.status === 'CONFIRMED';
+            const effectiveStatus = isTeamConfirmed ? 'CONFIRMED' : reg.status;
 
+            return {
+                _id: reg._id.toString(),
+                status: effectiveStatus,
+                paymentMethod: reg.paymentMethod, // Include paymentMethod
+                createdAt: reg.createdAt.toISOString(),
+                event: reg.eventId ? {
+                    _id: reg.eventId._id.toString(),
+                    name: reg.eventId.name,
+                    category: reg.eventId.category,
+                    price: reg.eventId.price,
+                    type: reg.eventId.type,
+                } : null,
+                slot: (reg.slotId || reg.teamId?.slotId) ? {
+                    _id: (reg.slotId || reg.teamId.slotId)._id.toString(),
+                    startTime: (reg.slotId || reg.teamId.slotId).startTime,
+                    venue: (reg.slotId || reg.teamId.slotId).venue || 'TBD',
+                    dayNumber: (reg.slotId || reg.teamId.slotId).dayNumber,
+                } : null,
+                team: reg.teamId ? {
+                    _id: reg.teamId._id.toString(),
+                    name: reg.teamId.name,
+                    code: reg.teamId.code,
+                    leaderId: reg.teamId.leaderId.toString(),
+                    memberCount: reg.teamId.members.length,
+                    maxTeamSize: reg.eventId.maxTeamSize,
+                    isFull: reg.teamId.members.length >= (reg.eventId.maxTeamSize || 1),
+                    status: reg.teamId.status
+                } : null,
+            };
+        });
 
         return { registrations: serialized };
     } catch (error) {

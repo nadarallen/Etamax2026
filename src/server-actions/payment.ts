@@ -33,10 +33,12 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
             const team = await Team.findById(teamId);
             if (!team) return { error: "Team not found" };
 
-            // Check if user is Leader
-            if (team.leaderId.toString() !== session.user.id) {
-                return { error: "Only the Team Leader can make payments for the team." };
+            // Check if user is a Member of the team (Leader OR Member)
+            const isMember = team.members.some((m: any) => m.userId.toString() === session.user.id);
+            if (!isMember) {
+                return { error: "You are not a member of this team." };
             }
+            // Removed "Only Leader" restriction to allow split payments
         }
 
         // Fetch User for Roll No

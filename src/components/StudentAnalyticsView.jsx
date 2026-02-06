@@ -36,18 +36,22 @@ export default function StudentAnalyticsView() {
         const matchesSearch =
             student.name.toLowerCase().includes(searchLower) ||
             student.rollNumber.toLowerCase().includes(searchLower) ||
-            student.email.toLowerCase().includes(searchLower);
+            student.email.toLowerCase().includes(searchLower) ||
+            (student.phone && student.phone.includes(searchLower));
 
         return matchesBranch && matchesSearch;
     });
 
     // CSV Download Logic
     const downloadCSV = () => {
-        const headers = ['Roll Number', 'Name', 'Email', 'Branch', 'Semester', 'Payment Status', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
+        const headers = ['Roll Number', 'Name', 'Email', 'Phone', 'Branch', 'Semester', 'Payment Status', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
         const rows = filteredStudents.map(s => [
             s.rollNumber,
             s.name,
             s.email,
+            s.phone || 'N/A',
+            s.branch,
+            s.semester,
             s.branch,
             s.semester,
             s.paymentStatus,
@@ -139,6 +143,7 @@ export default function StudentAnalyticsView() {
                                             <div className="font-bold text-white">{student.name}</div>
                                             <div className="text-xs text-gray-400">{student.rollNumber}</div>
                                             <div className="text-xs text-gray-500">{student.email}</div>
+                                            <div className="text-xs text-gray-500">{student.phone || 'N/A'}</div>
                                         </td>
                                         <td className="p-4">
                                             <div className="text-white">{student.branch}</div>
