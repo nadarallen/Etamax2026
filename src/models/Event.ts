@@ -14,6 +14,7 @@ export interface IEvent extends Document {
     createdAt: Date;
     updatedAt: Date;
     minTeamSize?: number;
+    maxTeamSize?: number;
 
 }
 
