@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserProfileAction, getUserRegistrationsAction } from '@/server-actions/user';
 import { cancelRegistrationAction } from '@/server-actions/registration';
 import Link from 'next/link';
@@ -11,12 +11,14 @@ import TeamManager from '@/components/TeamManager';
 
 export default function ProfilePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const bypassCode = searchParams.get('bypass') || '';
+
     const [user, setUser] = useState(null);
     const [registrations, setRegistrations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
     const [processing, setProcessing] = useState(false);
-    const [bypassCode, setBypassCode] = useState('');
     const [isAdminOpen, setIsAdminOpen] = useState(false);
 
     const activeRegs = registrations.filter(r => r.status && r.status !== 'CANCELLED');

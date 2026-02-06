@@ -189,3 +189,134 @@ export async function deleteTeamAction(teamId: string) {
         return { error: `Deletion Failed: ${error.message}` };
     }
 }
+
+/**
+ * Simplified Team Join Action
+ * Allows users to join a team with just a team code
+ * Auto-inherits leader's slot and uses user's profile data
+ */
+export async function joinTeamDirectAction(eventId: string, teamCode: string) {
+    try {
+        const session = await getSession();
+        if (!session || !session.user.id) {
+            return { error: 'You must be logged in to join a team.' };
+        }
+
+        await connectToDatabase();
+
+        // 1. Validate Team Code
+        const team = await Team.findOne({ code: teamCode.toUpperCase().trim() })
+            .populate('members.userId');
+
+        if (!team) {
+            return { error: 'Invalid team code. Please check and try again.' };
+        }
+
+        // 2. Verify Team is for this Event
+        if (team.eventId.toString() !== eventId) {
+            return { error: 'This team code is for a different event.' };
+        }
+
+        // 3. Check if User Already in Team
+        const alreadyMember = team.members.some((m: any) =>
+            m.userId._id.toString() === session.user.id
+        );
+        if (alreadyMember) {
+            return { error: 'You are already a member of this team.' };
+        }
+
+        // 4. Check Team Capacity
+        const Event = (await import('@/models/Event')).default;
+        const event = await Event.findById(eventId);
+        if (!event) {
+            return { error: 'Event not found.' };
+        }
+
+        const maxSize = event.maxTeamSize || event.minTeamSize || 4;
+        if (team.members.length >= maxSize) {
+            return { error: `Team is full (max ${maxSize} members).` };
+        }
+
+        // 5. Get User Profile
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return { error: 'User profile not found.' };
+        }
+
+        // 6. Find Leader's Registration to Inherit Slot
+        const leaderReg = await Registration.findOne({
+            userId: team.leaderId,
+            eventId: eventId,
+            teamId: team._id
+        });
+
+        if (!leaderReg || !leaderReg.slotId) {
+            return { error: 'Team leader has not selected a slot yet. Please ask the leader to complete registration first.' };
+        }
+
+        // 7. Add User to Team
+        const mongoose = await import('mongoose');
+        team.members.push({
+            userId: new mongoose.default.Types.ObjectId(session.user.id) as any,
+            status: 'JOINED' as any,
+            paymentStatus: 'PENDING' as any,
+            joinedAt: new Date()
+        });
+        await team.save();
+
+        // 8. Check if Leader Has Paid
+        const leader = team.members.find((m: any) =>
+            m.userId._id.toString() === team.leaderId.toString()
+        );
+        const isLeaderPaid = leader?.paymentStatus === 'PAID';
+
+        // 9. Create Registration if Leader Already Paid
+        if (isLeaderPaid) {
+            const { customAlphabet } = await import('nanoid');
+            const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+            const etamaxId = `ETAMAX-${nanoid()}`;
+
+            await Registration.create({
+                userId: user._id,
+                eventId: eventId,
+                teamId: team._id,
+                slotId: leaderReg.slotId, // Inherit leader's slot
+                paymentId: leaderReg.paymentId, // Same payment as leader
+                status: RegStatus.CONFIRMED,
+                qrCodeHash: require('crypto').randomBytes(16).toString('hex'),
+                etamaxId: etamaxId,
+                fullName: user.name,
+                rollNumber: user.rollNumber || 'N/A',
+                email: user.email,
+                branch: user.branch || 'N/A',
+                semester: user.semester || 'N/A',
+                emailSent: false,
+                paymentMethod: 'FREE' // Member doesn't pay
+            });
+
+            const { revalidatePath } = await import('next/cache');
+            revalidatePath('/profile');
+            return {
+                success: true,
+                message: `Successfully joined team "${team.name}"! Your registration is confirmed.`,
+                teamName: team.name,
+                confirmed: true
+            };
+        } else {
+            // Leader hasn't paid yet - just add to team
+            const { revalidatePath } = await import('next/cache');
+            revalidatePath('/profile');
+            return {
+                success: true,
+                message: `Successfully joined team "${team.name}"! Your registration will be confirmed once the team leader completes payment.`,
+                teamName: team.name,
+                confirmed: false
+            };
+        }
+
+    } catch (error) {
+        console.error('Join Team Direct Error:', error);
+        return { error: 'Failed to join team. Please try again.' };
+    }
+}
+

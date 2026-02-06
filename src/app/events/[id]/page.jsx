@@ -7,6 +7,7 @@ import { getUserProfileAction } from '@/server-actions/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PlanetIcon from '@/components/PlanetIcon';
+import JoinTeamModal from '@/components/JoinTeamModal';
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, CheckCircle, AlertCircle } from 'lucide-react';
 
 const initialRegState = {
@@ -29,6 +30,7 @@ export default function EventDetail({ params }) {
     const [selectedDay, setSelectedDay] = useState(urlDay || 1);
     const [userProfile, setUserProfile] = useState(null);
     const [teamAction, setTeamAction] = useState('CREATE');
+    const [showJoinTeamModal, setShowJoinTeamModal] = useState(false);
 
     // Auto-open modal if register param is present
     useEffect(() => {
@@ -190,13 +192,32 @@ export default function EventDetail({ params }) {
 
                 {/* Sticky Action Bar */}
                 <div className="fixed bottom-0 left-0 w-full p-4 bg-galaxy-dark/95 backdrop-blur-xl border-t border-white/10 z-50 md:sticky md:bottom-0 md:bg-transparent md:backdrop-blur-none md:border-0 md:p-0">
-                    <button
-                        onClick={() => setShowEnrollModal(true)}
-                        className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 flex justify-center items-center gap-3"
-                    >
-                        <span>{currentReg ? 'Manage Registration' : 'Reserve Seat'}</span>
-                        <ArrowLeft className="rotate-180" size={20} />
-                    </button>
+                    {/* Show Join Team button for group/duo events */}
+                    {(event.type === 'group' || event.type === 'duo') && !currentReg ? (
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowEnrollModal(true)}
+                                className="flex-1 bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2"
+                            >
+                                <span>Create Team</span>
+                            </button>
+                            <button
+                                onClick={() => setShowJoinTeamModal(true)}
+                                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2"
+                            >
+                                <Users size={20} />
+                                <span>Join Team</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setShowEnrollModal(true)}
+                            className="w-full bg-gradient-to-r from-galaxy-purple to-pink-600 hover:from-galaxy-purple/90 hover:to-pink-600/90 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 flex justify-center items-center gap-3"
+                        >
+                            <span>{currentReg ? 'Manage Registration' : 'Reserve Seat'}</span>
+                            <ArrowLeft className="rotate-180" size={20} />
+                        </button>
+                    )}
                     {/* Cancellation Status Indicator */}
                     {currentReg && (
                         <div className="text-center mt-2 text-xs text-green-400 font-bold bg-green-500/10 py-1 rounded-lg">
@@ -511,6 +532,17 @@ export default function EventDetail({ params }) {
                     </div>
                 </div>
             )}
+
+            {/* Join Team Modal */}
+            <JoinTeamModal
+                event={event}
+                isOpen={showJoinTeamModal}
+                onClose={() => setShowJoinTeamModal(false)}
+                onSuccess={() => {
+                    setShowJoinTeamModal(false);
+                    // Reload will happen in modal
+                }}
+            />
         </div>
     );
 }

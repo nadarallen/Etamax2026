@@ -141,8 +141,10 @@ function PaymentConfirmContent() {
                     // Redirect to profile or a success summary
                     router.push('/profile?payment=success');
                 },
-                onError: (err) => {
+                onError: async (err) => {
                     alert(err.message || "Payment Failed");
+                    // Reload data to show pending registrations again
+                    await loadData();
                 }
             });
         } catch (error) {
