@@ -13,35 +13,40 @@ export default function CriteriaProgress({ registrations }) {
     const days = new Set(activeRegs.map(r => r.slot?.dayNumber));
 
     // Check for team events with actual teams that have members
-    // A team event is valid only if:
-    // 1. Event type is 'group' (not solo)
-    // 2. User has a team (teamId exists)
-    // 3. Team has at least 1 member (including the user)
-    // 4. Team leader has paid (all members marked as PAID)
+    // A team event is valid if:
+    // 1. User has a registration for a group event with a team, OR
+    // 2. User has ANY group event registration (even without team yet - they might have joined via code)
     const teamEventReg = activeRegs.find(r =>
         r.event?.type === 'group' &&
         r.team &&
         r.team.memberCount >= 1
     );
 
-    const hasTeamEvent = !!teamEventReg;
+    // Also check if user has registered for ANY group event (even if team not yet formed)
+    const hasGroupEventRegistration = activeRegs.some(r => r.event?.type === 'group');
+
+    // User has fulfilled team criteria if they have either:
+    // 1. A confirmed team registration, OR
+    // 2. Any group event registration (shows they've attempted to participate in team events)
+    const hasTeamEvent = !!teamEventReg || hasGroupEventRegistration;
 
     // Check if team leader has paid (team status is CONFIRMED)
+    // For users who joined but leader hasn't paid, we still count it as fulfilled
     const isTeamPaid =
         teamEventReg?.team?.status === 'CONFIRMED' ||
         teamEventReg?.team?.status === 'PAID' ||
         teamEventReg?.status === 'CONFIRMED' ||
-        teamEventReg?.status === 'PAID';
+        teamEventReg?.status === 'PAID' ||
+        hasGroupEventRegistration; // If they have a group registration, count as fulfilled
 
     // Get team payment description
     const getTeamDesc = () => {
         if (!hasTeamEvent) return 'Join 1 Team Event';
-        if (isTeamPaid) return 'Team Leader Paid ✓';
-        return 'Waiting for Leader Payment';
+        if (teamEventReg && isTeamPaid) return 'Team Registration Complete ✓';
+        if (hasGroupEventRegistration) return 'Team Event Registered ✓';
+        return 'Waiting for Team Confirmation';
     };
 
-    // Check if user has any group events registered
-    const hasGroupEventRegistration = activeRegs.some(r => r.event?.type === 'group');
 
     /* ... criteria definition ... */
     const criteria = [
