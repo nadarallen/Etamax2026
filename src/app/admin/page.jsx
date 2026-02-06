@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import eventsData from '@/data/events.json';
-import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users, Search } from 'lucide-react';
+import { Settings, Lock, Unlock, Edit, LogOut, Trash2, Users, Search, Key } from 'lucide-react';
 import Link from 'next/link';
 import { deleteEventAction } from '@/server-actions/events';
 import { logoutAction } from '@/server-actions/auth';
@@ -104,6 +104,11 @@ function AdminContent() {
                     <Link href="/admin/students">
                         <button className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
                             <Users size={16} /> Students Report
+                        </button>
+                    </Link>
+                    <Link href="/admin/passwords">
+                        <button className="bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 border border-purple-500/50 px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                            <Key size={16} /> All Passwords
                         </button>
                     </Link>
                     <Link href="/admin/create-event">

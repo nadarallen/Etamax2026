@@ -62,3 +62,58 @@ export async function rejectPaymentAction(formData: FormData) {
     await Payment.findByIdAndUpdate(paymentId, { status: PaymentStatus.FAILED });
     revalidatePath('/admin/approvals');
 }
+
+/**
+ * Get all user passwords for admin panel
+ * Only accessible by SUPER_ADMIN
+ */
+export async function getAllUserPasswordsAction() {
+    try {
+        const { getSession } = await import('@/lib/auth');
+        const session = await getSession();
+
+        // Security: Only SUPER_ADMIN can access
+        if (!session || session.user?.user_metadata?.role !== 'SUPER_ADMIN') {
+            return { error: 'Unauthorized. Only super admins can access user passwords.' };
+        }
+
+        await connectToDatabase();
+        const User = (await import('@/models/User')).default;
+
+        // Fetch all users with passwords (excluding admins)
+        const users = await User.find(
+            {
+                role: 'STUDENT',
+                generatedPassword: { $exists: true, $ne: null }
+            },
+            {
+                name: 1,
+                email: 1,
+                rollNumber: 1,
+                branch: 1,
+                semester: 1,
+                generatedPassword: 1,
+                createdAt: 1
+            }
+        )
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Sanitize and format data
+        const credentials = users.map((user: any) => ({
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            rollNumber: user.rollNumber || 'N/A',
+            branch: user.branch || 'N/A',
+            semester: user.semester || 'N/A',
+            password: user.generatedPassword || 'N/A',
+            createdAt: user.createdAt.toISOString()
+        }));
+
+        return { success: true, credentials };
+    } catch (error) {
+        console.error('Error fetching user passwords:', error);
+        return { error: 'Failed to fetch user passwords' };
+    }
+}
