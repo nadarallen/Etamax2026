@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getUserProfileAction, getUserRegistrationsAction } from '@/server-actions/user';
 import { cancelRegistrationAction } from '@/server-actions/registration';
@@ -9,7 +9,7 @@ import { Calendar, MapPin, ExternalLink, User, ArrowLeft, Trash2 } from 'lucide-
 import CriteriaProgress from '@/components/CriteriaProgress';
 import TeamManager from '@/components/TeamManager';
 
-export default function ProfilePage() {
+function ProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const bypassCode = searchParams.get('bypass') || '';
@@ -379,3 +379,12 @@ export default function ProfilePage() {
         </div >
     );
 }
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen pt-24 text-center text-white">Loading profile...</div>}>
+            <ProfileContent />
+        </Suspense>
+    );
+}
+
