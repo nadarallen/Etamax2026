@@ -94,8 +94,37 @@ export async function POST(req: NextRequest) {
                         // IF Leader paid, EVERYONE is CONFIRMED.
                         // IF Member paid, only they are CONFIRMED.
                         let regStatus = 'PENDING';
-                        if (isLeader) regStatus = 'CONFIRMED';
-                        else if (isPayer) regStatus = 'CONFIRMED';
+
+                        // NEW LOGIC: Check if ALL members are paid (including this one just updated)
+                        const allPaid = team.members.every((m: any) => m.paymentStatus === TeamPaymentStatus.PAID);
+                        // Check Min Size
+                        const Event = (await import('@/models/Event')).default;
+                        const eventDoc = await Event.findById(eventId);
+                        const minSize = eventDoc?.minTeamSize || 2;
+                        const sizeMet = team.members.length >= minSize;
+
+                        if (isLeader) {
+                            regStatus = 'CONFIRMED';
+                        } else if (isPayer) {
+                            regStatus = 'CONFIRMED';
+                        }
+
+                        // If everyone paid and size met, EVERYONE gets confirmed
+                        if (allPaid && sizeMet) {
+                            regStatus = 'CONFIRMED';
+                            // Also confirm the team if not already
+                            if (team.status !== TeamStatus.CONFIRMED) {
+                                team.status = TeamStatus.CONFIRMED;
+                                await team.save();
+                                console.log(`Team ${team._id} confirmed via split online payments.`);
+                                // Correct teamsCount increment logic if needed (Assuming registration.ts handles initial creation)
+                                // We are just confirming, not creating new slot reservation unless we need to?
+                                // Slot reservation logic is complex here. Assuming registration reserved space.
+                                // But usually slot count is teamsCount. 
+                                // If team wasn't confirmed, did it take a slot?
+                                // registration.ts: "creating team: Increment teamsCount" -> Yes, it took a slot on creation.
+                            }
+                        }
 
                         // Check for existing registration (Pending)
                         let existingReg = await Registration.findOne({
@@ -105,37 +134,41 @@ export async function POST(req: NextRequest) {
                         });
 
                         if (existingReg) {
-                            existingReg.status = regStatus as any;
-                            existingReg.paymentId = (isLeader || isPayer) ? payment._id : existingReg.paymentId;
-                            if (!existingReg.qrCodeHash && (isLeader || isPayer)) {
-                                existingReg.qrCodeHash = crypto.randomBytes(16).toString('hex');
+                            // Only update if upgrading to CONFIRMED or if we are the payer
+                            if (regStatus === 'CONFIRMED' || isPayer) {
+                                existingReg.status = regStatus as any;
+                                existingReg.paymentId = (isLeader || isPayer) ? payment._id : existingReg.paymentId;
+
+                                // Generate QR if confirming
+                                if (regStatus === 'CONFIRMED' && !existingReg.qrCodeHash) {
+                                    existingReg.qrCodeHash = crypto.randomBytes(16).toString('hex');
+                                }
+                                await existingReg.save();
                             }
-                            await existingReg.save();
                         } else {
                             // Member joining who didn't get a registration created yet (unpaid join logic)
-                            // We need to increment registeredCount for this new person?
-                            // Logic implies registration.ts handles capacity.
-                            // If registration.ts skipped creation, it didn't increment capacity for this person.
-                            // However, we are freezing the 'teamsCount' logic on creation.
-                            // Let's assume for now that if they are in the team, the team has reserved the spot.
+                            // Only create if we are confirming them or if they are the payer
+                            // (Actually if allPaid, everyone gets one)
 
-                            const etamaxId = `ETAMAX-${nanoid()}`;
-                            await Registration.create({
-                                userId: memberUser._id,
-                                eventId,
-                                teamId,
-                                slotId,
-                                paymentId: (isLeader || isPayer) ? payment._id : undefined,
-                                status: regStatus as any,
-                                qrCodeHash: (isLeader || isPayer) ? crypto.randomBytes(16).toString('hex') : undefined,
-                                etamaxId: etamaxId,
-                                fullName: memberUser.name,
-                                rollNumber: memberUser.rollNumber || 'N/A',
-                                email: memberUser.email,
-                                branch: memberUser.branch || 'N/A',
-                                semester: memberUser.semester || 'N/A',
-                                emailSent: false,
-                            });
+                            if (regStatus === 'CONFIRMED' || isPayer) {
+                                const etamaxId = `ETAMAX-${nanoid()}`;
+                                await Registration.create({
+                                    userId: memberUser._id,
+                                    eventId,
+                                    teamId,
+                                    slotId,
+                                    paymentId: (isLeader || isPayer) ? payment._id : undefined,
+                                    status: regStatus as any,
+                                    qrCodeHash: (regStatus === 'CONFIRMED') ? crypto.randomBytes(16).toString('hex') : undefined,
+                                    etamaxId: etamaxId,
+                                    fullName: memberUser.name,
+                                    rollNumber: memberUser.rollNumber || 'N/A',
+                                    email: memberUser.email,
+                                    branch: memberUser.branch || 'N/A',
+                                    semester: memberUser.semester || 'N/A',
+                                    emailSent: false,
+                                });
+                            }
                         }
                     }
                 }

@@ -121,6 +121,10 @@ export async function confirmDeskPaymentAction(regId: string) {
 
         // If part of a team, we MUST confirm the Leader to trigger the cascade (Leader Pays All model)
         // Unless we are already the leader
+        // If part of a team, we MUST confirm the Leader to trigger the cascade (Leader Pays All model)
+        // Unless we are already the leader
+        // REMOVED REDIRECTION to allow split payments
+        /*
         if (initialReg.teamId) {
             // @ts-ignore
             const leaderId = initialReg.teamId.leaderId.toString();
@@ -136,6 +140,7 @@ export async function confirmDeskPaymentAction(regId: string) {
                 }
             }
         }
+        */
 
         // 2. Call existing update logic (handles team cascade, email) on TARGET
         const result = await updateRegistrationStatusAction(targetRegId, RegStatus.CONFIRMED);
@@ -209,6 +214,7 @@ export async function cancelDeskPaymentAction(regId: string) {
         const Registration = (await import('@/models/Registration')).default;
         const Slot = (await import('@/models/Slot')).default;
         const Payment = (await import('@/models/Payment')).default;
+        const Team = (await import('@/models/Team')).default;
 
         const reg = await Registration.findById(regId);
         if (!reg) return { error: 'Registration not found' };
@@ -225,13 +231,57 @@ export async function cancelDeskPaymentAction(regId: string) {
         }
 
         // 3. Increment Slot Capacity back (Free up the slot)
+        // Always decrement registeredCount for the individual
         if (reg.slotId) {
             await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
         }
 
-        // 4. Handle Team Logic (If leader cancels, whole team might be affected?)
-        // For simplicity now, let's assume individual cancellation or manual team cleanup.
-        // If necessary, add team logic here.
+        // 4. Handle Team Logic (If leader cancels, whole team is dissolved)
+        if (reg.teamId) {
+            const team = await Team.findById(reg.teamId);
+            if (team) {
+                // Check if user is the LEADER
+                if (team.leaderId.toString() === reg.userId.toString()) {
+                    console.log(`Desk Cancel: Leader ${reg.userId} cancelled. Dissolving team ${team._id}...`);
+
+                    // 1. Mark Team as Cancelled
+                    team.status = 'CANCELLED' as any;
+                    await team.save();
+
+                    // 2. Decrement TEAMS count from slot (Free up the Team Slot)
+                    if (reg.slotId) {
+                        await Slot.findByIdAndUpdate(reg.slotId, { $inc: { teamsCount: -1 } });
+                    }
+
+                    // 3. Cancel ALL registrations for this team (dissolve)
+                    // We already set current reg.status = CANCELLED above. Now do others.
+                    const memberRegs = await Registration.find({ teamId: team._id, status: { $ne: RegStatus.CANCELLED }, _id: { $ne: reg._id } });
+
+                    for (const memberReg of memberRegs) {
+                        memberReg.status = RegStatus.CANCELLED;
+                        // Mark as cancelled by Admin cascade
+                        memberReg.confirmedBy = new mongoose.Types.ObjectId(session.user.id);
+                        await memberReg.save();
+
+                        // Also decrement registeredCount for each member
+                        if (memberReg.slotId) {
+                            await Slot.findByIdAndUpdate(memberReg.slotId, { $inc: { registeredCount: -1 } });
+                        }
+                    }
+                    console.log(`Desk Cancel: Dissolved team and cancelled ${memberRegs.length} other members.`);
+
+                } else {
+                    // Just a member leaving
+                    console.log(`Desk Cancel: Member ${reg.userId} removed from team ${team._id}...`);
+                    team.members = team.members.filter((m: any) => m.userId.toString() !== reg.userId.toString());
+                    await team.save();
+                    // registeredCount already decremented above
+                }
+            }
+        }
+
+        revalidatePath('/admin/students');
+        revalidatePath('/club/students');
 
         return { success: true };
 

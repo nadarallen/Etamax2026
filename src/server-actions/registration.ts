@@ -74,7 +74,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
 
         await connectToDatabase();
 
-        // LOCK CHECK: Prevent new registrations ONLY if user has paid AND met all criteria
+        // LOCK CHECK REMOVED: User requested to allow payments even after criteria fulfilled.
+        /*
         const paidRegistrations = await Registration.find({
             userId: session.user.id,
             status: 'CONFIRMED'
@@ -90,6 +91,7 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                 return { error: 'Registration Locked: You have completed payment and fulfilled all criteria. No further registrations are allowed.' };
             }
         }
+        */
 
         // 1. Verify Event and Slot
         const event = await Event.findById(eventId).lean();
@@ -249,48 +251,45 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             if (teamDoc) {
                 const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
                 const isLeaderPaid = leader?.paymentStatus === 'PAID';
+                // If leader hasn't paid, we NOW create a PENDING registration so they are visible in Admin/Desk
+                // Previously: returned skipRegistration: true
 
-                // If leader hasn't paid, don't create registration - just return success
-                // User will be registered when leader pays via webhook
                 if (!isLeaderPaid) {
-                    revalidatePath('/profile');
-                    return {
-                        success: true,
-                        message: `Successfully joined team "${teamDoc.name}". Your registration will be confirmed once the team leader completes payment.`,
-                        teamCode: teamDoc.code,
-                        skipRegistration: true // Flag for UI
-                    };
+                    // Proceed but as PENDING
+                    console.log(`Member joining unpaid team ${teamDoc.name}, creating PENDING registration.`);
                 }
             }
         }
 
-
-
-        // Determine Status (only for cases where we're creating a registration)
-        let finalStatus = RegStatus.CONFIRMED;
+        // Determine Status
+        let finalStatus = RegStatus.PENDING; // Default to PENDING
         let leaderPaymentId = undefined;
         let leaderQrHash = undefined;
 
         if (parsed.data.teamAction === 'JOIN') {
-            // If we reach here, leader has already paid
-            finalStatus = RegStatus.CONFIRMED;
-
-            // FIX: Fetch Leader's Payment ID to link receipt
             const teamDoc = await Team.findById(teamId);
             if (teamDoc) {
-                const leaderReg = await Registration.findOne({
-                    userId: teamDoc.leaderId,
-                    eventId: eventId,
-                    status: RegStatus.CONFIRMED
-                });
-                if (leaderReg) {
-                    leaderPaymentId = leaderReg.paymentId;
-                    leaderQrHash = leaderReg.qrCodeHash;
+                const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
+                const isLeaderPaid = leader?.paymentStatus === 'PAID';
+
+                if (isLeaderPaid) {
+                    finalStatus = RegStatus.CONFIRMED;
+                    // Fetch Leader's Payment ID to link receipt
+                    const leaderReg = await Registration.findOne({
+                        userId: teamDoc.leaderId,
+                        eventId: eventId,
+                        status: RegStatus.CONFIRMED
+                    });
+                    if (leaderReg) {
+                        leaderPaymentId = leaderReg.paymentId;
+                        leaderQrHash = leaderReg.qrCodeHash;
+                    }
+                } else {
+                    finalStatus = RegStatus.PENDING;
                 }
             }
-
         } else {
-            // Fix: Both ONLINE and OFFLINE should start as PENDING. Only FREE is Confirmed.
+            // Create Team or Solo
             finalStatus = paymentMethod === 'FREE' ? RegStatus.CONFIRMED : RegStatus.PENDING;
         }
 
@@ -625,6 +624,20 @@ export async function updateRegistrationStatusAction(regId: string, newStatus: s
 
                         console.log(`Cascaded confirmation to all members of team ${team._id}`);
                     }
+                } else {
+                    // Check if ALL members are now PAID (Split Payment Completion)
+                    const allPaid = team.members.every((m: any) => m.paymentStatus === PaymentStatus.PAID);
+                    if (allPaid) {
+                        // Check Min Size
+                        const Event = (await import('@/models/Event')).default;
+                        const eventDoc = await Event.findById(team.eventId);
+                        const minSize = eventDoc?.minTeamSize || 2;
+
+                        if (team.members.length >= minSize) {
+                            team.status = TeamStatus.CONFIRMED;
+                            console.log(`Team ${team._id} confirmed via split payments.`);
+                        }
+                    }
                 }
 
                 await team.save();
@@ -849,6 +862,8 @@ export async function cancelRegistrationAction(regId: string) {
 
         revalidatePath('/events');
         revalidatePath('/profile');
+        revalidatePath('/admin/students');
+        revalidatePath('/club/students');
 
         return { success: true, message: 'Registration cancelled.' };
 

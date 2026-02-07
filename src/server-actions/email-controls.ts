@@ -164,7 +164,7 @@ export async function resendPasswordEmailAction(userId: string) {
                 </div>
                 <p style="font-size: 14px; color: #666;">An admin has reset your password. Please use these credentials to login.</p>
                 <div style="text-align: center; margin-top: 30px;">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL}/login?email=${encodeURIComponent(user.email)}&password=${encodeURIComponent(newPassword)}" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login Now</a>
+                    <a href="https://etamax2026.in/login" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login Now</a>
                 </div>
             </div>
         `;
