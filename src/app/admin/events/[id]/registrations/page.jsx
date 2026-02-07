@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { getEventRegistrationsAction, getSlotsAction } from '@/server-actions/events';
+import { getEventRegistrationsAction, getSlotsAction, getEventByIdAction } from '@/server-actions/events';
 import { updateRegistrationStatusAction } from '@/server-actions/registration';
 import { resendConfirmationEmailAction, resendPasswordEmailAction } from '@/server-actions/email-controls';
 import { useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ export default function EventRegistrationsPage({ params }) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [refreshing, setRefreshing] = useState(false);
+    const [event, setEvent] = useState(null);
 
     // Slots for Export
     const [slots, setSlots] = useState([]);
@@ -41,12 +42,14 @@ export default function EventRegistrationsPage({ params }) {
 
     useEffect(() => {
         fetchData();
-        // Fetch Slots
-        async function loadSlots() {
+        // Fetch Slots and Event
+        async function loadData() {
             const data = await getSlotsAction(id);
             setSlots(data);
+            const eventData = await getEventByIdAction(id);
+            setEvent(eventData);
         }
-        loadSlots();
+        loadData();
 
         // Optional: Auto-refresh every 30 seconds
         const interval = setInterval(() => fetchData(), 30000);
@@ -181,7 +184,11 @@ export default function EventRegistrationsPage({ params }) {
                 const autoTable = (await import('jspdf-autotable')).default;
 
                 const doc = new jsPDF('l'); // Landscape for more columns
-                doc.text("Event Attendance Sheet", 14, 15);
+
+                // HEADER with Event Name
+                doc.setFontSize(18);
+                doc.text(event?.name || "Event Attendance Sheet", 14, 15); // Large Font Event Name
+
                 doc.setFontSize(10);
                 doc.text(`Total: ${data.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
 

@@ -232,13 +232,19 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
             .populate('slotId')
             .populate({
                 path: 'teamId',
-                populate: {
-                    path: 'members.userId',
-                    model: 'User',
-                    select: 'name rollNumber branch email' // Fetch necessary details
-                }
+                populate: [
+                    {
+                        path: 'members.userId',
+                        model: 'User',
+                        select: 'name rollNumber branch email semester' // Added semester
+                    },
+                    {
+                        path: 'slotId', // Ensure Team Slot is populated
+                        model: 'Slot'
+                    }
+                ]
             })
-            .populate('userId', 'phone') // Populate phone from User
+            .populate('userId', 'phone semester') // Added semester
             .sort({ createdAt: -1 });
 
         // If limit is > 0, apply pagination
