@@ -125,23 +125,13 @@ export async function confirmDeskPaymentAction(regId: string) {
         // If part of a team, we MUST confirm the Leader to trigger the cascade (Leader Pays All model)
         // Unless we are already the leader
         // REMOVED REDIRECTION to allow split payments
-        /*
         if (initialReg.teamId) {
             // @ts-ignore
             const leaderId = initialReg.teamId.leaderId.toString();
             if (initialReg.userId.toString() !== leaderId) {
-                // Find Leader's Registration for this event
-                const leaderReg = await Registration.findOne({
-                    eventId: initialReg.eventId,
-                    userId: leaderId
-                });
-                if (leaderReg) {
-                    targetRegId = leaderReg._id.toString();
-                    console.log(`Redirecting confirmation from Member ${initialReg.fullName} to Leader ${leaderId}`);
-                }
+                return { error: "Only the Team Leader's payment can be confirmed for this event." };
             }
         }
-        */
 
         // 2. Call existing update logic (handles team cascade, email) on TARGET
         const result = await updateRegistrationStatusAction(targetRegId, RegStatus.CONFIRMED);

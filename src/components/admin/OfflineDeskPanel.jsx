@@ -66,10 +66,14 @@ export default function OfflineDeskPanel({ onClose }) {
     };
 
     const handleBulkConfirm = async () => {
-        const pendingRegs = registrations.filter(r => r.status === 'PENDING');
+        // Filter out team member events (waiting for leader)
+        const pendingRegs = registrations.filter(r =>
+            r.status === 'PENDING' &&
+            (!r.team || r.team.leaderId?.toString() === selectedStudent?._id?.toString())
+        );
 
         if (pendingRegs.length === 0) return;
-        if (!confirm(`Confirm CASH payment for ALL ${pendingRegs.length} pending events?`)) return;
+        if (!confirm(`Confirm CASH payment for ALL ${pendingRegs.length} payble events?`)) return;
 
         setIsBulkProcessing(true);
         const ids = pendingRegs.map(r => r._id);
@@ -85,10 +89,15 @@ export default function OfflineDeskPanel({ onClose }) {
         setIsBulkProcessing(false);
     };
 
-    const pendingCount = registrations.filter(r => r.status === 'PENDING').length;
-    const totalPendingAmount = registrations
-        .filter(r => r.status === 'PENDING')
-        .reduce((acc, curr) => acc + (curr.eventId?.price || 0), 0);
+    const pendingCount = registrations.filter(r => r.status === 'PENDING').length; // Keep total count for reference
+
+    // Calculate Payable Amount (Excluding team members waiting for leader)
+    const payableRegs = registrations.filter(r =>
+        r.status === 'PENDING' &&
+        (!r.team || r.team.leaderId?.toString() === selectedStudent?._id?.toString())
+    );
+
+    const totalPendingAmount = payableRegs.reduce((acc, curr) => acc + (curr.eventId?.price || 0), 0);
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end backdrop-blur-sm bg-black/40">
@@ -251,13 +260,17 @@ export default function OfflineDeskPanel({ onClose }) {
                                             const isPending = reg.status === 'PENDING';
                                             const isConfirmed = reg.status === 'CONFIRMED';
 
+                                            // Check if waiting for leader
+                                            const isWaitingForLeader = isPending && reg.team && reg.team.leaderId?.toString() !== selectedStudent?._id?.toString();
+
                                             return (
                                                 <div
                                                     key={reg._id}
                                                     className={`relative bg-[#1A1B1F] border rounded-2xl overflow-hidden transition-all duration-300 group
                                                         ${isConfirmed ? 'border-green-500/20 opacity-75 hover:opacity-100' :
-                                                            isPending ? 'border-yellow-500/20 hover:border-yellow-500/40 shadow-lg' :
-                                                                'border-white/5'
+                                                            isWaitingForLeader ? 'border-yellow-500/10 opacity-80' :
+                                                                isPending ? 'border-yellow-500/20 hover:border-yellow-500/40 shadow-lg' :
+                                                                    'border-white/5'
                                                         }`}
                                                 >
                                                     {/* Status Strip */}
@@ -299,6 +312,10 @@ export default function OfflineDeskPanel({ onClose }) {
                                                                 <div className="flex items-center gap-2 text-green-500 font-bold bg-green-500/10 px-4 py-2 rounded-lg border border-green-500/10">
                                                                     <CheckCircle size={18} />
                                                                     <span>PAID</span>
+                                                                </div>
+                                                            ) : isWaitingForLeader ? (
+                                                                <div className="px-4 py-2 bg-yellow-500/10 text-yellow-500 rounded-lg text-xs font-bold border border-yellow-500/10 text-center">
+                                                                    WAITING FOR LEADER
                                                                 </div>
                                                             ) : isPending ? (
                                                                 <button
