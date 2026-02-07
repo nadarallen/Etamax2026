@@ -39,6 +39,8 @@ function CreateEventForm({ state, formAction, isPending }) {
     // Controlled inputs to prevent React errors
     const [price, setPrice] = useState('');
     const [prizePool, setPrizePool] = useState('');
+    const [category, setCategory] = useState('Technical');
+    const [allowedBranches, setAllowedBranches] = useState([]);
 
     useEffect(() => {
         if (!isPaid) setPrice(0);
@@ -82,7 +84,12 @@ function CreateEventForm({ state, formAction, isPending }) {
                         </div>
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 ml-1">Category</label>
-                            <select name="category" className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors">
+                            <select
+                                name="category"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors"
+                            >
                                 <option value="Technical">Technical</option>
                                 <option value="Cultural">Cultural</option>
                                 <option value="Seminar">Seminar</option>
@@ -90,6 +97,14 @@ function CreateEventForm({ state, formAction, isPending }) {
                             </select>
                         </div>
                     </div>
+
+                    {category === 'Seminar' && (
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-2 ml-1">Restricted Branches (Optional)</label>
+                            <input type="hidden" name="allowedBranches" value={JSON.stringify(allowedBranches)} />
+                            <BranchSelector selected={allowedBranches} onChange={setAllowedBranches} />
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm text-gray-400 mb-1 ml-1">Max Members (per team)</label>
                         <input name="maxMembers" type="number" min="1" defaultValue="1" required className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-galaxy-purple focus:ring-1 focus:ring-galaxy-purple transition-colors" />
@@ -160,5 +175,39 @@ function CreateEventForm({ state, formAction, isPending }) {
                 </button>
             </div>
         </form>
+    );
+}
+
+function BranchSelector({ selected, onChange }) {
+    // Keep comps mech extc elect cse/it
+    const branches = ['COMPS', 'CSE/IT', 'EXTC', 'MECH', 'ELECT'];
+
+    const toggleBranch = (branch) => {
+        if (selected.includes(branch)) {
+            onChange(selected.filter(b => b !== branch));
+        } else {
+            onChange([...selected, branch]);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            {branches.map(branch => {
+                const isSelected = selected.includes(branch);
+                return (
+                    <button
+                        key={branch}
+                        type="button"
+                        onClick={() => toggleBranch(branch)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isSelected
+                            ? 'bg-galaxy-purple text-white border-galaxy-purple shadow-[0_0_10px_rgba(124,58,237,0.3)]'
+                            : 'bg-black/20 text-gray-400 border-white/10 hover:bg-white/5'
+                            }`}
+                    >
+                        {branch}
+                    </button>
+                );
+            })}
+        </div>
     );
 }

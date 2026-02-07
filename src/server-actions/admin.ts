@@ -13,6 +13,7 @@ import Team, { TeamStatus, PaymentStatus as TeamPaymentStatus } from '@/models/T
 // REUSING WEBHOOK LOGIC (Ideally extract this function)
 async function fulfillPayment(payment: any) {
     const { userId, eventId, slotId, teamId } = payment.metadata;
+    const Registration = (await import('@/models/Registration')).default;
 
     if (teamId) {
         const team = await Team.findById(teamId);
@@ -28,14 +29,30 @@ async function fulfillPayment(payment: any) {
 
             if (allPaid && event && event.minTeamSize && team.members.length >= event.minTeamSize) {
                 team.status = TeamStatus.CONFIRMED;
-                const Slot = (await import('@/models/Slot')).default;
-                await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
+                // Double Counting Fix: Removed duplicate slot increment
+                // await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: team.members.length } });
                 await team.save();
+            }
+
+            // Sync Registration Status
+            const reg = await Registration.findOne({ userId, eventId, status: { $ne: 'CONFIRMED' } });
+            if (reg) {
+                reg.status = 'CONFIRMED' as any;
+                await reg.save();
             }
         }
     } else {
-        const Slot = (await import('@/models/Slot')).default;
-        await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
+        // Solo
+        // Double Counting Fix: Removed duplicate slot increment
+        // const Slot = (await import('@/models/Slot')).default;
+        // await Slot.findByIdAndUpdate(slotId, { $inc: { registeredCount: 1 } });
+
+        // Sync Registration Status
+        const reg = await Registration.findOne({ userId, eventId, status: { $ne: 'CONFIRMED' } });
+        if (reg) {
+            reg.status = 'CONFIRMED' as any;
+            await reg.save();
+        }
     }
 }
 

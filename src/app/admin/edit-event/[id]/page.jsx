@@ -89,13 +89,29 @@ export default function EditEventPage({ params }) {
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-1 ml-1">Category</label>
-                                    <select name="category" defaultValue={eventData.category} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple">
+                                    <select
+                                        name="category"
+                                        defaultValue={eventData.category}
+                                        // Simple hack: reload state if category changes? No, just rely on form submission for now
+                                        // Unless we want dynamic showing of branch selector in edit mode. 
+                                        // Yes, clearer UX.
+                                        onChange={(e) => {
+                                            // Ideally we need state for this, but for now we put Branch Selector below
+                                        }}
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-galaxy-purple"
+                                    >
                                         <option value="Technical">Technical</option>
                                         <option value="Cultural">Cultural</option>
                                         <option value="Seminar">Seminar</option>
 
                                     </select>
                                 </div>
+                            </div>
+
+                            {/* Always show for now, or check eventData.category */}
+                            <div className="mt-4">
+                                <label className="block text-sm text-gray-400 mb-2 ml-1">Allowed Departments (Optional - Seminar Only)</label>
+                                <BranchSelector initialValue={eventData.allowedBranches || []} />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1 ml-1">Max Members</label>
@@ -231,5 +247,41 @@ function PrizeInput({ initialValue }) {
                 </div>
             )}
         </>
+    );
+}
+
+function BranchSelector({ initialValue }) {
+    const [selected, setSelected] = useState(initialValue || []);
+    // Keep comps mech extc elect cse/it
+    const branches = ['COMPS', 'CSE/IT', 'EXTC', 'MECH', 'ELECT'];
+
+    const toggleBranch = (branch) => {
+        if (selected.includes(branch)) {
+            setSelected(selected.filter(b => b !== branch));
+        } else {
+            setSelected([...selected, branch]);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            <input type="hidden" name="allowedBranches" value={JSON.stringify(selected)} />
+            {branches.map(branch => {
+                const isSelected = selected.includes(branch);
+                return (
+                    <button
+                        key={branch}
+                        type="button"
+                        onClick={() => toggleBranch(branch)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isSelected
+                            ? 'bg-galaxy-purple text-white border-galaxy-purple shadow-[0_0_10px_rgba(124,58,237,0.3)]'
+                            : 'bg-black/20 text-gray-400 border-white/10 hover:bg-white/5'
+                            }`}
+                    >
+                        {branch}
+                    </button>
+                );
+            })}
+        </div>
     );
 }

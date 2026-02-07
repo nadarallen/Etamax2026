@@ -258,6 +258,31 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
 
                         {/* Slot Selection */}
                         <div>
+                            {/* BRANCH RESTRICTION WARNING */}
+                            {event.allowedBranches && event.allowedBranches.length > 0 && (
+                                (() => {
+                                    const userBranch = userProfile?.branch?.toUpperCase();
+                                    // BSH is handled strictly, others might be mapped if needed (e.g. COMPS vs CSE)
+                                    // For now strict match
+                                    const isAllowed = userBranch && event.allowedBranches.includes(userBranch);
+
+                                    if (!isAllowed) {
+                                        return (
+                                            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold flex items-start gap-2">
+                                                <Lock size={16} className="mt-0.5 shrink-0" />
+                                                <div>
+                                                    <p>Restricted Event</p>
+                                                    <p className="font-normal text-xs text-red-400/80 mt-1">
+                                                        This seminar is only for students of: <span className="text-white">{event.allowedBranches.join(', ')}</span>.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()
+                            )}
+
                             <label className="block text-sm text-gray-400 mb-2 font-bold uppercase tracking-wider">Select Slot</label>
 
                             {loadingSlots ? (
@@ -485,6 +510,25 @@ export default function EventRegistrationModal({ event, isOpen, onClose, userPro
                                 >
                                     {isPending ? 'Propelling...' : 'Reserve Seat'}
                                 </button>
+                            )}
+                            {/* Disable if branch restriction fails (Double check in button disabled prop too if needed, but the warning above is clear) */}
+                            {event.allowedBranches && event.allowedBranches.length > 0 && userProfile?.branch && !event.allowedBranches.includes(userProfile.branch.toUpperCase()) && (
+                                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-xl cursor-not-allowed text-center p-6">
+                                    <div className="bg-red-500/10 border border-red-500/20 px-6 py-4 rounded-2xl text-red-500 text-lg font-bold shadow-2xl flex flex-col items-center gap-2 mb-6">
+                                        <Lock size={32} />
+                                        <span>Restricted Event</span>
+                                        <p className="text-xs font-normal text-red-400 opacity-80 mt-1">
+                                            This seminar is exclusively for <span className="text-white font-bold">{event.allowedBranches.join(', ')}</span> students.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold transition-all border border-white/5"
+                                    >
+                                        Go Back
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </form>

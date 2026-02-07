@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Download, Search, Check, X } from 'lucide-react';
 import { getStudentAnalyticsAction } from '@/server-actions/analytics';
+import { resendPasswordEmailAction } from '@/server-actions/email-controls';
+import { User } from 'lucide-react';
 
 export default function StudentAnalyticsView() {
     const [students, setStudents] = useState([]);
@@ -43,6 +45,13 @@ export default function StudentAnalyticsView() {
     });
 
     // CSV Download Logic
+    const handleResendPassword = async (userId) => {
+        if (!confirm('WARNING: This will RESET the users password and email them the new one. Continue?')) return;
+        const res = await resendPasswordEmailAction(userId);
+        if (res.success) alert(res.message);
+        else alert(res.error);
+    };
+
     const downloadCSV = () => {
         const headers = ['Roll Number', 'Name', 'Email', 'Phone', 'Branch', 'Semester', 'Payment Status', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
         const rows = filteredStudents.map(s => [
@@ -144,6 +153,13 @@ export default function StudentAnalyticsView() {
                                             <div className="text-xs text-gray-400">{student.rollNumber}</div>
                                             <div className="text-xs text-gray-500">{student.email}</div>
                                             <div className="text-xs text-gray-500">{student.phone || 'N/A'}</div>
+                                            <button
+                                                onClick={() => handleResendPassword(student.id)}
+                                                className="mt-2 text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 rounded border border-blue-500/20 transition-colors w-fit"
+                                                title="Reset Password & Email"
+                                            >
+                                                <User size={10} /> Reset PWD
+                                            </button>
                                         </td>
                                         <td className="p-4">
                                             <div className="text-white">{student.branch}</div>

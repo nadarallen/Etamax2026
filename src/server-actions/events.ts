@@ -21,6 +21,7 @@ const EventSchema = z.object({
 
     minTeamSize: z.coerce.number().min(1).default(1),
     maxTeamSize: z.coerce.number().min(1).default(4),
+    allowedBranches: z.array(z.string()).optional(),
 });
 
 const SlotSchema = z.object({
@@ -51,8 +52,18 @@ export async function createEventAction(prevState: EventState, formData: FormDat
             return { error: 'Unauthorized: Only Admins can create events.' };
         }
 
-        const data = Object.fromEntries(formData);
+        const data: any = Object.fromEntries(formData);
         console.log("Form Data Received:", JSON.stringify(data, null, 2));
+
+        // Parse allowedBranches JSON string to array if present
+        if (data.allowedBranches && typeof data.allowedBranches === 'string') {
+            try {
+                data.allowedBranches = JSON.parse(data.allowedBranches);
+            } catch (e) {
+                console.error("Failed to parse allowedBranches:", e);
+                data.allowedBranches = [];
+            }
+        }
 
         const parsed = EventSchema.safeParse(data);
 
@@ -63,7 +74,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
 
         const {
             name, type, club, category, maxMembers, price, prizePool, description,
-            minTeamSize, maxTeamSize
+            minTeamSize, maxTeamSize, allowedBranches
         } = parsed.data;
 
         // Auto-generate ID if not provided
@@ -100,6 +111,7 @@ export async function createEventAction(prevState: EventState, formData: FormDat
 
             minTeamSize,
             maxTeamSize,
+            allowedBranches: allowedBranches || [],
             isPublished: true
         });
 
@@ -333,6 +345,7 @@ export async function updateEventAction(prevState: EventState, formData: FormDat
 
             minTeamSize: Number(formData.get('minTeamSize')) || 1,
             maxTeamSize: Number(formData.get('maxTeamSize')) || 4,
+            allowedBranches: JSON.parse(formData.get('allowedBranches') as string || '[]'),
         };
 
         await Event.findByIdAndUpdate(dbId, updates);

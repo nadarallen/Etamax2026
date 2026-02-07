@@ -96,14 +96,18 @@
     }
   },
   {
-    "id": "Clean water ",
-    "name": "Clean water",
+    "id": "computer-dept-seminar",
+    "name": "Computer Dept Seminar (COMPS/IT)",
     "type": "solo",
-    "club": "Student Council",
+    "club": "Computer Department",
     "maxMembers": 1,
     "price": 0,
     "prizePool": "Certificates",
-    "description": "Awareness about clean water.",
+    "description": "Exclusive seminar for Computer and IT Dept students.",
+    "allowedBranches": [
+      "COMPS",
+      "CSE/IT"
+    ],
     "schedule": {
       "dayNumber": 1,
       "category": "Seminar",
@@ -112,32 +116,39 @@
     }
   },
   {
-    "id": "Go Green seminar",
-    "name": "Go Green seminar",
+    "id": "extc-dept-seminar",
+    "name": "EXTC Dept Seminar (Go Green)",
     "type": "solo",
-    "club": "Student Council",
+    "club": "EXTC Department",
     "maxMembers": 1,
     "price": 0,
     "prizePool": "Certificates",
-    "description": "Awareness about environment.",
+    "description": "Green Technology seminar for EXTC students.",
+    "allowedBranches": [
+      "EXTC",
+      "ELECT"
+    ],
     "schedule": {
-      "dayNumber":2,
+      "dayNumber": 2,
       "category": "Seminar",
       "timing": "02:00 PM - 04:00 PM",
       "venue": "Main Building"
     }
   },
-    {
-    "id": "Clean water seminar",
-    "name": "Clean water seminar",
+  {
+    "id": "mech-dept-seminar",
+    "name": "Mechanical Dept Seminar",
     "type": "solo",
-    "club": "Student Council",
+    "club": "Mechanical Department",
     "maxMembers": 1,
     "price": 0,
     "prizePool": "Certificates",
-    "description": "Awareness about clean water.",
+    "description": "Advanced Mechanics for Mechanical students.",
+    "allowedBranches": [
+      "MECH"
+    ],
     "schedule": {
-      "dayNumber":3,
+      "dayNumber": 3,
       "category": "Seminar",
       "timing": "02:00 PM - 04:00 PM",
       "venue": "Main Building"

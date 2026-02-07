@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import crypto from 'crypto';
 import { getSession, Role } from '@/lib/auth';
 import connectToDatabase from '@/lib/db';
 import Registration, { RegStatus } from '@/models/Registration';
@@ -93,6 +94,23 @@ export async function registerForEventAction(prevState: any, formData: FormData)
         // 1. Verify Event and Slot
         const event = await Event.findById(eventId).lean();
         if (!event) return { error: 'Event not found' };
+
+        // --- BRANCH RESTRICTION CHECK ---
+        const user = await User.findById(session.user.id).lean();
+        if (!user) return { error: 'User profile not found.' };
+
+        // Check if event has restrictions and if user's branch is allowed
+        if (event.allowedBranches && event.allowedBranches.length > 0) {
+            const userBranch = user.branch?.toUpperCase();
+            // Ensure we handle case where userBranch might be undefined (though User schema says required for students)
+            // If user is Admin, maybe bypass? But let's stick to prompt "student from comps".
+            if (!userBranch || !event.allowedBranches.includes(userBranch)) {
+                return {
+                    error: `Registration Restricted: This seminar is only available for students of: ${event.allowedBranches.join(', ')}.`
+                };
+            }
+        }
+        // --------------------------------
 
         const slot = await Slot.findById(slotId).lean();
         if (!slot) return { error: 'Slot not found' };
@@ -230,9 +248,10 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             const teamDoc = await Team.findById(teamId);
             if (teamDoc) {
                 const leader = teamDoc.members.find((m: any) => m.userId.toString() === teamDoc.leaderId.toString());
-                const isLeaderPaid = leader?.paymentStatus === STATUS_PAID;
+                const isLeaderPaid = leader?.paymentStatus === 'PAID';
 
                 // If leader hasn't paid, don't create registration - just return success
+                // User will be registered when leader pays via webhook
                 if (!isLeaderPaid) {
                     revalidatePath('/profile');
                     return {
@@ -245,11 +264,31 @@ export async function registerForEventAction(prevState: any, formData: FormData)
             }
         }
 
+
+
         // Determine Status (only for cases where we're creating a registration)
         let finalStatus = RegStatus.CONFIRMED;
+        let leaderPaymentId = undefined;
+        let leaderQrHash = undefined;
+
         if (parsed.data.teamAction === 'JOIN') {
             // If we reach here, leader has already paid
             finalStatus = RegStatus.CONFIRMED;
+
+            // FIX: Fetch Leader's Payment ID to link receipt
+            const teamDoc = await Team.findById(teamId);
+            if (teamDoc) {
+                const leaderReg = await Registration.findOne({
+                    userId: teamDoc.leaderId,
+                    eventId: eventId,
+                    status: RegStatus.CONFIRMED
+                });
+                if (leaderReg) {
+                    leaderPaymentId = leaderReg.paymentId;
+                    leaderQrHash = leaderReg.qrCodeHash;
+                }
+            }
+
         } else {
             // Fix: Both ONLINE and OFFLINE should start as PENDING. Only FREE is Confirmed.
             finalStatus = paymentMethod === 'FREE' ? RegStatus.CONFIRMED : RegStatus.PENDING;
@@ -289,6 +328,8 @@ export async function registerForEventAction(prevState: any, formData: FormData)
                 branch,
                 semester,
                 status: finalStatus,
+                paymentId: leaderPaymentId, // Added payment linkage
+                qrCodeHash: leaderQrHash || (finalStatus === RegStatus.CONFIRMED ? crypto.randomBytes(16).toString('hex') : undefined),
                 etamaxId
             });
         }

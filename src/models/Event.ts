@@ -15,7 +15,7 @@ export interface IEvent extends Document {
     updatedAt: Date;
     minTeamSize?: number;
     maxTeamSize?: number;
-
+    allowedBranches?: string[]; // Array of branch codes
 }
 
 const EventSchema: Schema = new Schema(
@@ -30,6 +30,7 @@ const EventSchema: Schema = new Schema(
         prizePool: { type: String, required: false },
         description: { type: String, required: false },
         isPublished: { type: Boolean, default: true, index: true },
+        allowedBranches: { type: [String], default: [] }, // Empty = All allowed
 
         minTeamSize: { type: Number, default: 1 }, // Added
         maxTeamSize: { type: Number, default: 4 }, // Added

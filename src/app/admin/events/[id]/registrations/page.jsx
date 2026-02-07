@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { getEventRegistrationsAction, getSlotsAction } from '@/server-actions/events';
 import { updateRegistrationStatusAction } from '@/server-actions/registration';
+import { resendConfirmationEmailAction, resendPasswordEmailAction } from '@/server-actions/email-controls';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, RefreshCw, Search, Mail, User, Calendar, Filter, Crown } from 'lucide-react';
 import Link from 'next/link';
@@ -147,6 +148,13 @@ export default function EventRegistrationsPage({ params }) {
         } else {
             alert('Failed to update status: ' + res.error);
         }
+    };
+
+    const handleResendConfirmation = async (regId) => {
+        if (!confirm('Resend Confirmation Email with Master Receipt?')) return;
+        const res = await resendConfirmationEmailAction(regId);
+        if (res.success) alert(res.message);
+        else alert(res.error);
     };
 
     const filtered = registrations.filter(reg => {
@@ -302,37 +310,52 @@ export default function EventRegistrationsPage({ params }) {
                                             <td className="p-4">
                                                 <div className="space-y-3">
                                                     {group.members.map((member) => (
-                                                        <div key={member._id} className="flex items-center justify-between gap-4 bg-black/20 p-2 rounded-lg border border-white/5">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
-                                                                    }`}>
-                                                                    {member.userId === group.team.leaderId ? 'L' : 'M'}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="text-sm text-white font-medium flex items-center gap-1">
-                                                                        {member.fullName}
-                                                                        {member.userId === group.team.leaderId && (
-                                                                            <Crown size={14} className="text-yellow-400 fill-yellow-400/20" />
-                                                                        )}
+                                                        <div key={member._id} className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
+                                                                        }`}>
+                                                                        {member.userId === group.team.leaderId ? 'L' : 'M'}
                                                                     </div>
-                                                                    <div className="text-[10px] text-gray-500">{member.rollNumber} • {member.branch}</div>
+                                                                    <div>
+                                                                        <div className="text-sm text-white font-medium flex items-center gap-1">
+                                                                            {member.fullName}
+                                                                            {member.userId === group.team.leaderId && (
+                                                                                <Crown size={14} className="text-yellow-400 fill-yellow-400/20" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-500">{member.rollNumber} • {member.branch}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Status Dropdown */}
+                                                                <div className="relative">
+                                                                    <select
+                                                                        value={member.status}
+                                                                        onChange={(e) => handleStatusChange(member._id, e.target.value)}
+                                                                        className={`appearance-none pl-2 pr-6 py-1 rounded text-[10px] font-bold border cursor-pointer focus:outline-none ${member.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                                            member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                                                'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                            }`}
+                                                                    >
+                                                                        <option value="CONFIRMED" className="bg-gray-900">PAID</option>
+                                                                        <option value="PENDING" className="bg-gray-900">PENDING</option>
+                                                                        <option value="CANCELLED" className="bg-gray-900">CANCELLED</option>
+                                                                    </select>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Status Dropdown */}
-                                                            <div className="relative">
-                                                                <select
-                                                                    value={member.status}
-                                                                    onChange={(e) => handleStatusChange(member._id, e.target.value)}
-                                                                    className={`appearance-none pl-2 pr-6 py-1 rounded text-[10px] font-bold border cursor-pointer focus:outline-none ${member.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                                        member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                                            'bg-red-500/10 text-red-400 border-red-500/20'
-                                                                        }`}
-                                                                >
-                                                                    <option value="CONFIRMED" className="bg-gray-900">PAID</option>
-                                                                    <option value="PENDING" className="bg-gray-900">PENDING</option>
-                                                                    <option value="CANCELLED" className="bg-gray-900">CANCELLED</option>
-                                                                </select>
+                                                            {/* Actions Row */}
+                                                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-white/5">
+                                                                {member.status === 'CONFIRMED' && (
+                                                                    <button
+                                                                        onClick={() => handleResendConfirmation(member._id)}
+                                                                        className="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1 px-2 py-1 bg-green-500/5 hover:bg-green-500/10 rounded"
+                                                                        title="Resend Confirmation Email"
+                                                                    >
+                                                                        <Mail size={10} /> Receipt
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -407,7 +430,7 @@ export default function EventRegistrationsPage({ params }) {
                                                 ) : <span className="text-gray-600 text-xs italic">Slot Deleted</span>}
                                             </td>
                                             <td className="p-4">
-                                                <div className="relative">
+                                                <div className="relative mb-2">
                                                     <select
                                                         value={reg.status}
                                                         onChange={(e) => handleStatusChange(reg._id, e.target.value)}
@@ -421,7 +444,19 @@ export default function EventRegistrationsPage({ params }) {
                                                         <option value="CANCELLED" className="bg-gray-900 text-red-400">CANCELLED</option>
                                                     </select>
                                                 </div>
-                                                <div className="mt-1 opacity-50 text-[10px] uppercase font-mono ml-1">{reg.paymentMethod}</div>
+                                                <div className="mt-1 opacity-50 text-[10px] uppercase font-mono ml-1 mb-2">{reg.paymentMethod}</div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {reg.status === 'CONFIRMED' && (
+                                                        <button
+                                                            onClick={() => handleResendConfirmation(reg._id)}
+                                                            className="text-[10px] text-green-400 hover:text-green-300 p-1.5 bg-green-500/5 hover:bg-green-500/10 rounded border border-green-500/10 transition-colors"
+                                                            title="Resend Confirmation Email"
+                                                        >
+                                                            <Mail size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-4 text-right text-xs text-gray-500 font-mono">
                                                 {new Date(reg.createdAt).toLocaleDateString()}
