@@ -78,7 +78,7 @@ function ProfileContent() {
     const hasUnpaidTeamDependency = false;
 
     // Check if there are actually pending payments
-    const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING' || r.paymentStatus === 'PENDING');
+    const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING');
 
     // Helper function to calculate price for a registration
     // Team leaders pay full price, team members pay 0
@@ -185,7 +185,7 @@ function ProfileContent() {
                                     </p>
                                     <div className="flex items-center gap-4 text-sm">
                                         <div className="bg-black/30 px-3 py-1 rounded-lg border border-white/10 text-gray-300">
-                                            Pending: <span className="text-white font-bold">{activeRegs.filter(r => r.status === 'PENDING' || r.paymentStatus !== 'PAID').length} Events</span>
+                                            Pending: <span className="text-white font-bold">{activeRegs.filter(r => r.status === 'PENDING').length} Events</span>
                                         </div>
                                         <div className="bg-galaxy-purple/20 px-3 py-1 rounded-lg border border-galaxy-purple/30 text-galaxy-accent">
                                             Total: <span className="text-white font-bold text-lg">

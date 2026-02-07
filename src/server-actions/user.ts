@@ -168,3 +168,97 @@ export async function getPendingTeamMembershipsAction() {
         return { error: 'Failed to fetch pending memberships' };
     }
 }
+
+// DELETE USER ACTION (Admin Only)
+export async function deleteUserAction(userId: string) {
+    const session = await getSession();
+    const role = session?.role?.toUpperCase();
+    if (!session || (role !== 'SUPER_ADMIN' && role !== 'CLUB_ADMIN')) {
+        return { error: 'Unauthorized: Only Admins can delete users.' };
+    }
+
+    try {
+        await connectToDatabase();
+        // Dynamic imports for models
+        const User = (await import('@/models/User')).default;
+        const Registration = (await import('@/models/Registration')).default;
+        const Team = (await import('@/models/Team')).default;
+        const Slot = (await import('@/models/Slot')).default;
+        const mongoose = (await import('mongoose')).default;
+
+        const userToDelete = await User.findById(userId);
+        if (!userToDelete) return { error: 'User not found' };
+
+        console.log(`[DELETE USER] Starting deletion for user: ${userToDelete.email} (${userId})`);
+
+        // 1. Handle Teams
+        // A. Teams where user is LEADER -> Dissolve Team
+        const ledTeams = await Team.find({ leaderId: userId });
+        for (const team of ledTeams) {
+            console.log(`[DELETE USER] Dissolving team ${team.name} led by user.`);
+
+            // Cancel registrations for ALL members
+            const memberRegs = await Registration.find({ teamId: team._id });
+            for (const reg of memberRegs) {
+                // Restore Slot Capacity
+                if (reg.slotId) {
+                    await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
+                }
+                await Registration.findByIdAndDelete(reg._id);
+            }
+
+            // Restore Team Slot Capacity
+            if (team.slotId) {
+                await Slot.findByIdAndUpdate(team.slotId, { $inc: { teamsCount: -1 } });
+            }
+
+            // Delete Team
+            await Team.findByIdAndDelete(team._id);
+        }
+
+        // B. Teams where user is MEMBER (but not leader) -> Remove from Team
+        const memberTeams = await Team.find({ 'members.userId': userId, leaderId: { $ne: userId } });
+        for (const team of memberTeams) {
+            console.log(`[DELETE USER] Removing user from team ${team.name}.`);
+            await Team.findByIdAndUpdate(team._id, {
+                $pull: { members: { userId: userId } }
+            });
+        }
+
+        // 2. Handle Individual Registrations (Solo or where logical links might remain)
+        // (Note: The team logic above handled registrations linked to teams led by this user. 
+        // We still need to catch any other registrations this user has, e.g. solo events or member registrations 
+        // if they weren't caught above - though member logic usually implies a registration exists)
+
+        const userRegs = await Registration.find({ userId: userId });
+        for (const reg of userRegs) {
+            console.log(`[DELETE USER] Deleting registration ${reg._id} for event ${reg.eventId}`);
+            // Restore Slot Capacity (if not already done by team logic)
+            // Safety check: verify if slot exists and decrement only if we haven't already processed this reg via ledTeams loop
+            // Since we deleted ledTeam regs above, find() won't return them if we await correctly.
+            // But to be safe, we just process what's left.
+            if (reg.slotId) {
+                await Slot.findByIdAndUpdate(reg.slotId, { $inc: { registeredCount: -1 } });
+            }
+            await Registration.findByIdAndDelete(reg._id);
+        }
+
+        // 3. Delete User Code/Payment Metadata (If any custom schemas exist - assuming none for now)
+
+        // 4. Delete User
+        await User.findByIdAndDelete(userId);
+        console.log(`[DELETE USER] User ${userId} deleted successfully.`);
+
+        // Revalidate
+        // Using dynamic import for revalidatePath to avoid edge runtime issues if any
+        const { revalidatePath } = await import('next/cache');
+        revalidatePath('/admin/students');
+        revalidatePath('/club/students');
+
+        return { success: true, message: `User ${userToDelete.name} deleted permanently.` };
+
+    } catch (error) {
+        console.error('Delete User Error:', error);
+        return { error: 'Failed to delete user' };
+    }
+}

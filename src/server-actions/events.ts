@@ -230,7 +230,14 @@ export async function getEventRegistrationsAction(eventId: string, page: number 
 
         let dbQuery = Registration.find(query)
             .populate('slotId')
-            .populate('teamId')
+            .populate({
+                path: 'teamId',
+                populate: {
+                    path: 'members.userId',
+                    model: 'User',
+                    select: 'name rollNumber branch email' // Fetch necessary details
+                }
+            })
             .populate('userId', 'phone') // Populate phone from User
             .sort({ createdAt: -1 });
 

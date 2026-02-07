@@ -309,53 +309,37 @@ export default function EventRegistrationsPage({ params }) {
                                             {/* Column 2: Members List with Status */}
                                             <td className="p-4">
                                                 <div className="space-y-3">
-                                                    {group.members.map((member) => (
-                                                        <div key={member._id} className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
+                                                    {(group.team.members || []).map((member) => (
+                                                        <div key={member.userId?._id || member._id} className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
                                                             <div className="flex items-center justify-between gap-4">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId?._id === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
                                                                         }`}>
-                                                                        {member.userId === group.team.leaderId ? 'L' : 'M'}
+                                                                        {member.userId?._id === group.team.leaderId ? 'L' : 'M'}
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-sm text-white font-medium flex items-center gap-1">
-                                                                            {member.fullName}
-                                                                            {member.userId === group.team.leaderId && (
+                                                                            {member.userId?.name || 'Unknown'}
+                                                                            {member.userId?._id === group.team.leaderId && (
                                                                                 <Crown size={14} className="text-yellow-400 fill-yellow-400/20" />
                                                                             )}
                                                                         </div>
-                                                                        <div className="text-[10px] text-gray-500">{member.rollNumber} • {member.branch}</div>
+                                                                        <div className="text-[10px] text-gray-500">{member.userId?.rollNumber} • {member.userId?.branch}</div>
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Status Dropdown */}
+                                                                {/* Status Dropdown - Note: We can't easily change status here for members who don't have a registration loaded in the current page, 
+                                                                    BUT for display purposes this at least shows the team structure correctly. 
+                                                                    To manipulate status, we'd need their reg ID. 
+                                                                    Ideally we should find the matching registration from the 'filtered' list if it exists. */}
                                                                 <div className="relative">
-                                                                    <select
-                                                                        value={member.status}
-                                                                        onChange={(e) => handleStatusChange(member._id, e.target.value)}
-                                                                        className={`appearance-none pl-2 pr-6 py-1 rounded text-[10px] font-bold border cursor-pointer focus:outline-none ${member.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                                            member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                                                'bg-red-500/10 text-red-400 border-red-500/20'
-                                                                            }`}
-                                                                    >
-                                                                        <option value="CONFIRMED" className="bg-gray-900">PAID</option>
-                                                                        <option value="PENDING" className="bg-gray-900">PENDING</option>
-                                                                        <option value="CANCELLED" className="bg-gray-900">CANCELLED</option>
-                                                                    </select>
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${member.status === 'CONFIRMED' || group.team.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                                        member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                                            'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                        }`}>
+                                                                        {group.team.status === 'CONFIRMED' ? 'CONFIRMED' : member.status}
+                                                                    </span>
                                                                 </div>
-                                                            </div>
-
-                                                            {/* Actions Row */}
-                                                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-white/5">
-                                                                {member.status === 'CONFIRMED' && (
-                                                                    <button
-                                                                        onClick={() => handleResendConfirmation(member._id)}
-                                                                        className="text-[10px] text-green-400 hover:text-green-300 flex items-center gap-1 px-2 py-1 bg-green-500/5 hover:bg-green-500/10 rounded"
-                                                                        title="Resend Confirmation Email"
-                                                                    >
-                                                                        <Mail size={10} /> Receipt
-                                                                    </button>
-                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}

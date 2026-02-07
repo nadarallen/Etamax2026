@@ -237,7 +237,7 @@ export default function TeamManager({ eventId }) { // Accept eventId prop
                                                             ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                                             : 'bg-red-500/10 text-red-400 border-red-500/20'
                                                             }`}>
-                                                            {isPaid ? (team.status === 'CONFIRMED' ? 'CONFIRMED' : 'PAID') : 'PENDING'}
+                                                            {team.status === 'CONFIRMED' ? 'CONFIRMED' : (isPaid ? 'PAID' : 'PENDING')}
                                                         </span>
                                                     </div>
 

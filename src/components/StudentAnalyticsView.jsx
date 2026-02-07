@@ -52,6 +52,27 @@ export default function StudentAnalyticsView() {
         else alert(res.error);
     };
 
+    const handleDeleteUser = async (userId, userName) => {
+        const confirmMsg = `DANGER: You are about to PERMANENTLY DELETE user "${userName}".\n\nThis will:\n- Delete their account\n- Delete all their registrations\n- Remove them from teams\n- DISSOLVE any teams they lead\n\nThis action cannot be undone.\n\nType "DELETE" to confirm.`;
+
+        const input = prompt(confirmMsg);
+        if (input !== 'DELETE') {
+            if (input !== null) alert("Deletion cancelled. You must type DELETE to confirm.");
+            return;
+        }
+
+        const { deleteUserAction } = await import('@/server-actions/user');
+        const res = await deleteUserAction(userId);
+
+        if (res.success) {
+            alert(res.message);
+            // Optimistic update
+            setStudents(prev => prev.filter(s => s.id !== userId));
+        } else {
+            alert('Failed to delete: ' + res.error);
+        }
+    };
+
     const downloadCSV = () => {
         const headers = ['Roll Number', 'Name', 'Email', 'Phone', 'Branch', 'Semester', 'Payment Status', 'Criteria Met', 'Tech', 'Cultural', 'Seminar', 'Events Participated'];
         const rows = filteredStudents.map(s => [
@@ -159,6 +180,13 @@ export default function StudentAnalyticsView() {
                                                 title="Reset Password & Email"
                                             >
                                                 <User size={10} /> Reset PWD
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteUser(student.id, student.name)}
+                                                className="mt-2 text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 px-2 py-1 bg-red-500/10 hover:bg-red-500/20 rounded border border-red-500/20 transition-colors w-fit ml-2"
+                                                title="PERMANENTLY DELETE USER"
+                                            >
+                                                <X size={10} /> DELETE
                                             </button>
                                         </td>
                                         <td className="p-4">
