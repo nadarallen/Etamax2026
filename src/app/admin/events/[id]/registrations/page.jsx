@@ -71,20 +71,97 @@ export default function EventRegistrationsPage({ params }) {
                 allRegs = allRegs.filter(r => r.slotId?._id === selectedSlot);
             }
 
-            const headers = ['ID', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Payment', 'Signature'];
-            const data = allRegs.map(reg => [
-                reg.etamaxId || 'N/A',
-                reg.fullName,
-                reg.rollNumber,
-                reg.email,
-                reg.branch,
-                reg.semester,
-                reg.slotId ? `D${reg.slotId.dayNumber} ${reg.slotId.startTime}` : 'Deleted',
-                reg.slotId?.venue || 'N/A',
-                reg.status,
-                reg.paymentMethod || 'Online',
-                '' // Signature
-            ]);
+            const headers = ['ID', 'Team', 'Name', 'Roll Number', 'Email', 'Branch', 'Semester', 'Slot Time', 'Venue', 'Status', 'Signature'];
+            const data = [];
+
+            const processedUserIds = new Set();
+
+            // Process registrations to group by Team
+            for (const reg of allRegs) {
+                // Skip if already processed (e.g., as part of a team expansion)
+                // Need to handle user ID safely (could be populated object or string)
+                const regUserId = reg.userId?._id || reg.userId;
+                if (processedUserIds.has(regUserId)) continue;
+
+                if (reg.teamId) {
+                    // It's a team! Add ALL members
+                    const team = reg.teamId;
+                    const members = team.members || [];
+
+                    // Sort members: Leader first, then others
+                    members.sort((a, b) => {
+                        const aId = a.userId?._id || a.userId;
+                        const bId = b.userId?._id || b.userId;
+                        if (aId === team.leaderId) return -1;
+                        if (bId === team.leaderId) return 1;
+                        return 0;
+                    });
+
+                    members.forEach(member => {
+                        const mUserId = member.userId?._id || member.userId;
+                        if (processedUserIds.has(mUserId)) return; // Already added?
+
+                        // Find if this member has a specific registration object in our list
+                        // (They might not if the list was filtered, but here 'allRegs' should have them if they are registered)
+                        const memberReg = allRegs.find(r => {
+                            const rUserId = r.userId?._id || r.userId;
+                            return rUserId === mUserId;
+                        });
+
+                        // Derive Details
+                        // Use Member User Object (populated) or fallback to Reg User Object
+                        const userObj = member.userId || (memberReg ? memberReg.userId : null);
+
+                        // Status Logic: Team Confirmed -> CONFIRMED
+                        const effectiveStatus = team.status === 'CONFIRMED' ? 'CONFIRMED' : (member.status || 'PENDING');
+
+                        if (userObj) {
+                            data.push([
+                                memberReg?.etamaxId || 'N/A',
+                                `${team.name} [${team.code}]`, // Team Column
+                                userObj.name || userObj.fullName || 'Unknown',
+                                userObj.rollNumber || 'N/A',
+                                userObj.email || 'N/A',
+                                userObj.branch || 'N/A',
+                                userObj.semester || 'N/A',
+                                team.slotId ? `D${team.slotId.dayNumber} ${team.slotId.startTime}` : (memberReg?.slotId ? `D${memberReg.slotId.dayNumber} ${memberReg.slotId.startTime}` : 'Deleted'),
+                                team.slotId?.venue || memberReg?.slotId?.venue || 'N/A',
+                                effectiveStatus,
+                                '' // Signature
+                            ]);
+                            processedUserIds.add(mUserId);
+                        }
+                    });
+
+                } else {
+                    // Solo Registration
+                    data.push([
+                        reg.etamaxId || 'N/A',
+                        'Individual', // Team Column
+                        reg.fullName,
+                        reg.rollNumber,
+                        reg.email,
+                        reg.branch,
+                        reg.semester,
+                        reg.slotId ? `D${reg.slotId.dayNumber} ${reg.slotId.startTime}` : 'Deleted',
+                        reg.slotId?.venue || 'N/A',
+                        reg.status,
+                        '' // Signature
+                    ]);
+                    processedUserIds.add(regUserId);
+                }
+            }
+
+            // Sort Data: Team Name (A-Z), then Name
+            data.sort((a, b) => {
+                const teamA = a[1];
+                const teamB = b[1];
+                if (teamA === 'Individual' && teamB !== 'Individual') return 1; // Put Individuals at bottom? Or top? Let's say bottom.
+                if (teamA !== 'Individual' && teamB === 'Individual') return -1;
+
+                if (teamA.localeCompare(teamB) !== 0) return teamA.localeCompare(teamB);
+                return a[2].localeCompare(b[2]); // Compare Names
+            });
 
             const filename = `attendance-${id}-${selectedSlot !== 'ALL' ? 'slot-' + selectedSlot : 'all'}`;
 
@@ -103,10 +180,10 @@ export default function EventRegistrationsPage({ params }) {
                 const jsPDF = (await import('jspdf')).default;
                 const autoTable = (await import('jspdf-autotable')).default;
 
-                const doc = new jsPDF();
+                const doc = new jsPDF('l'); // Landscape for more columns
                 doc.text("Event Attendance Sheet", 14, 15);
                 doc.setFontSize(10);
-                doc.text(`Total: ${allRegs.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
+                doc.text(`Total: ${data.length} | Generated: ${new Date().toLocaleString()}`, 14, 22);
 
                 if (selectedSlot !== 'ALL') {
                     const s = slots.find(s => s._id === selectedSlot);
@@ -123,7 +200,9 @@ export default function EventRegistrationsPage({ params }) {
                     styles: { fontSize: 8, cellPadding: 2 },
                     headStyles: { fillColor: [41, 128, 185] },
                     columnStyles: {
-                        10: { minCellWidth: 30 } // Signature column width
+                        1: { cellWidth: 25 }, // Team
+                        2: { cellWidth: 30 }, // Name
+                        10: { minCellWidth: 25 } // Signature
                     }
                 });
                 doc.save(`${filename}.pdf`);
