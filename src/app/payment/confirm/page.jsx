@@ -17,6 +17,7 @@ function PaymentConfirmContent() {
     const bypassCode = searchParams.get('bypass');
 
     const [pendingRegs, setPendingRegs] = useState([]);
+    const [waitingRegs, setWaitingRegs] = useState([]); // New state for team members
     const [allRegs, setAllRegs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
@@ -50,7 +51,22 @@ function PaymentConfirmContent() {
                         (r.status === 'CONFIRMED' && (!r.event?.price || r.event?.price === 0))
                     )
                 );
-                setPendingRegs(pending);
+
+                // Split into Payable and Waiting (Team Members)
+                const payable = [];
+                const waiting = [];
+
+                pending.forEach(r => {
+                    // Check if user is a member (not leader) of a team event
+                    if (r.team && r.team.leaderId && r.team.leaderId.toString() !== profile._id.toString()) {
+                        waiting.push(r);
+                    } else {
+                        payable.push(r);
+                    }
+                });
+
+                setPendingRegs(payable);
+                setWaitingRegs(waiting);
             }
         } catch (error) {
             console.error("Failed to load confirm data", error);
@@ -174,6 +190,30 @@ function PaymentConfirmContent() {
                 <div className="mb-8">
                     <CriteriaProgress registrations={allRegs} />
                 </div>
+
+                {/* Waiting for Leader Section */}
+                {waitingRegs.length > 0 && (
+                    <div className="mb-8 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-yellow-500 mt-1" />
+                            <div>
+                                <h3 className="text-yellow-400 font-bold text-lg">Waiting for Team Leader Payment</h3>
+                                <p className="text-gray-400 text-sm mb-3">
+                                    The following events must be paid for by your Team Leader.
+                                    Once they pay, your status will automatically update to CONFIRMED.
+                                </p>
+                                <div className="space-y-2">
+                                    {waitingRegs.map(reg => (
+                                        <div key={reg._id} className="flex items-center justify-between bg-black/20 p-2 rounded-lg text-sm">
+                                            <span className="text-white font-medium">{reg.event?.name}</span>
+                                            <span className="text-gray-500">{reg.team?.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {pendingRegs.length === 0 ? (
                     <div className="text-center py-12 bg-white/5 rounded-xl border border-white/5">

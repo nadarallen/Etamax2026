@@ -38,7 +38,11 @@ export async function initiatePaymentAction(eventId: string, slotId: string, tea
             if (!isMember) {
                 return { error: "You are not a member of this team." };
             }
-            // Removed "Only Leader" restriction to allow split payments
+
+            // Only Leader can pay for team events
+            if (team.leaderId.toString() !== session.user.id) {
+                return { error: "Only the Team Leader can initiate payment for the team." };
+            }
         }
 
         // Fetch User for Roll No

@@ -78,7 +78,13 @@ function ProfileContent() {
     const hasUnpaidTeamDependency = false;
 
     // Check if there are actually pending payments
-    const hasPendingPayments = activeRegs.some(r => r.status === 'PENDING');
+    const pendingEvents = activeRegs.filter(r => r.status === 'PENDING');
+
+    const payableEvents = pendingEvents.filter(r => !r.team || r.team.leaderId === user._id);
+    const waitingEvents = pendingEvents.filter(r => r.team && r.team.leaderId !== user._id);
+
+    const hasPayableEvents = payableEvents.length > 0;
+    const hasWaitingEvents = waitingEvents.length > 0;
 
     // Helper function to calculate price for a registration
     // Team leaders pay full price, team members pay 0
@@ -173,7 +179,7 @@ function ProfileContent() {
             <TeamManager />
 
             {/* Payment / Checkout Section */}
-            {hasPendingPayments && (
+            {(hasPayableEvents || hasWaitingEvents) && (
                 <div className="mb-10 p-6 bg-gradient-to-r from-galaxy-purple/10 to-blue-600/10 rounded-2xl border border-galaxy-purple/20 relative overflow-hidden">
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div>
@@ -183,21 +189,33 @@ function ProfileContent() {
                                     <p className="text-gray-300 mb-2">
                                         You have fulfilled all participation criteria!
                                     </p>
-                                    <div className="flex items-center gap-4 text-sm">
+                                    <div className="flex items-center gap-4 text-sm mb-3">
                                         <div className="bg-black/30 px-3 py-1 rounded-lg border border-white/10 text-gray-300">
                                             Pending: <span className="text-white font-bold">{activeRegs.filter(r => r.status === 'PENDING').length} Events</span>
                                         </div>
                                         <div className="bg-galaxy-purple/20 px-3 py-1 rounded-lg border border-galaxy-purple/30 text-galaxy-accent">
                                             Total: <span className="text-white font-bold text-lg">
                                                 {(() => {
-                                                    const amt = activeRegs
-                                                        .filter(r => r.status === 'PENDING')
+                                                    const amt = payableEvents
                                                         .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
                                                     return amt === 0 ? 'FREE' : `₹${amt}`;
                                                 })()}
                                             </span>
                                         </div>
                                     </div>
+
+                                    {/* Mixed Cart Alert */}
+                                    {hasWaitingEvents && (
+                                        <div className="bg-yellow-500/10 text-yellow-200 px-3 py-2 rounded-lg border border-yellow-500/20 text-xs flex items-center gap-2">
+                                            <span className="bg-yellow-500/20 w-5 h-5 flex items-center justify-center rounded-full text-[10px]">⚠</span>
+                                            <span>
+                                                {hasPayableEvents
+                                                    ? "Note: Team events are waiting for the Leader's payment. You can proceed with other events."
+                                                    : "Waiting for Team Leader to pay for team events."}
+                                            </span>
+                                        </div>
+                                    )}
+
                                 </div>
                             ) : (
                                 <p className="text-yellow-400 flex items-center gap-2">
@@ -211,27 +229,39 @@ function ProfileContent() {
                             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                                 {(isEligible || isBypassValid) && !hasUnpaidTeamDependency ? (
                                     <>
-                                        <Link
-                                            href={isBypassValid ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
-                                            className="w-full md:w-auto"
-                                        >
-                                            <button className="w-full cursor-pointer bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-95 flex flex-col items-center leading-none py-2 gap-1">
-                                                <span>Pay Online Now</span>
-                                                {(() => {
-                                                    const amt = activeRegs
-                                                        .filter(r => r.status === 'PENDING')
-                                                        .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
-                                                    if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
-                                                })()}
-                                            </button>
-                                        </Link>
-                                        <button
-                                            onClick={() => setShowOfflineModal(true)}
-                                            className="w-full md:w-auto cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/10 transition-all active:scale-95"
-                                        >
-                                            Pay Offline
-                                        </button>
-                                    </>
+                                        {hasPayableEvents ? (
+                                            <>
+                                                <Link
+                                                    href={isBypassValid ? `/payment/confirm?bypass=${encodeURIComponent(bypassCode)}` : "/payment/confirm"}
+                                                    className="w-full md:w-auto"
+                                                >
+                                                    <button className="w-full cursor-pointer bg-galaxy-purple hover:bg-galaxy-purple/90 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all active:scale-95 flex flex-col items-center leading-none py-2 gap-1">
+                                                        <span>Pay Online Now</span>
+                                                        {(() => {
+                                                            const amt = payableEvents
+                                                                .reduce((sum, r) => sum + getRegistrationPrice(r), 0);
+                                                            if (amt > 0) return <span className="text-[10px] opacity-80 font-normal">Amount: ₹{amt}</span>;
+                                                        })()}
+                                                    </button>
+                                                </Link>
+                                                <button
+                                                    onClick={() => setShowOfflineModal(true)}
+                                                    className="w-full md:w-auto cursor-pointer bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-8 rounded-xl border border-white/10 transition-all active:scale-95"
+                                                >
+                                                    Pay Offline
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col gap-2 w-full md:w-auto">
+                                                {/* Alert already shown above, but keep button area clean */}
+                                            </div>
+                                        )}    </>
+                                ) : hasWaitingEvents && !hasPayableEvents ? (
+                                    <div className="flex flex-col gap-2 w-full md:w-auto">
+                                        <div className="bg-yellow-500/20 text-yellow-200 px-4 py-3 rounded-xl border border-yellow-500/30 text-center text-sm font-bold">
+                                            Waiting for Team Leader to Pay
+                                        </div>
+                                    </div>
                                 ) : (
                                     <button disabled className="w-full md:w-auto opacity-50 cursor-not-allowed bg-gray-600 text-gray-300 font-bold py-3 px-8 rounded-xl border border-white/5">
                                         Payment Locked
