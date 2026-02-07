@@ -8,6 +8,7 @@ import User from '@/models/User';
 import Event from '@/models/Event';
 import Slot from '@/models/Slot';
 import { updateRegistrationStatusAction } from './registration';
+import { revalidatePath } from 'next/cache';
 
 // Desk Search Action
 export async function searchDeskRegistrationsAction(query: string) {

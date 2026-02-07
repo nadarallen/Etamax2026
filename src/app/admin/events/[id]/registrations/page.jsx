@@ -261,7 +261,7 @@ export default function EventRegistrationsPage({ params }) {
             </div>
 
             {/* Table */}
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden backdrop-blur-sm">
+            <div className="bg-white/10 border border-white/10 rounded-xl overflow-hidden backdrop-blur-sm">
                 <div className="overflow-x-auto">
                     {filtered.some(reg => reg.teamId) ? (
                         /* --- TEAM VIEW --- */
@@ -309,40 +309,63 @@ export default function EventRegistrationsPage({ params }) {
                                             {/* Column 2: Members List with Status */}
                                             <td className="p-4">
                                                 <div className="space-y-3">
-                                                    {(group.team.members || []).map((member) => (
-                                                        <div key={member.userId?._id || member._id} className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId?._id === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
-                                                                        }`}>
-                                                                        {member.userId?._id === group.team.leaderId ? 'L' : 'M'}
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="text-sm text-white font-medium flex items-center gap-1">
-                                                                            {member.userId?.name || 'Unknown'}
-                                                                            {member.userId?._id === group.team.leaderId && (
-                                                                                <Crown size={14} className="text-yellow-400 fill-yellow-400/20" />
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="text-[10px] text-gray-500">{member.userId?.rollNumber} • {member.userId?.branch}</div>
-                                                                    </div>
-                                                                </div>
+                                                    {(group.team.members || []).map((member) => {
+                                                        // Find the corresponding Registration for this member
+                                                        // safely access IDs
+                                                        const mId = member.userId?._id || member.userId;
 
-                                                                {/* Status Dropdown - Note: We can't easily change status here for members who don't have a registration loaded in the current page, 
-                                                                    BUT for display purposes this at least shows the team structure correctly. 
-                                                                    To manipulate status, we'd need their reg ID. 
-                                                                    Ideally we should find the matching registration from the 'filtered' list if it exists. */}
-                                                                <div className="relative">
-                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${member.status === 'CONFIRMED' || group.team.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                                        member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                                            'bg-red-500/10 text-red-400 border-red-500/20'
-                                                                        }`}>
-                                                                        {group.team.status === 'CONFIRMED' ? 'CONFIRMED' : member.status}
-                                                                    </span>
+                                                        const reg = group.members.find(r => {
+                                                            const rId = r.userId?._id || r.userId;
+                                                            return mId && rId && mId.toString() === rId.toString();
+                                                        });
+
+                                                        return (
+                                                            <div key={member.userId?._id || member._id} className="flex flex-col gap-2 bg-black/20 p-2 rounded-lg border border-white/5">
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${member.userId?._id === group.team.leaderId ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-400'
+                                                                            }`}>
+                                                                            {member.userId?._id === group.team.leaderId ? 'L' : 'M'}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="text-sm text-white font-medium flex items-center gap-1">
+                                                                                {member.userId?.name || 'Unknown'}
+                                                                                {member.userId?._id === group.team.leaderId && (
+                                                                                    <Crown size={14} className="text-yellow-400 fill-yellow-400/20" />
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="text-[10px] text-gray-500">{member.userId?.rollNumber} • {member.userId?.branch}</div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Status Dropdown - Now linked to actual Registration ID if found */}
+                                                                    <div className="relative">
+                                                                        {reg ? (
+                                                                            <select
+                                                                                value={reg.status}
+                                                                                onChange={(e) => handleStatusChange(reg._id, e.target.value)}
+                                                                                className={`appearance-none px-2 py-0.5 rounded text-[10px] font-bold border cursor-pointer focus:outline-none ${reg.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                                                    reg.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                                                        'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                                    }`}
+                                                                            >
+                                                                                <option value="CONFIRMED" className="bg-gray-900">CONFIRMED</option>
+                                                                                <option value="PENDING" className="bg-gray-900">PENDING</option>
+                                                                                <option value="CANCELLED" className="bg-gray-900">CANCELLED</option>
+                                                                            </select>
+                                                                        ) : (
+                                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${member.status === 'CONFIRMED' || group.team.status === 'CONFIRMED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                                                member.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                                                    'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                                }`}>
+                                                                                {member.status || 'UNKNOWN'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
 
