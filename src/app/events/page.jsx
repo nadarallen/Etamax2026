@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { logoutAction } from '@/server-actions/auth';
-import { LogOut, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { LogOut, User, AlertCircle, CheckCircle, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getEventsAction } from '@/server-actions/events';
@@ -116,6 +116,19 @@ export default function EventsPage() {
                             >
                                 <span className="font-medium text-sm whitespace-nowrap">About Us</span>
                             </button>
+                            <a
+                                href="https://etamax-game.vercel.app"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/20 hover:bg-galaxy-purple/30 text-white hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/40 flex-1 md:flex-none group relative overflow-hidden"
+                            >
+                                <Gamepad2 size={18} className="group-hover:rotate-12 transition-transform" />
+                                <span className="font-medium text-sm whitespace-nowrap">Play Game</span>
+                                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                                </span>
+                            </a>
                             <Link
                                 href="/profile"
                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-galaxy-purple/10 hover:bg-galaxy-purple/20 text-white hover:text-white rounded-xl transition-all duration-300 border border-galaxy-purple/20 flex-1 md:flex-none"
