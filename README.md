@@ -8,7 +8,7 @@ Welcome to the official repository for **Etamax 2026**, the annual cultural and 
 
 ### 👨‍🎓 For Students
 - **Seamless Registration**: Sign up and login to browse all events.
-- **Event Discovery**: Filter events by category (Technical, Cultural, Sports) and type (Solo, Duo, Group).
+- **Event Discovery**: Filter events by category (Technical, Cultural, Seminar) and type (Solo, Duo, Group).
 - **Team Management**: Create and manage teams for group events with a "My Teams" dashboard.
 - **Secure Payments**: Integrated **Razorpay** gateway for instant online payments.
 - **Live Status**: Track payment status (Confirmed/Pending) in real-time.
