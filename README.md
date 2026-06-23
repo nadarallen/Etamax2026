@@ -1,121 +1,355 @@
-# 🚀 Etamax 2026 - Official College Fest Platform
+# 🌌 Etamax 2026 - Official College Fest Platform
 
-Welcome to the official repository for **Etamax 2026**, the annual cultural and technical fest. This platform serves as the central hub for all fest activities, including event management, student registrations, payments, and administration.
+Welcome to the official repository for **Etamax 2026**, the annual cultural, technical, and sports festival platform. This custom-built software serves as the central mission control, orchestrating student registrations, team collaborations, secure payment gates, real-time ticket allocation, and comprehensive administrative command centers.
 
-![Etamax Theme](https://img.shields.io/badge/Theme-Galaxy%20%2F%20Space-purple?style=for-the-badge) ![Status](https://img.shields.io/badge/Status-In%20Development-green?style=for-the-badge)
+Designed with an immersive **Galaxy & Space exploration theme**, the platform uses dark backgrounds, neon accents, and canvas-based animations to deliver a premium user experience.
+
+---
+
+## 🚀 Technical Highlights & Badges
+
+[![Next.js 15](https://img.shields.io/badge/Framework-Next.js%2015%20(App%20Router)-blueviolet?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![MongoDB Atlas](https://img.shields.io/badge/Database-MongoDB%20Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Razorpay](https://img.shields.io/badge/Payments-Razorpay-02042B?style=for-the-badge&logo=razorpay&logoColor=white)](https://razorpay.com/)
+[![Upstash Redis](https://img.shields.io/badge/Rate%20Limiting-Upstash%20Redis-FF4A00?style=for-the-badge&logo=redis&logoColor=white)](https://upstash.com/)
+[![Theme](https://img.shields.io/badge/Theme-Cosmic%20%2F%20Galaxy-7928CA?style=for-the-badge&logo=nebula)](https://etamax2026.in)
+
+---
+
+## 📸 Screenshots & System Showcase
+
+### 📊 Real-time Student Analytics View
+Tracks participation checks, event registrations by category, and student departments in a glassmorphic space layout.
+![Student Analytics](./public/assets/showcase/1.jpeg)
+
+### 🪐 Events Dashboard & Management
+A control panel for event admins to edit slot timetables, create new events, access the offline registry desk, and export reports.
+![Event Management Dashboard](./public/assets/showcase/2.jpeg)
+
+### 🎥 System Demonstration Video
+Watch the checkout flow, team creation, slot selection, and webhook payment confirmation in action:
+![System Demo Video](./public/assets/showcase/TEST.mp4)
+
+---
 
 ## 🌟 Key Features
 
-### 👨‍🎓 For Students
-- **Seamless Registration**: Sign up and login to browse all events.
-- **Event Discovery**: Filter events by category (Technical, Cultural, Seminar) and type (Solo, Duo, Group).
-- **Team Management**: Create and manage teams for group events with a "My Teams" dashboard.
-- **Secure Payments**: Integrated **Razorpay** gateway for instant online payments.
-- **Live Status**: Track payment status (Confirmed/Pending) in real-time.
-- **Profile**: View registered events and slots.
+### 👨‍🚀 For Students (The Explorers)
+*   **Cosmic UI/UX**: Immersive space backgrounds, animated particles (`Galaxy.jsx`), and smooth page transitions powered by `Framer Motion`.
+*   **Dynamic Registration**: Real-time event search and filtering by Category (Technical, Cultural, Sports) and Type (Solo, Duo, Group).
+*   **Team Workspace**: Create and manage custom teams for group events through a dedicated "My Teams" control panel.
+*   **Secure Payment Pipeline**: Automated **Razorpay** integration with instant webhook verification to confirm slots.
+*   **Master Receipts**: PDF receipt generation containing event-specific entry slots and criteria validation.
+*   **Participation Checkers**: Visual progress trackers showing whether a student meets requirements (e.g., minimum solo/group registrations).
 
-### 🛡️ For Admins
-- **Interactive Dashboard**: Real-time statistics on total registrations, revenue, and usage.
-- **Event Management**: Create, edit, and delete events with custom pricing, team sizes, and slots.
-- **Slot Management**: dynamic slot allocation (Time, Venue, Day).
-- **Registration Reports**: View detailed lists of registered students.
-- **Export Data**: **Download PDF reports** and **Excel/CSV sheets** for every event with a single click.
-- **Offline Desk**: A dedicated "Rapid Payment" mode for on-spot registrations at the college desk.
+### 🛡️ For Administrators (The Controllers)
+*   **Real-time Analytics**: Interactive charts showing total registrants, revenue breakdown, and check-in metrics.
+*   **Flexible Event Architect**: Create, modify, and delete events with dynamic pricing, slot sizes, and schedules on the fly.
+*   **Rapid Offline Desk**: A specialized "Rapid Payment" interface designed to record on-the-spot cash payments at physical registration desks.
+*   **Bulk Data Exports**: Download formatted PDF registers and Excel/CSV sheets for every event with a single click.
+*   **Failover Email Notification**: A robust SMTP pipeline with automatic failover (switching between Hostinger and Google App passwords) to ensure registration receipts are always delivered.
 
-## 🛠️ Tech Stack
+---
 
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with custom Galaxy-themed animations.
-- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose ODM).
-- **Authentication**: Custom Session-based Auth with JOSE (JWT).
-- **Payment**: [Razorpay](https://razorpay.com/) Integration.
-- **Icons**: [Lucide React](https://lucide.dev/).
-- **Utilities**: `jspdf`, `jspdf-autotable`, `framer-motion`, `zod`.
+## 💾 Database Schema Architecture
 
-## 🚀 Getting Started (Run with Docker)
+The data storage layer uses MongoDB Atlas structured through Mongoose ODM schemas.
 
-This project uses **Docker** for a consistent and easy setup. You do not need Node.js installed on your machine, only Docker Desktop.
+```mermaid
+classDiagram
+    class User {
+        +ObjectId _id
+        +String name
+        +String email
+        +String rollNumber
+        +String branch
+        +String semester
+        +String role
+    }
+    class Event {
+        +String id
+        +String name
+        +String type (solo|duo|group)
+        +String category
+        +String club
+        +Number price
+        +Number minTeamSize
+        +Number maxTeamSize
+        +Boolean isPublished
+        +String[] allowedBranches
+    }
+    class Slot {
+        +ObjectId eventId
+        +Number dayNumber
+        +String startTime
+        +String endTime
+        +String venue
+        +Number maxCapacity
+        +Number registeredCount
+        +Number teamsCount
+        +String whatsappLink
+    }
+    class Registration {
+        +ObjectId userId
+        +ObjectId eventId
+        +ObjectId slotId
+        +ObjectId paymentId
+        +ObjectId teamId
+        +String fullName
+        +String rollNumber
+        +String email
+        +String branch
+        +String semester
+        +String status (PENDING|CONFIRMED|CANCELLED|ATTENDED)
+        +String etamaxId
+        +String qrCodeHash
+        +ObjectId confirmedBy
+        +Date confirmedAt
+        +Boolean emailSent
+    }
+    class Team {
+        +String name
+        +String code
+        +ObjectId eventId
+        +ObjectId leaderId
+        +Object[] members
+        +String status (OPEN|CONFIRMED|CANCELLED)
+        +ObjectId slotId
+        +Date expiresAt
+    }
+    class Payment {
+        +ObjectId userId
+        +String gatewayOrderId
+        +String gatewayPaymentId
+        +Number amount
+        +String status (PENDING|SUCCESS|FAILED)
+        +Object metadata
+    }
 
-### 1. Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
-
-### 2. Setup Environment
-Create a `.env` file in the root directory (or rename `.env.example`).
-**Critical Variables to Set:**
-```env
-# Database (Internal Docker)
-MONGODB_URI=mongodb://mongo:27017/etamax_prod
-
-# Secrets
-NEXTAUTH_SECRET=secure_random_string
-JWT_SECRET=secure_random_string
-
-# Admin Config (For Seeding)
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change_this_password
-
-# Redis
-UPSTASH_REDIS_REST_URL=http://redis-http:80
-UPSTASH_REDIS_REST_TOKEN=change_this_token
-
-# Payment (Razorpay)
-RAZORPAY_KEY_ID=your_key_id
-RAZORPAY_KEY_SECRET=your_key_secret
-NEXT_PUBLIC_RAZORPAY_KEY_ID=your_key_id
+    Registration --> User : references userId
+    Registration --> Event : references eventId
+    Registration --> Slot : references slotId
+    Registration --> Team : references teamId
+    Registration --> Payment : references paymentId
+    Slot --> Event : references eventId
+    Team --> Event : references eventId
+    Team --> User : references leaderId
+    Payment --> User : references userId
 ```
 
-### 3. Run Application
-Open your terminal in the project folder and run:
-```powershell
-docker compose up --build --scale app=1
+### Key Schema Optimizations
+*   **Compound Indexes**: A unique index on `{ userId: 1, eventId: 1 }` prevents duplicate student registrations for the same event at the database layer.
+*   **Auditing Snapshot**: The `Registration` document stores a snapshot of `fullName`, `rollNumber`, `branch`, and `semester` at the time of ticket checkout, ensuring records remain accurate even if students modify their profiles later.
+*   **Sparse Indexes**: `etamaxId` uses a sparse index to allow null values for pending checkouts while guaranteeing absolute uniqueness once confirmed.
+
+---
+
+## ⚙️ Core Architecture & Pipeline Workflows
+
+The platform leverages Next.js App Router API endpoints combined with Razorpay webhook routing to offer transactional consistency and robust failovers.
+
+### 1. Payment Lifecycle & Verification Flow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Student as Student (Browser)
+    participant NextJS as Next.js Server Actions
+    participant Mongo as MongoDB Atlas
+    participant Razorpay as Razorpay API
+    participant Webhook as Webhook Handler (/api/webhooks/razorpay)
+    participant SMTP as SMTP Failover Engine
+
+    Student->>NextJS: Choose Events & Click "Pay"
+    NextJS->>Mongo: Create Payment Record (PENDING) & Reserve Slot Capacity
+    NextJS->>Razorpay: Create Order ID
+    Razorpay-->>NextJS: Return Order ID
+    NextJS-->>Student: Initialize Razorpay Checkout Modal
+    Student->>Razorpay: Complete Payment (UPI/Card)
+    Razorpay->>Webhook: HTTP POST Webhook (payment.captured)
+    Note over Webhook: Validate Signature (HMAC-SHA256)
+    alt Signature is Valid
+        Webhook->>Mongo: Update Payment Status to SUCCESS
+        Webhook->>Mongo: Confirm Registrations (Generate ETAMAX IDs & QR Hashes)
+        Webhook->>SMTP: Trigger Email Dispatch
+        loop SMTP Failover Cycle
+            SMTP->>SMTP: Select Hostinger / Gmail SMTP Credentials
+            SMTP->>Student: Send Confirmation Email with Master Receipt
+            Note over SMTP: If success, break; if fail, rotate to next account
+        end
+        SMTP-->>Mongo: Update registrations with emailSent = true
+        Webhook-->>Razorpay: 200 OK Response
+    else Signature Invalid
+        Webhook-->>Razorpay: 400 Bad Request
+    end
 ```
-*Wait for the logs to say "Ready in xms".*
 
-### 4. Create Super Admin
-Once the app is running, open this link in your browser to create the Admin account automatically:
-👉 **[http://localhost/api/admin/seed](http://localhost/api/admin/seed)**
-
-You should see: `{"success": true, ...}`.
-
-#### 🚨 Emergency Manual Seeding
-If the automatic seeding fails or you cannot access the API, you can run the seed script directly inside the container:
-```powershell
-docker exec etamax2026-app-1 node scripts/seed-admin.js
+### 2. SMTP Failover & Rotation Engine
+To handle bulk confirmation emails and avoid hitting server-specific limit caps, the server rotates through multiple SMTP accounts automatically:
+```mermaid
+graph TD
+    A[Start Email Dispatch] --> B{Are SMTP accounts configured?}
+    B -- No --> C[Log Error: No Email Configured]
+    B -- Yes --> D[Index Configured SMTP Accounts]
+    D --> E[Select Current Active Account]
+    E --> F{Is it a Gmail Account?}
+    F -- Yes --> G[Configure Gmail Service Transport]
+    F -- No --> H[Configure SMTP Server Transport]
+    G --> I[Attempt to Send Email via Nodemailer]
+    H --> I
+    I --> J{Did send succeed?}
+    J -- Yes --> K[Set emailSent = true]
+    K --> L[Update MongoDB Registrations status]
+    L --> M[End Process - Success]
+    J -- No --> N[Log error for current account]
+    N --> O{Any remaining accounts in list?}
+    O -- Yes --> P[Advance to next account]
+    P --> E
+    O -- No --> Q[Log: All accounts failed]
+    Q --> R[End Process - Failover exhausted]
 ```
-*This uses the credentials defined in your `.env` file.*
 
-
-### 5. Database Cleanup (Post-Testing)
-To clear all test data (Users, Registrations, Teams) while keeping the Admin and Events:
-**Docker:**
-```powershell
-docker exec etamax2026-app-1 node scripts/cleanup-db.js
+### 3. Database Integrity & Capacity Rollback
+When transactions fail or are cancelled, the system automatically self-heals by rolling back reservations and releasing ticket capacities:
+```mermaid
+flowchart TD
+    A[Webhook receives payment.failed] --> B[Find Payment in MongoDB]
+    B --> C[Set Payment Status to FAILED]
+    C --> D{Is it a Team Event?}
+    D -- Yes --> E[Find Team in MongoDB]
+    E --> F[Delete all Registrations created by this payment]
+    F --> G[Revert Team Status to OPEN]
+    G --> H[Mark all Members paymentStatus as PENDING]
+    H --> I[Decrement Slot teamsCount by 1]
+    I --> L[Send Payment Failed Email to Student]
+    D -- No --> J[Delete Solo Registration created by this payment]
+    J --> K[Decrement Slot registeredCount by 1]
+    K --> L
+    L --> M[End Cleanup Process]
 ```
-**Local:**
-```powershell
-node scripts/cleanup-db.js
+
+---
+
+## 🧬 Business & System Rules
+
+### 🎓 Student Event Participation Criteria
+To earn completion and gain access to event WhatsApp groups, each student profile must satisfy the following dynamic checks evaluated in [criteria.ts](file:///d:/my%20study/Project/Etamax2026/src/lib/criteria.ts):
+1.  **Day Coverage**: At least one confirmed registration on **Day 1**, **Day 2**, and **Day 3** of the festival.
+2.  **Category Coverage**: At least one registration in each of the following categories: **Technical**, **Cultural**, and **Seminar**.
+3.  **Team Engagement**: Minimum of one **Team Event** registration (solo-only profiles are flagged as pending).
+
+### 🏦 Admin Offline Desk Cascades ("Leader Pays All")
+The rapid offline cash payment desk utilizes a leader-driven model to process team transactions:
+*   An admin searches for a student at the physical registration desk and selects their profile.
+*   The system loads all pending event fees. For team events, **only the Team Leader** has an "Approve Cash" button.
+*   Once the admin approves the leader's cash registration, the server cascades confirmation to **all other team members**, automatically generating their respective `Registration` models, ETAMAX tickets, and QR verification hashes.
+
+---
+
+## 📂 Project Directory Structure
+
+The repository is organized following clean, modular Next.js architecture guidelines:
+
+```
+Etamax2026/
+├── docs/                      # Documentation and developer guides
+│   └── failover-email-guide.md
+├── nginx/                     # Reverse proxy and server configurations
+├── public/                    # Static assets, branding, and showcases
+│   └── assets/showcase/       # Demo video and screenshot assets
+├── scripts/                   # Seeding, verification, and testing utilities
+│   ├── check_env.js           # Validates current local environment variables
+│   ├── seed-events.js         # Seeds the DB with official festival events
+│   ├── test-email.js          # Tests nodemailer configurations
+│   └── verify-mongo.js        # Tests MongoDB connection credentials
+├── src/
+│   ├── app/                   # Next.js App Router (Pages & API Endpoints)
+│   │   ├── admin/             # Admin dashboard panels & analytics
+│   │   ├── api/               # Server-side API endpoints & Razorpay webhooks
+│   │   ├── events/            # Space-themed event explorer
+│   │   ├── payment/           # Payment gateway checkout interface
+│   │   └── profile/           # Student profile & registered events
+│   ├── components/            # Reusable UI widgets and layout modules
+│   │   ├── admin/             # Specialized panels (OfflineDeskPanel, QuickExport)
+│   │   ├── ui/                # Core interactive elements (buttons, inputs)
+│   │   ├── Galaxy.jsx         # Canvas-based background animation
+│   │   └── TeamManager.jsx    # Component managing team creations
+│   ├── data/                  # Event datasets and layout mappings
+│   ├── hooks/                 # Custom React state hooks
+│   ├── lib/                   # Database instance and auth handler singletons
+│   ├── models/                # MongoDB Mongoose collection schemas
+│   ├── server-actions/        # Secure server-side database mutation operations
+│   └── utils/                 # General utility scripts and formats
+├── .env.example               # Standard environment variable template
+├── Dockerfile                 # Multi-stage production container setup
+└── docker-compose.yml         # Local container development configuration
 ```
 
-### 6. Access the App
-- **Website**: [http://localhost](http://localhost)
-- **Admin Login**: [http://localhost/login](http://localhost/login) (Use credentials from `.env`)
+---
 
-## 📂 Project Structure
+## 🛠️ Installation & Setup
 
-- `src/app`: Next.js App Router pages.
-- `src/components`: Reusable UI components (Modals, Cards, Forms).
-- `src/server-actions`: Server-side logic for DB operations (Secure).
-- `src/models`: Mongoose schemas (User, Event, Team, Registration).
-- `src/lib`: Utility functions (DB connection, Auth helpers).
+Set up your local environment in minutes:
 
-## 🤝 Contribution
+### 1. Clone the Space Station
+```bash
+git clone https://github.com/abhishekkulbainur/Etamax2026.git
+cd Etamax2026
+```
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+### 2. Install Core Dependencies
+Ensure you have `Node.js 20+` installed:
+```bash
+npm install
+```
 
-## 📄 License
+### 3. Configure the Environment
+Duplicate the environment template file and customize it:
+```bash
+cp .env.example .env.local
+```
+Open `.env.local` in your preferred editor and fill in your connection strings and api credentials:
+*   `MONGODB_URI`: Connection string for Atlas or local MongoDB instance.
+*   `JWT_SECRET`: Random string used to sign user auth tokens.
+*   `RAZORPAY_KEY_ID`: API key from your Razorpay Dashboard.
+*   `UPSTASH_REDIS_REST_URL`: Credentials for middleware request rate limiting.
 
-This project is proprietary software for **Etamax 2026**.
+### 4. Run Environment Diagnostics
+Verify your credentials and databases are functional:
+```bash
+# Test MongoDB connection
+node scripts/verify-mongo.js
+
+# Check for missing environment variables
+node scripts/check_env.js
+```
+
+### 5. Seed Initial Data
+Populate your database with the default event schedule:
+```bash
+node scripts/seed-events.js
+```
+
+### 6. Launch the Launchpad (Development Server)
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view your local space station!
+
+---
+
+## 🐳 Docker Deployment
+
+The application features fully optimized Docker container configurations:
+
+```bash
+# Start Nginx, App, MongoDB, and Redis containers in detached mode
+docker-compose up -d
+```
+The Docker setup compiles the Next.js app in `standalone` output mode to guarantee minimal container image sizing and maximum throughput.
+
+---
+
+## 🛡️ License & Copyright
+
+This project is proprietary software custom-designed for **Etamax 2026**. All rights reserved.
