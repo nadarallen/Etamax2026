@@ -175,7 +175,7 @@ sequenceDiagram
         loop SMTP Failover Cycle
             SMTP->>SMTP: Select Hostinger / Gmail SMTP Credentials
             SMTP->>Student: Send Confirmation Email with Master Receipt
-            Note over SMTP: If success, break; if fail, rotate to next account
+            Note over SMTP: If success, break — if fail, rotate to next account
         end
         SMTP-->>Mongo: Update registrations with emailSent = true
         Webhook-->>Razorpay: 200 OK Response
